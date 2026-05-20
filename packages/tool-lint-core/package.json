@@ -1,0 +1,10 @@
+{
+  "name": "@55ndeep/tool-lint-core",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "dependencies": { "@55ndeep/core-types": "*", "@55ndeep/core-events": "*", "@55ndeep/core-logging": "*" },
+  "devDependencies": {}
+}

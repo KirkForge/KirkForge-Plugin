@@ -1,0 +1,60 @@
+import type { LintRule } from "@55ndeep/tool-lint-core";
+
+export const correctRules: LintRule[] = [
+  {
+    id: "no-eq-null",
+    category: "correct",
+    severity: "high",
+    pattern: /[!=]=\s*\bnull\b/g,
+    message: "Use === null or !== null instead of == null / != null",
+  },
+  {
+    id: "no-duplicate-imports",
+    category: "correct",
+    severity: "med",
+    pattern: /^import\s+.*from\s+['\"](.+)['\"]\s*;?\s*\n.*import\s+.*from\s+['\"]\1['\"]/gm,
+    message: "Duplicate import from same module; consolidate imports",
+  },
+  {
+    id: "no-unreachable",
+    category: "correct",
+    severity: "high",
+    pattern: /(?:return|throw|break|continue)\s[^\n]*\n\s*\S/g,
+    message: "Unreachable code detected after return/throw/break/continue",
+  },
+  {
+    id: "no-fallthrough",
+    category: "correct",
+    severity: "med",
+    pattern: /case\s[^:]+:\s*\n(?!.*\b(?:break|return|throw)\b)(?=.*\bcase\b)/g,
+    message: "Switch case fallthrough without break/return/throw",
+  },
+  {
+    id: "no-misused-promise",
+    category: "correct",
+    severity: "high",
+    pattern: /\b(?!const\s+\w+\s*=\s*await\s)(\w+)\.(?:then|catch)\s*\(/g,
+    message: "Promise chain without assignment; missing await?",
+  },
+  {
+    id: "no-return-await",
+    category: "correct",
+    severity: "low",
+    pattern: /\breturn\s+await\b/g,
+    message: "Redundant await in return; just return the promise",
+  },
+  {
+    id: "no-throw-literal",
+    category: "correct",
+    severity: "high",
+    pattern: /\bthrow\s+(?!new\s+Error)(['\"\d])/g,
+    message: "Throw Error instances, not string or number literals",
+  },
+  {
+    id: "no-unsafe-optional",
+    category: "correct",
+    severity: "med",
+    pattern: /(\w+)\?\\.[\w.]+\(/g,
+    message: "Optional chaining before function call may throw if undefined",
+  },
+];
