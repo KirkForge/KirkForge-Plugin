@@ -7,7 +7,10 @@
   },
   "references": [
     {
-      "path": "../../packages/core-types"
+      "path": "../../packages/api-server"
+    },
+    {
+      "path": "../../packages/core-config"
     },
     {
       "path": "../../packages/core-errors"
@@ -16,10 +19,22 @@
       "path": "../../packages/core-events"
     },
     {
+      "path": "../../packages/core-lifecycle"
+    },
+    {
       "path": "../../packages/core-logging"
     },
     {
-      "path": "../../packages/core-config"
+      "path": "../../packages/core-migrations"
+    },
+    {
+      "path": "../../packages/core-tenancy"
+    },
+    {
+      "path": "../../packages/core-types"
+    },
+    {
+      "path": "../../packages/memory-palace"
     },
     {
       "path": "../../packages/model-config"
@@ -28,13 +43,7 @@
       "path": "../../packages/orchestrator"
     },
     {
-      "path": "../../packages/memory-palace"
-    },
-    {
       "path": "../../packages/plugin"
-    },
-    {
-      "path": "../../packages/core-tenancy"
     }
   ],
   "exclude": [

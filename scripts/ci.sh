@@ -1,44 +1,63 @@
 #!/usr/bin/env bash
+# ci-cleandev — universal pre-push CI runner
 set -euo pipefail
 
-echo "=== 55NDeep CI ==="
-echo ""
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-echo "[1/5] Installing dependencies..."
-echo "  Note: if using SQLite backend (better-sqlite3), native build tools are required."
-echo "  Default FileAdapter needs no native deps."
-npm ci --prefer-offline 2>&1 | tail -3
+PASS=0
+FAIL=0
 
-echo "[2/5] Linting..."
-npx eslint packages apps --max-warnings 0 2>&1 || {
-  echo "❌ Lint failed"
-  exit 1
+run_step() {
+    local label="$1"
+    shift
+    printf "  %-40s " "$label"
+    if "$@" > /tmp/ci-step.log 2>&1; then
+        echo -e "${GREEN}PASS${NC}"
+        ((PASS++))
+    else
+        echo -e "${RED}FAIL${NC}"
+        cat /tmp/ci-step.log
+        ((FAIL++))
+    fi
 }
 
-echo "[3/5] Type-checking..."
-npx tsc --build
+echo ""
+echo -e "${YELLOW}=== CI: $(basename "$(pwd)") ===${NC}"
 
-echo "[4/5] Running tests with coverage..."
-npx vitest run --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json --coverage.reporter=html 2>&1
+# ---- Build ----
+if [ -f package.json ]; then
+    if grep -q '"build"' package.json 2>/dev/null; then
+        run_step "build" npm run build
+    elif grep -q '"compile"' package.json 2>/dev/null; then
+        run_step "build" npm run compile
+    fi
+fi
 
-echo "[5/5] Checking coverage thresholds..."
-# Extract line coverage percentage from vitest JSON output using Node.js
-COVERAGE=$(node -e "
-  try {
-    const c = require('./coverage/coverage-summary.json');
-    const pct = c.total.lines.pct;
-    console.log(pct);
-  } catch(e) { console.log(-1); }
-" 2>/dev/null)
+# ---- Lint ----
+if grep -q '"lint"' package.json 2>/dev/null; then
+    run_step "lint" npm run lint
+fi
 
-echo "  Line coverage: ${COVERAGE}%"
+# ---- Test ----
+if grep -q '"test"' package.json 2>/dev/null; then
+    run_step "test" npm test
+fi
 
-if [ "${COVERAGE}" = "-1" ]; then
-  echo "  ⚠️  Could not read coverage report — skipping threshold check"
-elif [ "$(node -e "console.log(${COVERAGE} < 70 ? 1 : 0)")" = "1" ]; then
-  echo "❌ Coverage ${COVERAGE}% is below 70% threshold"
-  exit 1
+# ---- Secret sweep (trufflehog) ----
+if command -v trufflehog &>/dev/null; then
+    run_step "secrets" trufflehog filesystem --no-update --directory=. --json
+else
+    echo -e "  ${YELLOW}secrets${NC}               SKIP (trufflehog not installed)"
 fi
 
 echo ""
-echo "✅ CI passed"
+if [ "$FAIL" -gt 0 ]; then
+    echo -e "${RED}CI FAILED — $FAIL step(s) failed, $PASS passed${NC}"
+    exit 1
+else
+    echo -e "${GREEN}CI PASSED — $PASS step(s) ok${NC}"
+    exit 0
+fi

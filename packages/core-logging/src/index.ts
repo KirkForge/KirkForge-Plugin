@@ -146,3 +146,57 @@ export class Logger {
 export function createLogger(options?: LoggerOptions): Logger {
   return new Logger(options);
 }
+
+// ── Trace context injection ────────────────────────────────────────────────
+
+/**
+ * Extract the current OpenTelemetry trace and span IDs from context,
+ * if available. Returns null when no active span exists.
+ */
+export function getTraceContext(): { traceId: string; spanId: string } | null {
+  try {
+    const { trace } = require("@opentelemetry/api") as typeof import("@opentelemetry/api");
+    const span = trace.getActiveSpan();
+    if (!span) return null;
+    const ctx = span.spanContext();
+    if (!ctx.traceId || !ctx.spanId) return null;
+    return { traceId: ctx.traceId, spanId: ctx.spanId };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Logger decorator that injects trace context into every log entry.
+ * Use this to create a logger that automatically propagates trace IDs.
+ *
+ * Usage:
+ * ```
+ * const logger = createLogger({ level: "info" });
+ * const tracingLogger = withTraceContext(logger);
+ * tracingLogger.info("Request handled"); // includes traceId, spanId in context
+ * ```
+ */
+export function withTraceContext(logger: Logger): Logger {
+  const enrichedTransports: LogTransport[] = (logger as any)._transports.map(
+    (t: LogTransport) => ({
+      write(entry: LogEntry): void {
+        const tc = getTraceContext();
+        const enriched: LogEntry = tc
+          ? { ...entry, context: { ...entry.context, ...tc } }
+          : entry;
+        t.write(enriched);
+      },
+      flush: t.flush?.bind(t),
+      close: t.close?.bind(t),
+    }),
+  );
+
+  const enriched = new Logger({ level: logger.level, format: "json" });
+  (enriched as any)._transports = enrichedTransports;
+  Object.defineProperty(enriched, "_level", {
+    get: () => logger.level,
+    set: (v: LogLevel) => { logger.level = v; },
+  });
+  return enriched;
+}

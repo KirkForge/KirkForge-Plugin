@@ -74,7 +74,6 @@ export class ConfigService {
    */
   getPath(subPath: string): string {
     const resolved = resolve(this._config.workspace, subPath);
-    // Ensure the resolved path stays within the workspace
     const workspaceAbs = resolve(this._config.workspace);
     const rel = relative(workspaceAbs, resolved);
     if (rel.startsWith("..") || isAbsolute(rel)) {
@@ -96,5 +95,26 @@ function deepMerge<T extends Record<string, unknown>>(base: T, overrides: Partia
   return result as T;
 }
 
+// ── Backward-compatible exports ──────────────────────────────────────────
 export { validateEnvVars, resolveMemoryPath } from "./55ndeep-config.js";
 export type { NDeepLegacyConfig } from "./55ndeep-config.js";
+
+// ── New enterprise config exports ────────────────────────────────────────
+export {
+  OrchestratorConfigSchema,
+  ToolConfigSchema,
+  LoggingConfigSchema,
+  MemoryConfigSchema,
+  ProviderConfigSchema,
+  ProvidersMapSchema,
+  AppConfigSchema,
+  validateConfig,
+  validatePartialConfig,
+  validateProvider,
+  defaultAppConfig,
+} from "./55ndeep-config.js";
+
+export type {
+  ValidatedConfig,
+  AppConfig,
+} from "./55ndeep-config.js";

@@ -166,3 +166,37 @@ All B1-B20 bugs fixed. 419 tests pass, 27 suites, no hangs (~57s).
 ### Build & test
 - `tsc --build`: clean
 - All lint package tests pass: 30 tests across C, Rust, Go, SQL, Shell, TS, Python
+
+---
+
+## v8.5 — Enterprise API, error catalog, graceful shutdown, migrations, CI/CD (2026-05-20)
+
+### New packages (4)
+- **`api-server`** — REST API server with middleware stack (CORS, Bearer auth, rate limiting, request ID tracing). 7 endpoints: `/health`, `/health/live`, `/health/ready`, `/delegate`, `/run`, `/verify`, `/stats`, `/slo`. API versioning via `/api/v1/*`. Full Zod request validation and structured error responses.
+- **`core-lifecycle`** — `GracefulShutdown` manager: ordered hook execution, per-hook timeouts, global drain deadline, signal handling. PID file management: `writePidFile`, `readPidFile`, `enforceSingleInstance`.
+- **`core-migrations`** — `MigrationRunner` with up/down/status, transaction wrapping, dry-run mode. 3 built-in migrations: `V1_INITIAL_SCHEMA`, `V2_ADD_RUNS`, `V3_ADD_EMISSIONS`.
+- **`core-errors`** — Standardized error catalog: 28 error codes mapped to HTTP status codes and categories. New classes: `AuthError`, `NotFoundError`, `RateLimitError`, `ConcurrencyError`. `toErrorResponse()` for API serialization.
+
+### Enhanced packages
+- **`core-config`** — Zod validation schemas: `AppConfigSchema`, `ProviderConfigSchema`, `validateConfig()`, `validatePartialConfig()`, `validateProvider()`, `defaultAppConfig()`.
+- **`core-telemetry`** — Metrics recording: delegation counter, duration histogram, token counter, error counter, active tasks gauge.
+- **`core-logging`** — `getTraceContext()` and `withTraceContext()` for OTel trace ID injection into log entries.
+
+### CLI changes
+- `serve` command now runs **both** health server (port 9090) and API server (port 8080). Supports `--no-api`, `--api-port`, `--health-port`. Uses `GracefulShutdown` lifecycle for coordinated draining.
+
+### CI/CD
+- `.github/workflows/ci.yml` — Lint, typecheck, test (Node 20 + 22), Trivy security scan, Docker smoke test.
+- `.github/workflows/release.yml` — Docker build + push to GHCR, Helm lint on tag push.
+
+### Build & Test
+- `tsc --build`: **clean**
+- Test suites: **39 passed, 547 tests total** (39 new tests across api-server, core-lifecycle, core-migrations, core-errors)
+- 27 packages, all importable at runtime
+
+### Stats
+- Packages: 27 (was 23)
+- Test files: 32 (547 tests passing)
+- Runtime dependencies: unchanged (11 packages)
+- API endpoints: 7 REST routes + 3 health endpoints
+- Error codes: 28 cataloged with HTTP status + category mappings

@@ -171,3 +171,92 @@ export function withSpanSync<T>(
     span.end();
   }
 }
+
+// ── Metrics helpers ────────────────────────────────────────────────────────
+
+import { metrics, type Counter, type Histogram, type UpDownCounter } from "@opentelemetry/api";
+
+let _delegationCounter: Counter | null = null;
+let _delegationDuration: Histogram | null = null;
+let _tokenCounter: Counter | null = null;
+let _errorCounter: Counter | null = null;
+let _activeTasks: UpDownCounter | null = null;
+
+function ensureMetrics(): void {
+  if (!_enabled) return;
+  const meter = metrics.getMeter("55ndeep", "1.0.0");
+
+  if (!_delegationCounter) {
+    _delegationCounter = meter.createCounter("55ndeep.delegations.total", {
+      description: "Total number of delegated tasks",
+    });
+  }
+  if (!_delegationDuration) {
+    _delegationDuration = meter.createHistogram("55ndeep.delegation.duration_ms", {
+      description: "Delegation duration in milliseconds",
+      unit: "ms",
+    });
+  }
+  if (!_tokenCounter) {
+    _tokenCounter = meter.createCounter("55ndeep.tokens.total", {
+      description: "Total tokens consumed across all providers",
+    });
+  }
+  if (!_errorCounter) {
+    _errorCounter = meter.createCounter("55ndeep.errors.total", {
+      description: "Total errors by category",
+    });
+  }
+  if (!_activeTasks) {
+    _activeTasks = meter.createUpDownCounter("55ndeep.tasks.active", {
+      description: "Number of currently active tasks",
+    });
+  }
+}
+
+/** Record a delegation event for metrics. */
+export function recordDelegation(attrs: {
+  mode: string;
+  provider: string;
+  model: string;
+  outcome: "pass" | "fail" | "error";
+  durationMs: number;
+  tokens: number;
+}): void {
+  if (!_enabled) return;
+  ensureMetrics();
+  _delegationCounter?.add(1, {
+    mode: attrs.mode,
+    provider: attrs.provider,
+    model: attrs.model,
+    outcome: attrs.outcome,
+  });
+  _delegationDuration?.record(attrs.durationMs, {
+    mode: attrs.mode,
+    outcome: attrs.outcome,
+  });
+  _tokenCounter?.add(attrs.tokens, {
+    provider: attrs.provider,
+    model: attrs.model,
+  });
+}
+
+/** Record an error event for metrics. */
+export function recordError(category: string, code: string): void {
+  if (!_enabled) return;
+  ensureMetrics();
+  _errorCounter?.add(1, { category, code });
+}
+
+/** Track task lifecycle: increment on start, decrement on end. */
+export function taskStarted(): void {
+  if (!_enabled) return;
+  ensureMetrics();
+  _activeTasks?.add(1);
+}
+
+export function taskEnded(): void {
+  if (!_enabled) return;
+  ensureMetrics();
+  _activeTasks?.add(-1);
+}
