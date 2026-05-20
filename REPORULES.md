@@ -57,8 +57,8 @@ Or use the sync script: `scripts/sync-to-sandbox.sh`
 Set this on every machine before committing:
 
 ```sh
-git config --global user.name "YOUR REAL NAME"
-git config --global user.email "your@real.email"
+git config --global user.name "Henrik Kirk"
+git config --global user.email "285947470+KirkForge@users.noreply.github.com"
 ```
 
 **Never use "KirkForge" as the author name.** That's an org, not a person.
