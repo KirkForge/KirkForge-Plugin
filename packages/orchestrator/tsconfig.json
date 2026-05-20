@@ -6,63 +6,30 @@
     "composite": true
   },
   "references": [
-    {
-      "path": "../agent-core"
-    },
-    {
-      "path": "../core-errors"
-    },
-    {
-      "path": "../core-events"
-    },
-    {
-      "path": "../core-logging"
-    },
-    {
-      "path": "../core-telemetry"
-    },
-    {
-      "path": "../core-types"
-    },
-    {
-      "path": "../correction-core"
-    },
-    {
-      "path": "../memory-palace"
-    },
-    {
-      "path": "../model-client"
-    },
-    {
-      "path": "../model-config"
-    },
-    {
-      "path": "../prompt-core"
-    },
-    {
-      "path": "../tool-eslint"
-    },
-    {
-      "path": "../tool-gitnexus"
-    },
-    {
-      "path": "../tool-graphify"
-    },
-    {
-      "path": "../tool-python"
-    },
-    {
-      "path": "../tool-secdev"
-    },
-    {
-      "path": "../tool-tsc"
-    }
+    { "path": "../agent-core" },
+    { "path": "../core-errors" },
+    { "path": "../core-events" },
+    { "path": "../core-logging" },
+    { "path": "../core-telemetry" },
+    { "path": "../core-types" },
+    { "path": "../correction-core" },
+    { "path": "../memory-palace" },
+    { "path": "../model-client" },
+    { "path": "../model-config" },
+    { "path": "../prompt-core" },
+    { "path": "../tool-gitnexus" },
+    { "path": "../tool-graphify" },
+    { "path": "../tool-pyright" },
+    { "path": "../tool-tsc" },
+    { "path": "../tool-lint-core" },
+    { "path": "../tool-lint-ts" },
+    { "path": "../tool-lint-py" },
+    { "path": "../tool-lint-sh" },
+    { "path": "../tool-lint-c" },
+    { "path": "../tool-lint-rs" },
+    { "path": "../tool-lint-go" },
+    { "path": "../tool-lint-sql" }
   ],
-  "exclude": [
-    "dist",
-    "**/*.test.ts"
-  ],
-  "include": [
-    "src"
-  ]
+  "exclude": ["dist", "**/*.test.ts"],
+  "include": ["src"]
 }

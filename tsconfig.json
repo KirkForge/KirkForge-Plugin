@@ -67,9 +67,6 @@
       "path": "packages/model-config"
     },
     {
-      "path": "packages/tool-python"
-    },
-    {
       "path": "packages/orchestrator"
     },
     {
@@ -79,16 +76,13 @@
       "path": "packages/prompt-core"
     },
     {
-      "path": "packages/tool-eslint"
-    },
-    {
       "path": "packages/tool-gitnexus"
     },
     {
       "path": "packages/tool-graphify"
     },
     {
-      "path": "packages/tool-secdev"
+      "path": "packages/tool-pyright"
     },
     {
       "path": "packages/tool-tsc"

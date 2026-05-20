@@ -500,7 +500,7 @@ export class Orchestrator {
     await Promise.allSettled([
       emitters.lint.emit(taskId),
       emitters.types.emit(taskId),
-      emitters.security.emit(taskId, files),
+      emitters.security.emit(taskId),
       emitters.changes.emit(taskId),
       emitters.graph.emit(taskId),
     ]);

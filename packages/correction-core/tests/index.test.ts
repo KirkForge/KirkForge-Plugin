@@ -22,19 +22,19 @@ function makePacket(overrides?: Partial<ReducedStatePacket>): ReducedStatePacket
 
 describe("toolNames()", () => {
   it("returns eslint/tsc/secdev for typescript", () => {
-    expect(toolNames("typescript")).toEqual({ lint: "eslint", types: "tsc", security: "secdev" });
+    expect(toolNames("typescript")).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
   });
 
   it("returns eslint/tsc/secdev for javascript", () => {
-    expect(toolNames("javascript")).toEqual({ lint: "eslint", types: "tsc", security: "secdev" });
+    expect(toolNames("javascript")).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
   });
 
   it("returns ruff/pyright/bandit for python", () => {
-    expect(toolNames("python")).toEqual({ lint: "ruff", types: "pyright", security: "bandit" });
+    expect(toolNames("python")).toEqual({ lint: "55NDeep Python lint engine", types: "pyright", security: "55NDeep Python lint engine (safety rules)" });
   });
 
   it("returns shellcheck/bash -n/secdev for shell", () => {
-    expect(toolNames("shell")).toEqual({ lint: "shellcheck", types: "bash -n", security: "secdev" });
+    expect(toolNames("shell")).toEqual({ lint: "55NDeep shell lint engine", types: "bash -n", security: "55NDeep shell lint engine (safety rules)" });
   });
 
   it("returns generic names for undefined/unknown language", () => {
@@ -45,16 +45,16 @@ describe("toolNames()", () => {
 describe("buildCorrectionPrompt()", () => {
   it("includes correct tool names for python", () => {
     const prompt = buildCorrectionPrompt(makePacket(), "python");
-    expect(prompt).toContain("ruff");
+    expect(prompt).toContain("55NDeep Python lint engine");
     expect(prompt).toContain("pyright");
-    expect(prompt).toContain("bandit");
+    expect(prompt).toContain("safety rules");
   });
 
   it("includes correct tool names for typescript", () => {
     const prompt = buildCorrectionPrompt(makePacket(), "typescript");
-    expect(prompt).toContain("eslint");
+    expect(prompt).toContain("55NDeep TypeScript lint engine");
     expect(prompt).toContain("tsc");
-    expect(prompt).toContain("secdev");
+    expect(prompt).toContain("safety rules");
   });
 
   it("includes lint error count", () => {
@@ -219,7 +219,7 @@ describe("buildCorrectionPrompt()", () => {
     });
     const prompt = buildCorrectionPrompt(packet, "python");
     expect(prompt).toContain("2 critical security findings");
-    expect(prompt).toContain("bandit");
+    expect(prompt).toContain("safety rules");
   });
 
   it("includes both critical and high security findings when both present", () => {

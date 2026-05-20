@@ -329,3 +329,61 @@ interface LintFinding {
 7. ✅ Keep `tool-gitnexus`, `tool-graphify` for git/graph domains
 8. ✅ Full test coverage: 8 packages, 30+ tests across all languages
 9. ✅ `emitter-factory.ts` routes all 8 languages through native engines
+
+---
+
+## v8.5 — Enterprise hardening: secdev migration, message quality, test coverage (2026-05-20)
+
+### Secdev rules fully folded into native engines
+- **TS safety rules**: +12 rules from tool-secdev (AWS keys, OpenAI keys, GitHub/GitLab PATs, Stripe live/test keys, Slack tokens, JWT, shell injection, SQL injection, HTTP URLs)
+- **Python safety rules**: +5 rules (AWS keys, Stripe keys, JWT, HTTP URLs, SQL injection via f-strings)
+- **LintEngine dual-emission**: Now emits both `verify.lint` and `verify.security` events — safety-category findings automatically routed to security signal
+- **emitter-factory**: `security` slot uses same native lint engine as `lint` (lint === security identity)
+- **Result**: No more standalone SecdevEmitter. All secret detection handled by language-specific lint engines. Single file scan, dual signal emission.
+
+### PyrightEmitter extracted
+- New `@55ndeep/tool-pyright` package — standalone PyrightEmitter with helpers, mirroring `tool-tsc`
+  - Includes discoverPythonFiles, path sanitization, missing-tool detection (ENOENT → skipped)
+  - 7 tests (skipped, empty files, missing tool, path sanitization, taskId, durationMs)
+- `emitter-factory.ts` imports from `@55ndeep/tool-pyright` instead of `@55ndeep/tool-python`
+
+### Deprecated packages removed from disk
+- `tool-eslint` — removed (ESLint wrapper, replaced by tool-lint-ts in Phase 1)
+- `tool-python` — removed (Ruff/Bandit wrappers, replaced by tool-lint-py; PyrightEmitter extracted)
+- `tool-secdev` — removed (rules folded into TS and Python safety rule sets)
+- Root `tsconfig.json` cleaned of all three references
+- Zero imports from deprecated packages remain anywhere in the codebase
+
+### Diagnostic message quality — actionable fix hints
+All ~103 lint rules across 7 languages now include specific fix suggestions:
+
+| Language | Example improvement |
+|----------|-------------------|
+| TS | "eval() executes arbitrary code — use JSON.parse() for data, a sandboxed VM for dynamic scripts" |
+| Python | "os.system() passes a string to the shell — use subprocess.run(['cmd', 'arg']) with shell=False" |
+| Shell | "curl \\| bash runs untrusted remote code — download, inspect, checksum-verify, then execute locally" |
+| C | "gets() has no bounds checking — use fgets(buf, sizeof(buf), stdin) with an explicit size limit" |
+| Rust | ".unwrap() panics on None/Err — use match to handle both cases, or ? operator with a Result return type" |
+| Go | "Ignored error with _ — always check: if val, err := fn(); err != nil { return err }" |
+| SQL | "SQL built with string interpolation enables injection — use parameterized queries ($1, ? placeholders)" |
+
+This directly reduces correction cycles: the worker model gets a specific alternative instead of just "don't do this."
+
+### New test coverage
+- `tool-lint-core/tests/index.test.ts` — 14 tests (RuleRegistry: 4, LintEngine: 10)
+  - Empty scans, file filters, extension filtering, clean file pass, error/warning separation
+  - Line number accuracy, duration reporting, graceful handling of missing directories
+- `tool-pyright/tests/index.test.ts` — 7 tests
+  - Missing tool (ENOENT → skipped), empty files, path sanitization, file discovery, taskId, timing
+
+### Package inventory update
+| State | Packages |
+|-------|----------|
+| Active lint engines | tool-lint-core, tool-lint-ts, tool-lint-py, tool-lint-sh, tool-lint-c, tool-lint-rs, tool-lint-go, tool-lint-sql (8) |
+| Active tool packages | tool-tsc, tool-pyright, tool-gitnexus, tool-graphify (4) |
+| Removed | tool-eslint, tool-python, tool-secdev, tool-runner (4) |
+
+### Test stats
+- Total test files: 37 (was 35)
+- New tests: +21 (tool-lint-core 14, tool-pyright 7)
+- All lint packages tested: 8/8 (87 tests across core + 7 languages)

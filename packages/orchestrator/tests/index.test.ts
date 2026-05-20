@@ -411,21 +411,21 @@ describe("hard-prompt artifact enforcement", () => {
 describe("verification emitter routing", () => {
   it("uses Python verifiers for Python task profiles", () => {
     const emitters = createVerificationEmitters("/tmp", new EventBus(), ["solution.ts"], "python");
-    expect(emitters.lint.constructor.name).toBe("RuffEmitter");
+    expect(emitters.lint.constructor.name).toBe("LintEngine");
     expect(emitters.types.constructor.name).toBe("PyrightEmitter");
-    expect(emitters.security.constructor.name).toBe("BanditEmitter");
+    expect(emitters.security).toBe(emitters.lint);
   });
 
   it("falls back to Python verifiers for Python-only artifact extensions", () => {
     const emitters = createVerificationEmitters("/tmp", new EventBus(), ["solution.py"]);
-    expect(emitters.lint.constructor.name).toBe("RuffEmitter");
+    expect(emitters.lint.constructor.name).toBe("LintEngine");
   });
 
   it("keeps the TypeScript verifier stack for JS/TS artifacts", () => {
     const emitters = createVerificationEmitters("/tmp", new EventBus(), ["src/index.ts"]);
-    expect(emitters.lint.constructor.name).toBe("EslintEmitter");
+    expect(emitters.lint.constructor.name).toBe("LintEngine");
     expect(emitters.types.constructor.name).toBe("TscEmitter");
-    expect(emitters.security.constructor.name).toBe("SecdevEmitter");
+    expect(emitters.security).toBe(emitters.lint);
   });
 });
 

@@ -191,9 +191,9 @@ describe("buildCorrectionPrompt()", () => {
   it("includes Python tooling for Python language", () => {
     const packet = makeFailPacket();
     const prompt = buildCorrectionPrompt(packet, { language: "python" });
-    expect(prompt).toContain("ruff");
+    expect(prompt).toContain("55NDeep Python lint engine");
     expect(prompt).toContain("pyright");
-    expect(prompt).toContain("bandit");
+    expect(prompt).toContain("safety rules");
   });
 
   it("mentions broken edges when present", () => {
@@ -391,21 +391,21 @@ describe("createPluginCore()", () => {
     const core = createPluginCore();
     const packet = makeFailPacket();
     const prompt = core.buildCorrectionPrompt(packet, { language: "python" });
-    expect(prompt).toContain("ruff");
+    expect(prompt).toContain("55NDeep Python lint engine");
     expect(prompt).toContain("pyright");
-    expect(prompt).toContain("bandit");
+    expect(prompt).toContain("safety rules");
   });
 });
 
 describe("exported types and values", () => {
   it("toolNames returns correct mapping for typescript", () => {
     const ts = toolNames("typescript");
-    expect(ts).toEqual({ lint: "eslint", types: "tsc", security: "secdev" });
+    expect(ts).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
   });
 
   it("toolNames returns correct mapping for python", () => {
     const py = toolNames("python");
-    expect(py).toEqual({ lint: "ruff", types: "pyright", security: "bandit" });
+    expect(py).toEqual({ lint: "55NDeep Python lint engine", types: "pyright", security: "55NDeep Python lint engine (safety rules)" });
   });
 
   it("toolNames returns default for unknown language", () => {

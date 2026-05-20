@@ -136,6 +136,7 @@ export class LintEngine {
         })),
       };
 
+      // Emit verify.lint
       await this.eventBus?.emit({
         kind: "verify.lint",
         schemaVersion: "v3",
@@ -153,6 +154,36 @@ export class LintEngine {
         timestamp: new Date().toISOString(),
       });
 
+      // Emit verify.security from safety-category findings
+      const safetyFindings = findings.filter(f => f.category === "safety");
+      const secCritical = safetyFindings.filter(f => f.severity === "critical").length;
+      const secHigh = safetyFindings.filter(f => f.severity === "high").length;
+      const secStatus = secCritical > 0 || secHigh > 0 ? "fail" : "pass";
+
+      await this.eventBus?.emit({
+        kind: "verify.security",
+        schemaVersion: "v3",
+        sequence: Date.now(),
+        streamId: taskId,
+        taskId,
+        value: {
+          status: secStatus,
+          findings: safetyFindings.length,
+          critical: secCritical,
+          high: secHigh,
+          filesScanned: allFiles.length,
+          durationMs: report.durationMs,
+          details: safetyFindings.map(f => ({
+            file: f.file,
+            line: f.line,
+            rule: f.rule,
+            severity: f.severity,
+            message: f.message,
+          })),
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       return ok(report);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -164,6 +195,15 @@ export class LintEngine {
         streamId: taskId,
         taskId,
         value: { status: "error", error: message, errors: 1, warnings: 0, filesScanned: 0, durationMs: report.durationMs, details: report.details },
+        timestamp: new Date().toISOString(),
+      });
+      await this.eventBus?.emit({
+        kind: "verify.security",
+        schemaVersion: "v3",
+        sequence: Date.now(),
+        streamId: taskId,
+        taskId,
+        value: { status: "error", error: message, findings: 1, critical: 1, high: 0, filesScanned: 0, durationMs: report.durationMs, details: [] },
         timestamp: new Date().toISOString(),
       });
       return err(new Error(`55ndeep-lint: ${message}`));

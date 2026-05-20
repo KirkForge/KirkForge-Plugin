@@ -80,8 +80,6 @@ program
         process.exit(1);
       }
     }
-    await orchestrator.gracefulShutdown();
-    await shutdown();
   });
 
 program
@@ -168,8 +166,6 @@ program
       console.log(`Session tokens: ${outcome.sessionTokens}`);
       console.log(`Session cost: $${outcome.sessionCost.toFixed(4)}`);
     }
-    await orchestrator.gracefulShutdown();
-    await shutdown();
   });
 
 program
@@ -233,7 +229,6 @@ program
         process.exit(1);
       }
     }
-    await shutdown();
   })
 
   .command("verify")
@@ -256,8 +251,6 @@ program
       console.log(`  Graph:          ${packet.graph.edgeCount} edges (${packet.graph.brokenEdges} broken, ${packet.graph.cycles} cycles)`);
       console.log(`  Overall:        ${packet.verification.overall.toUpperCase()}`);
     }
-    await orchestrator.gracefulShutdown();
-    await shutdown();
   });
 
 program
@@ -537,15 +530,24 @@ program
 
 program
   .command("tools")
-  .description("List registered tool adapters")
+  .description("List registered verification tools")
   .action(async () => {
-    const { orchestrator, shutdown } = await createBootstrap({});
-    console.log("Verification Emitters:");
-    console.log("  JS/TS:  eslint, tsc, secdev");
-    console.log("  Python: ruff, pyright, bandit");
-    console.log("  Shared: gitnexus, graphify");
-    await orchestrator.gracefulShutdown();
-    await shutdown();
+    console.log("55NDeep Native Lint Engines (internal, always available):");
+    console.log("  JS/TS:  tool-lint-ts (29 rules)");
+    console.log("  Python: tool-lint-py (34 rules)");
+    console.log("  Shell:  tool-lint-sh (9 rules)");
+    console.log("  C/C++:  tool-lint-c (10 rules)");
+    console.log("  Rust:   tool-lint-rs (8 rules)");
+    console.log("  Go:     tool-lint-go (7 rules)");
+    console.log("  SQL:    tool-lint-sql (6 rules)");
+    console.log("");
+    console.log("Type Checkers (external, required on PATH):");
+    console.log("  JS/TS:  tsc");
+    console.log("  Python: pyright");
+    console.log("");
+    console.log("Shared Tools:");
+    console.log("  gitnexus (git diff change tracking)");
+    console.log("  graphify (import graph analysis, TS only)");
   });
 
 program
@@ -572,8 +574,6 @@ program
     } else {
       console.log(`\nSLO:           no prior runs — run tasks to populate SLO windows`);
     }
-    await orchestrator.gracefulShutdown();
-    await shutdown();
   });
 
 program
@@ -598,8 +598,6 @@ program
       console.log("\nShutting down...");
       healthServer.ready = false;
       await healthServer.stop();
-      await orchestrator.gracefulShutdown();
-      await shutdown();
       process.exit(0);
     };
 

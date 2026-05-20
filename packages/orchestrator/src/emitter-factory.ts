@@ -6,8 +6,7 @@ import { createRsLintEngine } from "@55ndeep/tool-lint-rs";
 import { createGoLintEngine } from "@55ndeep/tool-lint-go";
 import { createSqlLintEngine } from "@55ndeep/tool-lint-sql";
 import { TscEmitter } from "@55ndeep/tool-tsc";
-import { SecdevEmitter } from "@55ndeep/tool-secdev";
-import { PyrightEmitter } from "@55ndeep/tool-python";
+import { PyrightEmitter } from "@55ndeep/tool-pyright";
 import { GitnexusEmitter } from "@55ndeep/tool-gitnexus";
 import { GraphifyEmitter } from "@55ndeep/tool-graphify";
 import type { EventBus } from "@55ndeep/core-events";
@@ -36,11 +35,13 @@ export function createVerificationEmitters(cwd: string, eventBus: EventBus, file
   };
 
   const resolvedLint = language && lintByLang[language] ? lintByLang[language]! : (pythonOnly ? pyLint : tsLint);
+  // Security is now handled by the lint engine itself (emits verify.security for safety-category rules)
+  const resolvedSecurity = resolvedLint;
 
   return {
     lint: resolvedLint,
     types: pythonOnly ? new PyrightEmitter({ cwd, eventBus, files }) : new TscEmitter({ cwd, eventBus, files }),
-    security: pythonOnly ? pyLint : new SecdevEmitter({ cwd, eventBus }),
+    security: resolvedSecurity,
     changes: new GitnexusEmitter({ cwd, eventBus, writtenFiles }),
     graph: new GraphifyEmitter({ cwd, eventBus, files }),
   };

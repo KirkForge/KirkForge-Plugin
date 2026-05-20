@@ -133,7 +133,7 @@ export async function verifyWorkspace(input: VerifyWorkspaceInput): Promise<Resu
     await Promise.allSettled([
       emitters.lint.emit(taskId),
       emitters.types.emit(taskId),
-      emitters.security.emit(taskId, input.files),
+      emitters.security.emit(taskId),
       emitters.changes.emit(taskId),
       emitters.graph.emit(taskId),
     ]);

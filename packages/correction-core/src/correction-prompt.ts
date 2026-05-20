@@ -1,12 +1,22 @@
 import type { ReducedStatePacket } from "./types.js";
 import type { TaskLanguage } from "./task-language.js";
 
+/**
+ * Returns the tool names used in correction prompts for each language.
+ * After v8.5 all lint/security is handled by 55NDeep native engines —
+ * only type-checking remains an external tool dependency (tsc/pyright).
+ */
 export function toolNames(language?: TaskLanguage): { lint: string; types: string; security: string } {
   switch (language) {
-    case "python": return { lint: "ruff", types: "pyright", security: "bandit" };
+    case "python": return { lint: "55NDeep Python lint engine", types: "pyright", security: "55NDeep Python lint engine (safety rules)" };
     case "typescript":
-    case "javascript": return { lint: "eslint", types: "tsc", security: "secdev" };
-    case "shell": return { lint: "shellcheck", types: "bash -n", security: "secdev" };
+    case "javascript": return { lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" };
+    case "shell": return { lint: "55NDeep shell lint engine", types: "bash -n", security: "55NDeep shell lint engine (safety rules)" };
+    case "cpp":
+    case "c": return { lint: "55NDeep C/C++ lint engine", types: "gcc/g++ -fsyntax-only", security: "55NDeep C/C++ lint engine (safety rules)" };
+    case "rust": return { lint: "55NDeep Rust lint engine", types: "rustc --emit=metadata", security: "55NDeep Rust lint engine (safety rules)" };
+    case "go": return { lint: "55NDeep Go lint engine", types: "go vet", security: "55NDeep Go lint engine (safety rules)" };
+    case "sql": return { lint: "55NDeep SQL lint engine", types: "database validator", security: "55NDeep SQL lint engine (safety rules)" };
     default: return { lint: "lint", types: "type-check", security: "security scanner" };
   }
 }
