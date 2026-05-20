@@ -1,0 +1,10 @@
+{
+  "name": "@55ndeep/agent-core",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "dependencies": { "@55ndeep/core-types": "*", "@55ndeep/core-errors": "*", "@55ndeep/model-config": "*", "@55ndeep/model-client": "*", "@55ndeep/prompt-core": "*", "zod": "^3.24.0" },
+  "devDependencies": {}
+}

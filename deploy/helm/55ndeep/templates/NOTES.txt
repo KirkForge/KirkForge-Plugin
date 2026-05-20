@@ -1,0 +1,26 @@
+55NDeep — Deterministic delegation plugin
+
+🎉 Deployed: {{ .Release.Name }}
+
+Get the service URL:
+{{- if .Values.ingress.enabled }}
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ (index .Values.ingress.hosts 0).host }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get svc {{ include "55ndeep.fullname" . }} -o jsonpath='{.spec.ports[0].nodePort}')
+  echo "http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  Wait for external IP: kubectl get svc {{ include "55ndeep.fullname" . }} --watch
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl port-forward svc/{{ include "55ndeep.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+{{- end }}
+
+Health endpoints:
+  /healthz  — liveness
+  /readyz   — readiness
+  /metrics  — orchestrator stats
+
+{{- if not .Values.auth.apiKey }}
+⚠️  Auth is DISABLED. Set auth.apiKey or HEALTH_API_KEY in production.
+{{- end }}
+
+Monitor: kubectl logs -f deployment/{{ include "55ndeep.fullname" . }}

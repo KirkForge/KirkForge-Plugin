@@ -1,0 +1,20 @@
+{
+  "name": "@55ndeep/model-config",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@55ndeep/core-types": "*",
+    "@55ndeep/core-errors": "*",
+    "zod": "^3.24.0",
+    "@55ndeep/core-secrets": "*"
+  },
+  "devDependencies": {}
+}

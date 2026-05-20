@@ -1,0 +1,24 @@
+{
+  "name": "@55ndeep/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "55ndeep": "./dist/index.js"
+  },
+  "dependencies": {
+    "@55ndeep/core-types": "*",
+    "@55ndeep/core-errors": "*",
+    "@55ndeep/core-events": "*",
+    "@55ndeep/core-logging": "*",
+    "@55ndeep/core-config": "*",
+    "@55ndeep/model-config": "*",
+    "@55ndeep/orchestrator": "*",
+    "@55ndeep/memory-palace": "*",
+    "@55ndeep/plugin": "*",
+    "@55ndeep/core-schemas": "*",
+    "commander": "^13.0.0",
+    "@55ndeep/core-tenancy": "*"
+  },
+  "devDependencies": {}
+}

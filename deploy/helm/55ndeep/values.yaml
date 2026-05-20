@@ -1,0 +1,143 @@
+# ── 55NDeep Helm Chart Values ──────────────────────────────────────────────
+
+replicaCount: 1
+
+image:
+  repository: 55ndeep
+  tag: ""  # REQUIRED: set via --set image.tag=... or in your values file
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# ── Health server ───────────────────────────────────────────────────────────
+healthServer:
+  port: 9090
+  host: "0.0.0.0"
+
+# ── API auth ────────────────────────────────────────────────────────────────
+auth:
+  # Set via --set auth.apiKey=... or Kubernetes Secret
+  apiKey: ""
+  existingSecret: ""
+  existingSecretKey: "api-key"
+
+# ── Orchestrator ────────────────────────────────────────────────────────────
+orchestrator:
+  maxConcurrent: 4
+
+# ── Model providers ─────────────────────────────────────────────────────────
+model:
+  defaultProvider: ""  # REQUIRED: set to one of the configured providers below
+  timeoutMs: 120000
+  openai:
+    apiKey: ""
+    baseUrl: "https://api.openai.com/v1"
+    model: "gpt-4o-mini"
+  anthropic:
+    apiKey: ""
+    baseUrl: "https://api.anthropic.com"
+    model: "claude-sonnet-4-20250514"
+  # NOTE: ollama at localhost only works for local/demo deployments.
+  # For cluster deployments, use openai, anthropic, or a remote provider.
+  ollama:
+    baseUrl: "http://localhost:11434/v1"
+    model: "llama3.2"
+
+# ── Observability ───────────────────────────────────────────────────────────
+observability:
+  otel:
+    enabled: true
+    otlpEndpoint: "http://localhost:4318"
+    autoInstrument: true
+  health:
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: health
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: health
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# ── Persistence ─────────────────────────────────────────────────────────────
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /app/.55ndeep
+
+# ── Service ─────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 9090
+  targetPort: health
+
+# ── Ingress ─────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: 55ndeep.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# ── Resources ───────────────────────────────────────────────────────────────
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# ── Autoscaling ─────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+# ── Node selection ──────────────────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ── Extra env vars ──────────────────────────────────────────────────────────
+extraEnv: []
+# - name: CUSTOM_VAR
+#   value: "custom-value"

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "55ndeep.fullname" . }}
+  labels:
+    {{- include "55ndeep.labels" . | nindent 4 }}
+data:
+  HEALTH_PORT: {{ .Values.healthServer.port | quote }}
+  HEALTH_HOST: {{ .Values.healthServer.host | quote }}
+  ORCHESTRATOR_MAX_CONCURRENT: {{ .Values.orchestrator.maxConcurrent | quote }}
+  MODEL_DEFAULT_PROVIDER: {{ .Values.model.defaultProvider | quote }}
+  MODEL_TIMEOUT_MS: {{ .Values.model.timeoutMs | quote }}
+  {{- if .Values.observability.otel.enabled }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.otel.otlpEndpoint | quote }}
+  {{- end }}

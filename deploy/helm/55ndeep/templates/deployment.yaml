@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "55ndeep.fullname" . }}
+  labels:
+    {{- include "55ndeep.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "55ndeep.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "55ndeep.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "55ndeep.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: {{ .Values.healthServer.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            {{- if .Values.observability.otel.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otel.otlpEndpoint | quote }}
+            {{- end }}
+            {{- if .Values.model.openai.apiKey }}
+            - name: OPENAI_API_KEY
+              value: {{ .Values.model.openai.apiKey | quote }}
+            {{- end }}
+            {{- if .Values.model.anthropic.apiKey }}
+            - name: ANTHROPIC_API_KEY
+              value: {{ .Values.model.anthropic.apiKey | quote }}
+            {{- end }}
+            - name: OLLAMA_BASE_URL
+              value: {{ .Values.model.ollama.baseUrl | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "55ndeep.fullname" . }}-config
+            {{- if .Values.auth.apiKey }}
+            - secretRef:
+                name: {{ include "55ndeep.fullname" . }}-auth
+            {{- else if .Values.auth.existingSecret }}
+            - secretRef:
+                name: {{ .Values.auth.existingSecret }}
+            {{- end }}
+          {{- if .Values.observability.health.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.observability.health.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.observability.health.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.observability.health.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: memory
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: memory
+          persistentVolumeClaim:
+            claimName: {{ include "55ndeep.fullname" . }}-memory
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

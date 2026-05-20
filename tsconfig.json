@@ -1,0 +1,103 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true
+  },
+  "files": [],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/tests"
+  ],
+  "references": [
+    {
+      "path": "apps/cli"
+    },
+    {
+      "path": "packages/agent-core"
+    },
+    {
+      "path": "packages/core-config"
+    },
+    {
+      "path": "packages/core-errors"
+    },
+    {
+      "path": "packages/core-events"
+    },
+    {
+      "path": "packages/core-logging"
+    },
+    {
+      "path": "packages/core-schemas"
+    },
+    {
+      "path": "packages/core-telemetry"
+    },
+    {
+      "path": "packages/core-types"
+    },
+    {
+      "path": "packages/correction-core"
+    },
+    {
+      "path": "packages/memory-palace"
+    },
+    {
+      "path": "packages/model-client"
+    },
+    {
+      "path": "packages/model-config"
+    },
+    {
+      "path": "packages/tool-python"
+    },
+    {
+      "path": "packages/orchestrator"
+    },
+    {
+      "path": "packages/plugin"
+    },
+    {
+      "path": "packages/prompt-core"
+    },
+    {
+      "path": "packages/tool-eslint"
+    },
+    {
+      "path": "packages/tool-gitnexus"
+    },
+    {
+      "path": "packages/tool-graphify"
+    },
+    {
+      "path": "packages/tool-secdev"
+    },
+    {
+      "path": "packages/tool-tsc"
+    },
+    {
+      "path": "packages/core-tenancy"
+    },
+    {
+      "path": "packages/core-secrets"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@55ndeep/plugin",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "dependencies": {
+    "@55ndeep/core-types": "*",
+    "@55ndeep/core-events": "*",
+    "@55ndeep/correction-core": "*",
+    "@55ndeep/orchestrator": "*",
+    "@55ndeep/memory-palace": "*"
+  },
+  "devDependencies": {}
+}

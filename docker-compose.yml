@@ -1,0 +1,54 @@
+# ── 55NDeep Daemon Mode ───────────────────────────────────────────────────
+# Runs the verifier as a long-lived health-checkable service.
+# Use with an OTel collector for tracing/metrics export.
+
+version: "3.9"
+
+services:
+  55ndeep:
+    build: .
+    image: 55ndeep:latest
+    container_name: 55ndeep
+    restart: unless-stopped
+    ports:
+      - "9090:9090"   # health endpoint
+    environment:
+      - NODE_ENV=production
+      - HEALTH_PORT=9090
+      - HEALTH_HOST=0.0.0.0
+      - HEALTH_API_KEY=${HEALTH_API_KEY:-}
+      - ORCHESTRATOR_MAX_CONCURRENT=4
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      # Provider config via env vars (see .env.example)
+      - MODEL_DEFAULT_PROVIDER=${MODEL_DEFAULT_PROVIDER:-local-ollama}
+      - MODEL_TIMEOUT_MS=${MODEL_TIMEOUT_MS:-120000}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - 55ndeep-memory:/app/.55ndeep
+      - ${WORKSPACE_DIR:-./workspace}:/workspace:ro
+    command: ["serve"]
+    networks:
+      - 55ndeep-net
+
+  # Optional OTel collector for traces + metrics
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: 55ndeep-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - 55ndeep-net
+    profiles:
+      - observability
+
+volumes:
+  55ndeep-memory:
+
+networks:
+  55ndeep-net:

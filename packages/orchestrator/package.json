@@ -1,0 +1,47 @@
+{
+  "name": "@55ndeep/orchestrator",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./path-safety.js": {
+      "types": "./dist/path-safety.d.ts",
+      "import": "./dist/path-safety.js"
+    },
+    "./health-server": {
+      "types": "./dist/health-server.d.ts",
+      "import": "./dist/health-server.js"
+    },
+    "./event-log": {
+      "types": "./dist/event-log.d.ts",
+      "import": "./dist/event-log.js"
+    }
+  },
+  "dependencies": {
+    "@55ndeep/core-types": "*",
+    "@55ndeep/core-errors": "*",
+    "@55ndeep/core-events": "*",
+    "@55ndeep/core-logging": "*",
+    "@55ndeep/model-config": "*",
+    "@55ndeep/model-client": "*",
+    "@55ndeep/agent-core": "*",
+    "@55ndeep/prompt-core": "*",
+    "@55ndeep/tool-eslint": "*",
+    "@55ndeep/tool-tsc": "*",
+    "@55ndeep/tool-secdev": "*",
+    "@55ndeep/tool-python": "*",
+    "@55ndeep/tool-gitnexus": "*",
+    "@55ndeep/tool-graphify": "*",
+    "@55ndeep/memory-palace": "*",
+    "@55ndeep/correction-core": "*",
+    "zod": "^3.24.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@55ndeep/core-telemetry": "*"
+  },
+  "devDependencies": {}
+}

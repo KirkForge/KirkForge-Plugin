@@ -1,0 +1,15 @@
+apiVersion: v2
+name: 55ndeep
+description: Deterministic delegation/verification plugin for coding agents — Kubernetes Helm chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - agent
+  - verification
+  - delegation
+  - coding-agent
+  - deterministic
+maintainers:
+  - name: 55ndeep
+home: https://github.com/55ndeep/55ndeep
