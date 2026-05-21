@@ -1,0 +1,19 @@
+# Normalize line endings and avoid noisy diffs
+* text=auto eol=lf
+
+# Treat these as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+
+# Make diffs friendlier
+*.md text diff=markdown
+*.ts text diff=ts
+*.tsx text diff=tsx
+*.js text diff=javascript
+*.yml text diff=yaml
+*.yaml text diff=yaml
+*.json text diff=json
