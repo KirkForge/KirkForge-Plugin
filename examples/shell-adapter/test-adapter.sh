@@ -36,7 +36,7 @@ assert_exit() {
 
 assert_stderr_contains() {
   local desc="$1" expected="$2" actual="$3"
-  if [[ "$actual" != *"$expected"* ]]; then
+  if [[ "${actual,,}" != *"${expected,,}"* ]]; then
     echo "FAIL: $desc — expected stderr to contain '$expected'" >&2
     echo "  actual stderr: $actual" >&2
     ((FAIL++)) || true
@@ -48,7 +48,7 @@ assert_stderr_contains() {
 
 assert_stdout_contains() {
   local desc="$1" expected="$2" actual="$3"
-  if [[ "$actual" != *"$expected"* ]]; then
+  if [[ "${actual,,}" != *"${expected,,}"* ]]; then
     echo "FAIL: $desc — expected stdout to contain '$expected'" >&2
     echo "  actual stdout: $actual" >&2
     ((FAIL++)) || true

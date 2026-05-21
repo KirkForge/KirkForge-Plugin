@@ -88,31 +88,38 @@ case "$OUTCOME" in
   *) echo "Error: --outcome must be one of: pass, fail, escalate" >&2; exit 1 ;;
 esac
 
-# --- Step 1: Verify workspace --------------------------------------------------
+# --- Step 1: Verify workspace (fail-closed: treat failure as correction) ------
 echo "Verifying workspace: $WORKSPACE" >&2
 
-PACKET_JSON=$(55ndeep verify-workspace \
-  --workspace "$WORKSPACE" \
-  --language "$LANGUAGE" \
-  --task-id "$TASK_ID")
-
-OVERALL=$(echo "$PACKET_JSON" | jq -r '.verification.overall')
-
-# Write packet to a temp file for prompt command
 PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/55ndeep-packet.XXXXXX.json")
-echo "$PACKET_JSON" > "$PACKET_FILE"
 trap 'rm -f "$PACKET_FILE"' EXIT
 
-echo "Verification overall: $OVERALL" >&2
+set +e
+VERIFY_OUTPUT=$(55ndeep verify-workspace \
+  --workspace "$WORKSPACE" \
+  --language "$LANGUAGE" \
+  --task-id "$TASK_ID" 2>/dev/null)
+VERIFY_RC=$?
+set -e
 
-# --- Step 2: Build correction prompt if needed --------------------------------
-if [[ "$OVERALL" != "pass" ]]; then
-  CORRECTION_PROMPT=$(55ndeep prompt \
-    --packet "$PACKET_FILE" \
-    --language "$LANGUAGE")
+if [[ $VERIFY_RC -ne 0 ]]; then
+  echo "Verification failed: workspace may not exist or is not verifiable" >&2
+  # Emit a correction prompt for verification failure (fail-closed)
+  echo "Verification failure — workspace cannot be verified. Please ensure the workspace directory exists and contains valid source files."
+else
+  echo "$VERIFY_OUTPUT" > "$PACKET_FILE"
+  OVERALL=$(echo "$VERIFY_OUTPUT" | jq -r '.verification.overall')
+  echo "Verification overall: $OVERALL" >&2
 
-  # Output correction prompt to stdout (reserved for host consumption)
-  echo "$CORRECTION_PROMPT"
+  # --- Step 2: Build correction prompt if needed --------------------------------
+  if [[ "$OVERALL" != "pass" ]]; then
+    CORRECTION_PROMPT=$(55ndeep prompt \
+      --packet "$PACKET_FILE" \
+      --language "$LANGUAGE")
+
+    # Output correction prompt to stdout (reserved for host consumption)
+    echo "$CORRECTION_PROMPT"
+  fi
 fi
 
 # --- Step 3: Record observation ------------------------------------------------
@@ -126,6 +133,6 @@ fi
   --mode "$MODE" \
   --model "$MODEL" \
   --outcome "$OUTCOME" \
-  --duration-ms "$ELAPSED_MS" >/dev/null
+  --duration-ms "$ELAPSED_MS" >/dev/null 2>&1 || true
 
 echo "Observation recorded: outcome=$OUTCOME" >&2

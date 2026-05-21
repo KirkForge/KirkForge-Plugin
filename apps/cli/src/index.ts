@@ -231,7 +231,7 @@ program
     }
   })
 
-  .command("verify")
+program.command("verify")
   .description("Run deterministic verification emitters without calling a model")
   .option("--task <description>", "Task description used only for verifier language routing")
   .option("--json", "JSON output")
@@ -504,7 +504,7 @@ program
     }
   })
 
-  .command("verify-workspace")
+program.command("verify-workspace")
   .description("Run deterministic verification on a workspace and output a ReducedStatePacket")
   .requiredOption("--workspace <path>", "Path to the workspace directory")
   .option("--file <paths...>", "Specific files to verify")

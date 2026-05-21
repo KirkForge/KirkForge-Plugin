@@ -33,6 +33,11 @@ securityContext:
   readOnlyRootFilesystem: false
 
 # ── Health server ───────────────────────────────────────────────────────────
+
+# ── Auth ────────────────────────────────────────────────────────────────────
+auth:
+  apiKey: ""  # REQUIRED for production: set to a strong random bearer token for health endpoint auth
+
 healthServer:
   port: 9090
   host: "0.0.0.0"

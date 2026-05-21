@@ -6,7 +6,7 @@ export default defineConfig({
     testTimeout: 30000,
     maxConcurrency: 1,
     fileParallelism: false,
-    pool: "threads",
+    pool: "forks",
     maxWorkers: 1,
     sequence: { concurrent: false },
     include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "packages/**/tests/**/*.test.ts"],

@@ -64,10 +64,11 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps ./apps
 COPY --from=builder /app/package.json ./
+COPY healthcheck.js ./
 
-# Health check via built-in health server
+# Health check via built-in health server (auth-aware: sends HEALTH_API_KEY as bearer token if set)
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:9090/healthz',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+  CMD node /app/healthcheck.js
 
 USER 55ndeep
 EXPOSE 9090
