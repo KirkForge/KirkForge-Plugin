@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../../packages/api-server"
-    },
-    {
       "path": "../../packages/core-config"
     },
     {
@@ -19,13 +16,7 @@
       "path": "../../packages/core-events"
     },
     {
-      "path": "../../packages/core-lifecycle"
-    },
-    {
       "path": "../../packages/core-logging"
-    },
-    {
-      "path": "../../packages/core-migrations"
     },
     {
       "path": "../../packages/core-tenancy"

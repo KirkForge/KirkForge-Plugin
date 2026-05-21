@@ -24,25 +24,19 @@ The claim is **cost-reduced delegation through deterministic emissions**, not th
 
 The core invariant: **verifier pass ≠ task pass.** Verification checks code quality; only the host knows whether the task actually succeeded. Memory stores host-reported task outcomes, never verifier status.
 
-## Enterprise features (v8.5+)
+## Operations & deployment
 
-55NDeep includes a production-grade REST API, standardized error handling, and operational tooling for deployment in team and infrastructure environments.
-
-### REST API
--  — Delegate a task with automatic mode routing
--  — Run a task with the correction loop (accept/correct/escalate)
--  — Run deterministic workspace verification
--  — Full health check with SLO status
--  — Delegation and token statistics
--  — SLO burn-rate report
-- All endpoints use Zod request validation, structured JSON error responses, and Bearer-token authentication.
-
-### Security & operations
-- **Error catalog** — 28 standardized error codes mapped to HTTP status codes and categories (validation, auth, permission, not_found, conflict, rate_limit, timeout, circuit_open, infra, internal, unavailable)
-- **Graceful shutdown** — Ordered hook execution with per-hook timeouts and global drain deadlines
-- **PID file management** — Single-instance enforcement for daemon deployments
-- **Database migrations** — Up/down/status for SQLite-backed memory stores with transaction wrapping
-- **CI/CD pipelines** — GitHub Actions for lint, test, security scan (Trivy), Docker build, and Helm chart validation
+### CLI
+The `55ndeep` CLI provides a full suite of commands:
+- `delegate` — Task delegation with automatic mode routing (hard-prompt, schema-contract, artifact)
+- `run` — Task execution with correction loop (accept/correct/escalate), structured + shell validators
+- `verify-workspace` — Deterministic verification on a workspace → `ReducedStatePacket`
+- `decompose` — Complex task breakdown into dependency-ordered subtrees
+- `recall-decomposition` — Inspect stored decompositions
+- `health` — Orchestrator health and SLO status
+- `serve` — Daemon mode with health-check HTTP server (port 9090: `/healthz`, `/readyz`, `/metrics`)
+- `doctor` — Internal + external tool availability diagnostic
+- `tools` — List registered verification tools
 
 ### Observability
 - OpenTelemetry metrics: delegation counter, duration histogram, token counter, error counter, active tasks gauge
@@ -53,7 +47,6 @@ The core invariant: **verifier pass ≠ task pass.** Verification checks code qu
 - Docker image with health checks
 - Helm chart with configmap, secrets, HPA, ingress, PVC, service account
 - Health server on port 9090: `/healthz`, `/readyz`, `/metrics`
-- API server on port 8080: full REST API with auth, rate limiting, CORS
 
 ---
 
@@ -212,10 +205,9 @@ npx tsx apps/cli/src/index.ts observe --memory mem.json \
 # Recall routing bias
 npx tsx apps/cli/src/index.ts recall --memory mem.json --description "fix auth"
 
-# Start daemon with health + API servers
+# Start daemon with health server
 npx tsx apps/cli/src/index.ts serve
 # Or: curl http://localhost:9090/healthz
-# Or: curl http://localhost:8080/api/v1/health
 ```
 
 ## Design invariants

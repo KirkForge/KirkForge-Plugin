@@ -132,10 +132,10 @@ describe("buildCorrectionPrompt", () => {
     const pyPacket = structuredClone(validPacket);
     pyPacket.verification.security = { findings: 2, critical: 0, high: 1 };
     const output = buildCorrectionPrompt(pyPacket, { language: "python" });
-    expect(output).toContain("ruff");
+    expect(output).toContain("55NDeep Python lint engine");
     expect(output).toContain("pyright");
     // bandit surfaces only when security findings are present
-    expect(output).toContain("bandit");
+    expect(output).toContain("55NDeep Python lint engine (safety rules)");
   });
 
   it("includes security findings when present", () => {

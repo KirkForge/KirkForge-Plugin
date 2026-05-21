@@ -64,13 +64,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "55ndeep.fullname" . }}-config
-            {{- if .Values.auth.apiKey }}
-            - secretRef:
-                name: {{ include "55ndeep.fullname" . }}-auth
-            {{- else if .Values.auth.existingSecret }}
-            - secretRef:
-                name: {{ .Values.auth.existingSecret }}
-            {{- end }}
+
           {{- if .Values.observability.health.livenessProbe }}
           livenessProbe:
             {{- toYaml .Values.observability.health.livenessProbe | nindent 12 }}

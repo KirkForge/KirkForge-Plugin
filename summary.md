@@ -132,71 +132,11 @@ All bugs from the v8 consolidation audit are now fixed. Bug consolidation detail
 ---
 
 ## Stats
-- Packages: 23
-- Test files: 28 (451 passing, 0 skipped)
+
+## Stats
+- Packages: 29 (24 core + 1 app)
+- Test files: 36 
 - Runtime dependencies: 11 packages
-- Total install: 420 packages
+- Total install: ~420 packages
 - Production code: ~8,500 lines
 - Test code: ~5,500 lines
-
-
-## v8.1 — Bug consolidation sweep (2026-05-17)
-
-All B1-B20 bugs fixed. 419 tests pass, 27 suites, no hangs (~57s).
-
-**Final fixes applied in v8.2:**
-- **B14**: Added SigV4 fixture tests (13 tests against AWS published vectors) + core-tenancy smoke tests (13 tests) + core-telemetry smoke tests (5 tests).
-- **B15**: EventLogger wired into `serve` command — activates when `EVENT_LOG_HMAC_SECRET` is set. HMAC now mandatory (throws without secret).
-- **B17**: JSONL parse warnings (with line numbers) now surfaced through the orchestrator re-emit → reducer → `ArtifactEnforcement.parseWarnings` → correction prompt.
-- **B19**: AWS provider now requires `AWS_REGION` + `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`. GCP requires `GCP_PROJECT_ID` + credentials.
-- **B20**: Path safety handles mixed `/` and `\` separators; uses `resolve()` instead of manual `${sep}` joining.
-- **Helm**: Merged three separate `envFrom` blocks into one list (Kubernetes last-key-wins regression fixed). Removed inline `env` entries that duplicated configmap keys — configmap is now the single source of truth for app config.
-
-
-## v8.4 — Native strict lint for all 8 supported languages (2026-05-20)
-
-### All 3 phases complete
-- **8 lint packages**: `tool-lint-core` (shared engine), `tool-lint-ts` (29 rules), `tool-lint-py` (34 rules), `tool-lint-sh` (9 rules), `tool-lint-c` (10 rules), `tool-lint-rs` (8 rules), `tool-lint-go` (7 rules), `tool-lint-sql` (6 rules)
-- **Total: ~103 lint rules** across all languages in 5 categories (style, correct, safety, perf, maintain)
-- **Test coverage**: 30 tests across 8 packages (C, Rust, Go, SQL tests added; TS, Py, Sh tests already covered)
-- **emitter-factory routing**: All 8 languages routed through native engines based on task profile language
-- **Deprecated**: ESLint wrapper (tool-eslint), Ruff/Bandit wrappers (tool-python lint methods). Type checking (tsc), git diff (gitnexus), and import graphs (graphify) preserved.
-- **Benchmark**: ~138ms/100 files, 100% finding parity vs Ruff's ~90ms
-
-### Build & test
-- `tsc --build`: clean
-- All lint package tests pass: 30 tests across C, Rust, Go, SQL, Shell, TS, Python
-
----
-
-## v8.5 — Enterprise API, error catalog, graceful shutdown, migrations, CI/CD (2026-05-20)
-
-### New packages (4)
-- **`api-server`** — REST API server with middleware stack (CORS, Bearer auth, rate limiting, request ID tracing). 7 endpoints: `/health`, `/health/live`, `/health/ready`, `/delegate`, `/run`, `/verify`, `/stats`, `/slo`. API versioning via `/api/v1/*`. Full Zod request validation and structured error responses.
-- **`core-lifecycle`** — `GracefulShutdown` manager: ordered hook execution, per-hook timeouts, global drain deadline, signal handling. PID file management: `writePidFile`, `readPidFile`, `enforceSingleInstance`.
-- **`core-migrations`** — `MigrationRunner` with up/down/status, transaction wrapping, dry-run mode. 3 built-in migrations: `V1_INITIAL_SCHEMA`, `V2_ADD_RUNS`, `V3_ADD_EMISSIONS`.
-- **`core-errors`** — Standardized error catalog: 28 error codes mapped to HTTP status codes and categories. New classes: `AuthError`, `NotFoundError`, `RateLimitError`, `ConcurrencyError`. `toErrorResponse()` for API serialization.
-
-### Enhanced packages
-- **`core-config`** — Zod validation schemas: `AppConfigSchema`, `ProviderConfigSchema`, `validateConfig()`, `validatePartialConfig()`, `validateProvider()`, `defaultAppConfig()`.
-- **`core-telemetry`** — Metrics recording: delegation counter, duration histogram, token counter, error counter, active tasks gauge.
-- **`core-logging`** — `getTraceContext()` and `withTraceContext()` for OTel trace ID injection into log entries.
-
-### CLI changes
-- `serve` command now runs **both** health server (port 9090) and API server (port 8080). Supports `--no-api`, `--api-port`, `--health-port`. Uses `GracefulShutdown` lifecycle for coordinated draining.
-
-### CI/CD
-- `.github/workflows/ci.yml` — Lint, typecheck, test (Node 20 + 22), Trivy security scan, Docker smoke test.
-- `.github/workflows/release.yml` — Docker build + push to GHCR, Helm lint on tag push.
-
-### Build & Test
-- `tsc --build`: **clean**
-- Test suites: **39 passed, 547 tests total** (39 new tests across api-server, core-lifecycle, core-migrations, core-errors)
-- 27 packages, all importable at runtime
-
-### Stats
-- Packages: 27 (was 23)
-- Test files: 32 (547 tests passing)
-- Runtime dependencies: unchanged (11 packages)
-- API endpoints: 7 REST routes + 3 health endpoints
-- Error codes: 28 cataloged with HTTP status + category mappings

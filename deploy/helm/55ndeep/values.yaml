@@ -37,13 +37,6 @@ healthServer:
   port: 9090
   host: "0.0.0.0"
 
-# ── API auth ────────────────────────────────────────────────────────────────
-auth:
-  # Set via --set auth.apiKey=... or Kubernetes Secret
-  apiKey: ""
-  existingSecret: ""
-  existingSecretKey: "api-key"
-
 # ── Orchestrator ────────────────────────────────────────────────────────────
 orchestrator:
   maxConcurrent: 4

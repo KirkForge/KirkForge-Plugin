@@ -11,8 +11,6 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { URL } from "node:url";
 import { HealthServer } from "@55ndeep/orchestrator/health-server";
-import { ApiServer } from "@55ndeep/api-server";
-import { GracefulShutdown } from "@55ndeep/core-lifecycle";
 import { EventLogger } from "@55ndeep/orchestrator/event-log";
 
 const VERSION: string = (() => { try { const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf-8")); return pkg.version ?? "0.0.0"; } catch { return "0.0.0"; } })();

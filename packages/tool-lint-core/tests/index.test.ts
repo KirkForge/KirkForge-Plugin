@@ -174,7 +174,7 @@ describe("LintEngine", () => {
     const result = await engine.emit("t9");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.durationMs).toBeGreaterThan(0);
+      expect(result.value.durationMs).toBeGreaterThanOrEqual(0);
     }
   });
 

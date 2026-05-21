@@ -347,7 +347,7 @@ describe("correction-loop (extended)", () => {
     const d = decideCorrection(basePacket(), 0, 3, 100, 100, 0, undefined, "python", null);
     expect(d.action).toBe("correct");
     expect(d.correctionPrompt).toBeDefined();
-    expect(d.correctionPrompt).toContain("ruff");
+    expect(d.correctionPrompt).toContain("55NDeep Python lint engine");
     expect(d.correctionPrompt).toContain("pyright");
   });
 });
