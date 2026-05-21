@@ -139,11 +139,12 @@ export class EventLogger {
   private _append(event: NDeepEvent): void {
     if (!this._ensureOpen()) return;
 
+    const currentSeq = this.seq;
     const entry = {
       ...event,
       _logged: new Date().toISOString(),
       _prev: this.prevHash,
-      _seq: this.seq++,
+      _seq: currentSeq,
     };
 
     const line = JSON.stringify(entry) + "\n";
@@ -151,6 +152,7 @@ export class EventLogger {
       appendFileSync(this.fd!, line, "utf-8");
       // Update prevHash from the line we just wrote
       this.prevHash = this._hmac(line.slice(0, -1)); // hash without trailing newline
+      this.seq = currentSeq + 1;
     } catch {
       try { closeSync(this.fd!); } catch { /* ok */ }
       this.fd = null;

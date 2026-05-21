@@ -41,11 +41,11 @@ function classifyByScoring(description: string): { mode: DelegationMode; reason:
   const tc = scores["schema-contract"] ?? 0;
   const td = scores["task-decompose"] ?? 0;
   if (td > 0 && td >= art && td >= tc) { best = "task-decompose"; bestReason = "multi-step decomposition (overrides code-gen)"; }
-  if (art > 0 && art >= tc) { best = "artifact"; bestReason = "file creation" + (tc > 0 ? " (overrides audit)" : ""); }
+  else if (art > 0 && art >= tc) { best = "artifact"; bestReason = "file creation" + (tc > 0 ? " (overrides audit)" : ""); }
 
   // Compute confidence from score margin
   const secondHighest = Math.max(
-    ...(["artifact", "schema-contract", "hard-prompt"] as const)
+    ...(["artifact", "schema-contract", "hard-prompt", "task-decompose"] as const)
       .filter(m => m !== best)
       .map(m => scores[m] ?? 0)
   );
