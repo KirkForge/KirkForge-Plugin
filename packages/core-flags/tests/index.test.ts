@@ -48,8 +48,9 @@ describe("core-flags", () => {
     expect(isEnabled("gradual_degradation")).toBe(true);
   });
 
-  it("rollout percent - tenant in bucket gets flag", () => {
-    // Use a tenant that hashes to < 50
+  it("rollout percent - gradual_degradation disabled at 0% rollout", () => {
+    // Explicitly clear any env var that might affect the flag
+    delete process.env.FEATURE_GRADUAL_DEGRADATION;
     initFlags({ tenantId: "tenant-alpha" });
     // gradual_degradation has rolloutPercent: 0, should be false
     expect(isEnabled("gradual_degradation")).toBe(false);

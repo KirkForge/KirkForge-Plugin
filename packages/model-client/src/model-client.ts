@@ -97,15 +97,63 @@ function shouldRetry(e: ModelClientError, attempt: number, maxRetries: number): 
   }
 }
 
+
+// ── Concurrency limiter ─────────────────────────────────────────────────
+
+class ConcurrencyLimiter {
+  private running = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(private maxConcurrent: number) {}
+
+  async acquire(): Promise<void> {
+    if (this.running < this.maxConcurrent) {
+      this.running++;
+      return;
+    }
+    return new Promise<void>(resolve => {
+      this.queue.push(() => {
+        this.running++;
+        resolve();
+      });
+    });
+  }
+
+  release(): void {
+    this.running--;
+    const next = this.queue.shift();
+    if (next) next();
+  }
+
+  get active(): number { return this.running; }
+  get waiting(): number { return this.queue.length; }
+}
+
 export class ModelClient {
   private static circuitBreaker = new CircuitBreaker();
+  private static concurrencyLimiter = new ConcurrencyLimiter(10);
   constructor(private readonly config: ModelClientOptions) {}
+
+  /** Set global max concurrent model calls. Default: 10. */
+  static setMaxConcurrent(max: number): void {
+    ModelClient.concurrencyLimiter = new ConcurrencyLimiter(max);
+  }
+
+  /** Get current concurrency stats. */
+  static concurrencyStats(): { active: number; waiting: number } {
+    return {
+      active: ModelClient.concurrencyLimiter.active,
+      waiting: ModelClient.concurrencyLimiter.waiting,
+    };
+  }
 
   private isAnthropic(): boolean {
     return this.config.providerType === "anthropic";
   }
 
   async chat(messages: ChatMessage[]): Promise<ModelResponse> {
+    await ModelClient.concurrencyLimiter.acquire();
+    try {
     const providerKey = this.config.providerType;
     // Disambiguate providers of the same type via baseUrl fragment
     const cbKey = `${providerKey}:${this.config.defaultModel}` +
@@ -146,6 +194,9 @@ export class ModelClient {
     }
     throw ModelClientError.api(500, "Unreachable");
     });
+    } finally {
+      ModelClient.concurrencyLimiter.release();
+    }
   }
 
   async complete(systemPrompt: string, userPrompt: string): Promise<ModelResponse> {

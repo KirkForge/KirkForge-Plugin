@@ -4,11 +4,11 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 30000,
-    maxConcurrency: 1,
-    fileParallelism: false,
+    maxConcurrency: 4,
+    fileParallelism: true,
     pool: "forks",
-    maxWorkers: 1,
-    sequence: { concurrent: false },
+    maxWorkers: 4,
+    sequence: { concurrent: true },
     include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "packages/**/tests/**/*.test.ts", "e2e/**/*.test.ts"],
     coverage: {
       enabled: false,
