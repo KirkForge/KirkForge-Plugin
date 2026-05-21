@@ -234,9 +234,8 @@ bash scripts/ci.sh
 # or: npm run ci
 ```
 
-Runs `npm ci`, `build`, `lint`, `test`, and `test:adapter` in sequence. Exits on first failure. Use this to verify a fresh checkout is green end-to-end.
+Runs `build`, `lint`, and `test` in sequence. Exits on first failure. Use this to verify the repo is green end-to-end. Secrets sweep (trufflehog) runs if installed.
 
-`npm ci` removes and recreates `node_modules` and must be run from the repository root so workspace links in `package-lock.json` resolve correctly.
 
 ## Requirements
 

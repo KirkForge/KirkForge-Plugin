@@ -7,9 +7,13 @@ import { join } from "node:path";
 
 let hasBetterSqlite3 = false;
 try {
-  require("better-sqlite3");
+  const Database = require("better-sqlite3");
+  const db = new Database(":memory:");
+  db.close();
   hasBetterSqlite3 = true;
-} catch { /* optional dependency not installed */ }
+} catch {
+  /* native binding unavailable */
+}
 
 describe.skipIf(!hasBetterSqlite3)("SqliteAdapter", () => {
   let dir: string;
