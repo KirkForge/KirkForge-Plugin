@@ -5,9 +5,9 @@
 - `tsc --build`: **clean** (0 errors)
 - ESLint: **clean** (0 errors, 0 warnings, --max-warnings 0)
 - `tsc --noEmit`: **clean**
-- Test suites: **35 passed, 508 tests pass** (all 8 lint packages tested, CLI smoke tests fixed) (6 sqlite-adapter tests skipped — `better-sqlite3` not in deps). All suites pass: orchestrator 77, coverage 67, chaos 6, validator-contract 12, memory 19, events 4, correction-core 48 + boundary 5 + task-validator 7 + bench-normalize 17 = 77, model-client 7, model-config 6, core-logging 6, core-secrets 13, core-tenancy 13, core-telemetry 5, agent-core 2, secdev 4, prompt-core 5, result 10, fuzz 29, plugin 29, cli 22, doctor 6.
-- Full `npm test`: ~60s, 28 suites, no hangs.
-- 23 packages, all importable at runtime
+- Test suites: **36 passed, 525 tests pass** (all 8 lint packages tested, CLI smoke tests fixed) (6 sqlite-adapter tests conditionally skipped when better-sqlite3 native bindings unavailable). All suites pass: orchestrator 77, coverage 67, chaos 6, validator-contract 12, memory 19, events 4, correction-core 48 + boundary 5 + task-validator 7 + bench-normalize 17 = 77, model-client 7, model-config 6, core-logging 6, core-secrets 13, core-tenancy 13, core-telemetry 5, agent-core 2, secdev 4, prompt-core 5, result 10, fuzz 29, plugin 29, cli 22, doctor 6.
+- Full `npm test`: ~60s, 36 suites, no hangs.
+- 29 packages, all importable at runtime
 
 ### Paths
 - Repo: `55NDeep-plugin`
@@ -127,7 +127,7 @@ All bugs from the v8 consolidation audit are now fixed. Bug consolidation detail
 - FileAdapter remains best-effort single-process — use SqliteAdapter for multi-process durability.
 - `/metrics` endpoint returns JSON (not Prometheus scrape format) — documented; use OTel OTLP pipeline for Prometheus.
 - `evictFromIndex()` removes from tenant index but does not delete on-disk storage (safety choice).
-- 28 test suites, 451 tests. Full `npm test` takes ~57s.
+- 36 test suites, 525 tests. Full `npm test` takes ~57s.
 
 ---
 
