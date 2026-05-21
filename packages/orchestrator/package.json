@@ -37,7 +37,7 @@
     "@55ndeep/tool-graphify": "*",
     "@55ndeep/memory-palace": "*",
     "@55ndeep/correction-core": "*",
-    "zod": "^3.24.0",
+    "zod": "^4.4.3",
     "@opentelemetry/api": "^1.9.0",
     "@55ndeep/core-telemetry": "*",
     "@55ndeep/tool-lint-sh": "*",

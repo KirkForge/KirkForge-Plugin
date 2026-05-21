@@ -46,7 +46,7 @@
     "@opentelemetry/sdk-trace-node": "^2.7.1",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "commander": "^13.0.0",
-    "zod": "^3.24.0"
+    "zod": "^4.4.3"
   },
   "engines": {
     "node": ">=20.0.0"
