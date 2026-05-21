@@ -75,15 +75,15 @@ export const ProvidersMapSchema = z.record(z.string().min(1), ProviderConfigSche
 
 export const AppConfigSchema = z.object({
   config: NDeepConfigSchema,
-  providers: ProvidersMapSchema.optional().default({}),
+  providers: ProvidersMapSchema.optional(),
   api: z.object({
     port: z.number().int().min(1).max(65535).default(8080),
     host: z.string().default("0.0.0.0"),
     apiKeys: z.array(z.string().min(16)).optional().default([]),
-  }).optional().default({}),
+  }).optional(),
   health: z.object({
     port: z.number().int().min(1).max(65535).default(9090),
-  }).optional().default({}),
+  }).optional(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;

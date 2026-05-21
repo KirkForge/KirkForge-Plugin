@@ -17,7 +17,7 @@
     "@55ndeep/memory-palace": "*",
     "@55ndeep/plugin": "*",
     "@55ndeep/core-schemas": "*",
-    "commander": "^13.0.0",
+    "commander": "^14.0.3",
     "@55ndeep/core-tenancy": "*"
   },
   "devDependencies": {}

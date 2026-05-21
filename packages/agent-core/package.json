@@ -16,7 +16,7 @@
     "@55ndeep/model-config": "*",
     "@55ndeep/model-client": "*",
     "@55ndeep/prompt-core": "*",
-    "zod": "^3.24.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {},
   "files": [

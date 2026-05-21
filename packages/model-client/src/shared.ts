@@ -36,7 +36,7 @@ function parseRetryAfter(header: string | null): number | undefined {
 
 export function parseChatCompletionResponse(raw: unknown, schema: z.ZodTypeAny, options: ModelClientOptions, extraContentKeys: string[] = []): ModelResponse {
   const parsed = schema.safeParse(raw);
-  const data: Record<string, unknown> = parsed.success ? parsed.data : raw as Record<string, unknown>;
+  const data: Record<string, unknown> = parsed.success ? (parsed.data as Record<string, unknown>) : (raw as Record<string, unknown>);
   const choices = data.choices as Array<Record<string, unknown>> | undefined;
   const usageData = data.usage as Record<string, unknown> | undefined;
   const choice = choices?.[0];
