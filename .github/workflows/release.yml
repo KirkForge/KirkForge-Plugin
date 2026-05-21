@@ -46,7 +46,7 @@ jobs:
         run: npx cyclonedx-npm --output-file sbom.json --omit dev
 
       - name: Upload release SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-sbom
           path: sbom.json

@@ -33,7 +33,7 @@ jobs:
           echo "Benchmark results available in bench-results/"
           echo "Add baseline comparison when historical data exists"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-results
           path: bench-results/
