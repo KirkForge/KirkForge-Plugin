@@ -255,6 +255,19 @@ export function taskStarted(): void {
   _activeTasks?.add(1);
 }
 
+
+/** Record circuit breaker state transition for metrics. */
+export function recordCircuitBreakerState(key: string, transition: string): void {
+  if (!_enabled) return;
+  try {
+    const meter = metrics.getMeter('55ndeep', '1.0.0');
+    const cbCounter = meter.createCounter('55ndeep.circuit_breaker.transitions', {
+      description: 'Circuit breaker state transitions',
+    });
+    cbCounter.add(1, { provider: key, transition });
+  } catch {}
+}
+
 export function taskEnded(): void {
   if (!_enabled) return;
   ensureMetrics();

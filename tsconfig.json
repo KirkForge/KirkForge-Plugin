@@ -116,6 +116,9 @@
     },
     {
       "path": "packages/tool-lint-sql"
+    },
+    {
+      "path": "packages/core-flags"
     }
   ]
 }

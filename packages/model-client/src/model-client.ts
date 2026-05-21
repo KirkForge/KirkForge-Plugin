@@ -34,18 +34,46 @@ class CircuitBreaker {
     return true;
   }
 
+  getState(key: string): { open: boolean; failures: number } {
+    const s = this.state.get(key);
+    if (!s) return { open: false, failures: 0 };
+    return { open: s.open, failures: s.failures };
+  }
+
+  getAllStates(): Record<string, { open: boolean; failures: number }> {
+    const result: Record<string, { open: boolean; failures: number }> = {};
+    for (const [key, s] of this.state) {
+      result[key] = { open: s.open, failures: s.failures };
+    }
+    return result;
+  }
+
   recordSuccess(key: string): void {
     this.state.delete(key);
   }
 
   recordFailure(key: string): void {
     const s = this.state.get(key) ?? { failures: 0, lastFailure: 0, open: false };
+    const wasOpen = s.open;
     s.failures++;
     s.lastFailure = Date.now();
     if (s.failures >= this.threshold) {
       s.open = true;
     }
     this.state.set(key, s);
+    // Emit metrics if telemetry is available
+    if (!wasOpen && s.open) {
+      this._emitCbMetric(key, 'open');
+    }
+  }
+
+  private _emitCbMetric(key: string, transition: string): void {
+    try {
+      // Try dynamic import for OTEL to avoid hard dependency
+      import('@55ndeep/core-telemetry').then(m => {
+        m.recordCircuitBreakerState?.(key, transition);
+      }).catch(() => {});
+    } catch {}
   }
 }
 

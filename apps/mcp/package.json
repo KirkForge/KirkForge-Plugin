@@ -1,0 +1,19 @@
+{
+  "name": "@55ndeep/mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@55ndeep/plugin": "^1.0.0",
+    "@55ndeep/memory-palace": "^1.0.0",
+    "@55ndeep/core-types": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "files": [
+    "dist/"
+  ]
+}

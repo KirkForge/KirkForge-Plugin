@@ -18,13 +18,25 @@ interface RateBucket {
   lastRefill: number;
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "0",
+  "Referrer-Policy": "no-referrer",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+};
+
 /**
  * Lightweight HTTP health-check server for daemon/bot deployment.
- * Exposes /healthz (liveness), /readyz (readiness), and /metrics.
+ * Exposes /healthz (liveness), /readyz (readiness), /metrics (json),
+ * and /v1/metrics (Prometheus text format).
  * Uses only Node built-ins — no Express dependency.
  *
+ * API versioning: all routes also available under /v1/ prefix.
  * Auth: Bearer token via HEALTH_API_KEY env var or config.apiKey.
  * Rate limiting: simple token-bucket per IP, configurable via rateLimitPerSec.
+ * Tracing: W3C traceparent propagation supported on all responses.
  */
 export class HealthServer {
   private server: ReturnType<typeof createServer> | null = null;
@@ -49,7 +61,6 @@ export class HealthServer {
     const port = this.config.port ?? parseInt(process.env.HEALTH_PORT ?? "9090", 10);
     const host = this.config.host ?? process.env.HEALTH_HOST ?? "0.0.0.0";
 
-    // Periodic cleanup of stale rate-limit buckets
     this.cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [key, bucket] of this.buckets) {
@@ -59,16 +70,35 @@ export class HealthServer {
 
     return new Promise((resolve, reject) => {
       this.server = createServer((req: IncomingMessage, res: ServerResponse) => {
+        // Security headers on every response
+        for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+          res.setHeader(k, v);
+        }
+
+        // W3C traceparent propagation
+        this._propagateTraceparent(req, res);
+
         // Auth check
         if (!this._checkAuth(req, res)) return;
 
         // Rate limit
         if (!this._checkRateLimit(req, res)) return;
 
-        if (req.url === "/healthz") return this._handleHealthz(res);
-        if (req.url === "/readyz") return this._handleReadyz(res);
-        if (req.url === "/metrics") return this._handleMetrics(res);
-        res.writeHead(404).end("not found\n");
+        const url = req.url ?? "/";
+
+        // /v1/ prefixed routes (API versioning)
+        if (url.startsWith("/v1/")) return this._routeV1(url.slice(4), req, res);
+
+        // Legacy routes
+        if (url === "/healthz") return this._handleHealthz(res);
+        if (url === "/readyz") return this._handleReadyz(res);
+        if (url === "/metrics") return this._handleMetricsJson(res);
+
+        // Prometheus metrics (also at root for backward compat)
+        if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
+
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "not_found" }));
       });
 
       this.server.on("error", (err) => {
@@ -97,10 +127,45 @@ export class HealthServer {
     });
   }
 
+  // ── /v1/ API router ──────────────────────────────────────────────────────
+
+  private _routeV1(path: string, req: IncomingMessage, res: ServerResponse): void {
+    switch (path) {
+      case "healthz": return this._handleHealthz(res);
+      case "readyz": return this._handleReadyz(res);
+      case "metrics": return this._handleMetricsPrometheus(res);
+      case "metrics/json": return this._handleMetricsJson(res);
+      default:
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "not_found", available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json"] }));
+    }
+  }
+
+  // ── W3C traceparent propagation ──────────────────────────────────────────
+
+  private _propagateTraceparent(req: IncomingMessage, res: ServerResponse): void {
+    const incoming = req.headers.traceparent as string | undefined;
+    if (!incoming) return;
+
+    // Parse: 00-traceId-spanId-01
+    const parts = incoming.split("-");
+    if (parts.length !== 4 || parts[0] !== "00") return;
+
+    const [version, traceId, spanId, flags] = parts;
+    if (!version || !traceId || !spanId || !flags) return;
+
+    // Generate a new span ID for this server-side span
+    const newSpanId = Array.from({ length: 16 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join("");
+
+    res.setHeader("traceresponse", `${version}-${traceId}-${newSpanId}-${flags}`);
+  }
+
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   private _checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
-    if (!this.apiKey) return true; // Auth not configured — allow all
+    if (!this.apiKey) return true;
 
     const authHeader = req.headers.authorization ?? "";
     if (!authHeader.startsWith("Bearer ")) {
@@ -112,7 +177,6 @@ export class HealthServer {
     const token = authHeader.slice(7);
     const expected = this.apiKey;
 
-    // Constant-time comparison to prevent timing attacks
     const tokenBuf = Buffer.from(token);
     const expectedBuf = Buffer.from(expected);
     if (tokenBuf.length !== expectedBuf.length || !timingSafeEqual(tokenBuf, expectedBuf)) {
@@ -124,7 +188,7 @@ export class HealthServer {
     return true;
   }
 
-  // ── Rate limiting (token bucket per IP) ──────────────────────────────────
+  // ── Rate limiting ─────────────────────────────────────────────────────────
 
   private _checkRateLimit(req: IncomingMessage, res: ServerResponse): boolean {
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
@@ -138,7 +202,6 @@ export class HealthServer {
       this.buckets.set(ip, bucket);
     }
 
-    // Refill tokens
     const elapsed = (now - bucket.lastRefill) / 1000;
     bucket.tokens = Math.min(this.rateLimitPerSec, bucket.tokens + elapsed * this.rateLimitPerSec);
     bucket.lastRefill = now;
@@ -185,9 +248,58 @@ export class HealthServer {
     res.end(JSON.stringify({ status: "ready", stats: health.stats, providers: health.providers }));
   }
 
-  private _handleMetrics(res: ServerResponse): void {
+  private _handleMetricsJson(res: ServerResponse): void {
     const stats = this.orchestrator.getStats();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(stats));
+  }
+
+  // ── Prometheus text format /metrics ───────────────────────────────────────
+
+  private _handleMetricsPrometheus(res: ServerResponse): void {
+    // Use type assertions since orchestrator stats may extend over time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stats = this.orchestrator.getStats() as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const health = this.orchestrator.healthCheck() as any;
+
+    const lines: string[] = [];
+    const num = (v: unknown): number => typeof v === "number" ? v : 0;
+
+    const gauge = (name: string, help: string, value: number, labels?: Record<string, string>) => {
+      lines.push(`# HELP ${name} ${help}`);
+      lines.push(`# TYPE ${name} gauge`);
+      const labelStr = labels ? `{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(",")}}` : "";
+      lines.push(`${name}${labelStr} ${value}`);
+    };
+
+    const counter = (name: string, help: string, value: number, labels?: Record<string, string>) => {
+      lines.push(`# HELP ${name} ${help}`);
+      lines.push(`# TYPE ${name} counter`);
+      const labelStr = labels ? `{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(",")}}` : "";
+      lines.push(`${name}${labelStr} ${value}`);
+    };
+
+    gauge("55ndeep_up", "Is the 55NDeep server up", health.status === "healthy" ? 1 : 0);
+    counter("55ndeep_delegations_total", "Total number of delegated tasks", num(stats.totalDelegations));
+    counter("55ndeep_tokens_total", "Total tokens consumed", num(stats.totalTokens));
+
+    // Extended stats (available in future versions)
+    if (typeof stats.totalErrors === "number") counter("55ndeep_errors_total", "Total errors", stats.totalErrors);
+    if (typeof stats.activeTasks === "number") gauge("55ndeep_active_tasks", "Currently active tasks", stats.activeTasks);
+    if (typeof stats.memoryEntries === "number") gauge("55ndeep_memory_store_entries", "Memory store entries", stats.memoryEntries);
+    if (typeof stats.memorySizeBytes === "number") gauge("55ndeep_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
+
+    // Process metrics
+    const memUsage = process.memoryUsage();
+    gauge("process_resident_memory_bytes", "Resident memory in bytes", memUsage.rss);
+    gauge("process_heap_total_bytes", "Total heap in bytes", memUsage.heapTotal);
+    gauge("process_heap_used_bytes", "Used heap in bytes", memUsage.heapUsed);
+    gauge("process_uptime_seconds", "Process uptime in seconds", process.uptime());
+
+    lines.push("# EOF");
+
+    res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
+    res.end(lines.join("\n") + "\n");
   }
 }
