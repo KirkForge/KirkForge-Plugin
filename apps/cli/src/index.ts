@@ -117,6 +117,11 @@ program
       exitError("--validator-timeout-ms must be a positive integer", opts.json);
     }
 
+    // Raw shell validator is gated behind ALLOW_UNSAFE_SHELL_VALIDATOR — enterprise policy
+    if (opts.validatorShell && process.env.ALLOW_UNSAFE_SHELL_VALIDATOR !== "true") {
+      exitError("--validator-shell requires ALLOW_UNSAFE_SHELL_VALIDATOR=true (unsafe: host must sandbox)", opts.json);
+    }
+
     const validatorConfig = opts.validatorShell
       ? { shellCommand: opts.validatorShell, timeoutMs: validatorTimeoutMs }
       : opts.validator

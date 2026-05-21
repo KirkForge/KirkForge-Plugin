@@ -135,10 +135,29 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   });
 
   const shutdown = async () => {
+    logger.info("[bootstrap] Graceful shutdown initiated");
     if (isTracingEnabled()) {
       await shutdownTelemetry();
+      logger.info("[bootstrap] Telemetry flushed");
     }
+    await memoryAdapter.persist();
+    logger.info("[bootstrap] Memory persisted");
   };
+
+  // Register process-level cleanup
+  let _shuttingDown = false;
+  const cleanup = async () => {
+    if (_shuttingDown) return;
+    _shuttingDown = true;
+    try { await shutdown(); } catch {}
+    process.exit(0);
+  };
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
+  process.on("exit", () => {
+    // Synchronous best-effort for normal exit
+    try { memoryAdapter.persist(); } catch {}
+  });
 
   return { orchestrator, configService, modelConfig, eventBus, logger, memoryStore, secretsManager, shutdown };
 }

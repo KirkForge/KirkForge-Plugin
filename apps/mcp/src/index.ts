@@ -31,6 +31,50 @@ import {
   recallRoutingBias,
 } from "@55ndeep/plugin";
 import { MemoryStore } from "@55ndeep/memory-palace";
+import { z } from "zod";
+
+// ── Runtime input validators ────────────────────────────────────────────────
+
+function validateArgs<T>(args: unknown, schema: z.ZodType<T>, toolName: string): T | { error: string } {
+  const result = schema.safeParse(args);
+  if (!result.success) {
+    return { error: `Invalid arguments for ${toolName}: ${result.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")}` };
+  }
+  return result.data;
+}
+
+const VerifyWorkspaceSchema = z.object({
+  workspace: z.string().min(1),
+  files: z.array(z.string()).optional(),
+  language: z.enum(["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"]).optional(),
+  description: z.string().optional(),
+  taskId: z.string().optional(),
+});
+
+const DoctorSchema = z.object({});
+
+const RecordObservationSchema = z.object({
+  taskId: z.string().min(1),
+  description: z.string().min(1),
+  language: z.string().min(1),
+  mode: z.string().min(1),
+  model: z.string().min(1),
+  outcome: z.enum(["pass", "fail", "escalate", "error"]),
+  durationMs: z.number().int().positive(),
+  tokens: z.number().int().nonnegative().optional(),
+  verifierOverall: z.string().optional(),
+});
+
+const RecallRoutingBiasSchema = z.object({
+  taskDescription: z.string().min(1),
+  workerModel: z.string().optional(),
+});
+
+const BuildCorrectionPromptSchema = z.object({
+  packet: z.record(z.unknown()),
+  language: z.string().optional(),
+  maxTokens: z.number().int().positive().optional(),
+});
 
 // ── Shared MemoryStore ─────────────────────────────────────────────────────
 
@@ -120,13 +164,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "55ndeep_verify_workspace": {
-        const result = await verifyWorkspace({
-          workspace: args?.workspace as string,
-          files: args?.files as string[] | undefined,
-          language: args?.language as string | undefined,
-          description: args?.description as string | undefined,
-          taskId: args?.taskId as string | undefined,
-        });
+        const parsed = validateArgs(args, VerifyWorkspaceSchema, name);
+        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        const result = await verifyWorkspace(parsed);
         if (!result.ok) {
           return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
         }
@@ -139,17 +179,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "55ndeep_record_observation": {
-        const result = await recordObservation({
-          taskId: args?.taskId as string,
-          description: args?.description as string,
-          language: args?.language as string,
-          mode: args?.mode as string,
-          model: args?.model as string,
-          outcome: args?.outcome as "pass" | "fail" | "escalate" | "error",
-          durationMs: args?.durationMs as number,
-          tokens: args?.tokens as number | undefined,
-          verifierOverall: args?.verifierOverall as string | undefined,
-        }, memoryStore);
+        const parsed = validateArgs(args, RecordObservationSchema, name);
+        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        const result = await recordObservation(parsed, memoryStore);
         if (!result.ok) {
           return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
         }
@@ -157,11 +189,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "55ndeep_recall_routing_bias": {
-        const result = await recallRoutingBias(
-          args?.taskDescription as string,
-          args?.workerModel as string | undefined,
-          memoryStore,
-        );
+        const parsed = validateArgs(args, RecallRoutingBiasSchema, name);
+        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        const result = await recallRoutingBias(parsed.taskDescription, parsed.workerModel, memoryStore);
         if (!result.ok) {
           return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
         }
@@ -169,9 +199,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "55ndeep_build_correction_prompt": {
-        const prompt = buildCorrectionPrompt(args?.packet as any, {
-          language: args?.language as string | undefined,
-          maxTokens: args?.maxTokens as number | undefined,
+        const parsed = validateArgs(args, BuildCorrectionPromptSchema, name);
+        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        const prompt = buildCorrectionPrompt(parsed.packet, {
+          language: parsed.language,
+          maxTokens: parsed.maxTokens,
         });
         return { content: [{ type: "text", text: prompt }] };
       }

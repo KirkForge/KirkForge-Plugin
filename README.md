@@ -1,5 +1,19 @@
 # 55NDeep
 
+> **Status: Developer Preview (v1.0.0-rc)**  
+> 55NDeep is a developer-preview deterministic verification plugin for coding-agent workflows, with early routing memory and correction-loop support. It has enterprise-oriented architecture hooks, but is **not yet enterprise-grade**.
+>
+> **What this means:**
+> - ✅ Core verification loop works. 537 tests, deterministic tooling, reproducible builds.
+> - ✅ CI, Docker, Helm, SBOM, OTEL, and health endpoints are configured and functional.
+> - ⚠️ Multi-tenancy, RBAC, SSO, policy engine, audit log, and sandboxed execution are architecture hooks — not production-hardened features.
+> - ⚠️ Routing memory is file-backed by default. SQLite is available but not the default.
+> - ❌ No admin UI, no central config service, no fleet rollout, no formal SLA/SLO enforcement.
+>
+> **Target audience:** Individual developers and small teams evaluating deterministic verification in coding-agent workflows. Enterprise adoption requires additional hardening (see [Enterprise Readiness](#enterprise-readiness)).
+>
+> **Install:** `npm ci && npm run build` — that must succeed. If it doesn't, file an issue.
+
 **Deterministic delegation plugin for coding agents.** 55NDeep is not a standalone agent framework. It plugs into Codex, Claude Code, OpenCode, LangChain-style orchestrators, and internal agent stacks as a verification, correction, and routing layer.
 
 ## Framing: Brain, Brawn, Verifier
@@ -242,3 +256,26 @@ Runs `build`, `lint`, and `test` in sequence. Exits on first failure. Use this t
 - Node.js >= 20
 - Git (for gitnexus diff tracking)
 - Optional: ESLint, TypeScript, ruff, pyright, bandit (for language-specific verification)
+
+
+## Enterprise Readiness
+
+55NDeep has architecture hooks for enterprise deployment but is not yet enterprise-grade.
+For a detailed gap analysis, see the [enterprise readiness gap analysis](./55NDeep-v8-enterprise-readiness-gap.md).
+
+**Current enterprise posture:**
+
+| Area | Status |
+|------|--------|
+| Reproducible build | ✅ `npm ci` → `npm run build` → `npm test` |
+| CI/CD | ✅ GitHub Actions (Node 20/22 matrix, audit, SBOM, trufflehog) |
+| Container | ✅ Multi-stage Dockerfile, non-root user, health check |
+| Orchestration | ✅ Helm chart with HPA, ingress, PVC, SA, securityContext |
+| Observability | ✅ OpenTelemetry (traces + metrics), Prometheus `/v1/metrics`, health endpoints |
+| Security | ⚠️ Path safety, circuit breaker, secrets chain. No RBAC, SSO, sandboxing. |
+| Multi-tenancy | ⚠️ Tenant package exists; isolation not enforced across all paths. |
+| Audit | ⚠️ Event log with HMAC integrity; no retention/export pipeline. |
+| Policy | ❌ No policy engine, no tool allowlists, no model governance. |
+| Admin | ❌ No UI, no central config, no fleet management. |
+
+**Roadmap to enterprise v1:** Identity → RBAC → Policy engine → Audit pipeline → Durable memory → Sandboxed execution → Admin UI. Estimate: 3–6 months with 2–4 engineers.
