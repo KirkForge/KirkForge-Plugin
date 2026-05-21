@@ -14,5 +14,8 @@
     "@55ndeep/core-types": "*",
     "@55ndeep/memory-palace": "*"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "files": [
+    "dist/"
+  ]
 }

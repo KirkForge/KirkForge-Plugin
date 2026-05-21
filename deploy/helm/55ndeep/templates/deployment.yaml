@@ -71,11 +71,17 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
             - name: memory
               mountPath: {{ .Values.persistence.mountPath }}
           {{- end }}
       {{- if .Values.persistence.enabled }}
       volumes:
+        - name: tmp
+          emptyDir: {}
+
         - name: memory
           persistentVolumeClaim:
             claimName: {{ include "55ndeep.fullname" . }}-memory

@@ -1,0 +1,34 @@
+{
+  "id": "55ndeep",
+  "name": "55NDeep",
+  "version": "1.0.0",
+  "description": "Deterministic verification, correction, and routing layer for coding agents. Plugs into Codex, Claude Code, OpenCode, and LangChain-style systems.",
+  "author": "55NDeep Contributors",
+  "license": "Apache-2.0",
+  "entrypoint": {
+    "type": "npm",
+    "package": "@55ndeep/plugin",
+    "path": "./dist/index.js"
+  },
+  "permissions": {
+    "filesystem": {
+      "read": ["${workspace}"],
+      "write": []
+    },
+    "network": {
+      "allowed": ["api.openai.com", "api.anthropic.com", "localhost:11434"],
+      "denied": []
+    },
+    "exec": {
+      "allowed": ["eslint", "tsc", "ruff", "pyright", "bandit", "git"],
+      "denied": []
+    }
+  },
+  "capabilities": ["verify", "correct", "route", "doctor"],
+  "keywords": ["verification", "linting", "agent", "codex", "claude-code", "opencode", "deterministic"],
+  "repository": "https://github.com/55ndeep/55ndeep",
+  "homepage": "https://github.com/55ndeep/55ndeep#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

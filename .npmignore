@@ -1,0 +1,27 @@
+# Source files (only dist is published)
+src/
+tests/
+__tests__/
+
+# Config
+tsconfig.json
+tsconfig.*.json
+*.tsbuildinfo
+vitest.config.ts
+eslint.config.js
+
+# Misc
+node_modules/
+.git/
+.github/
+.husky/
+coverage/
+bench/
+docs/
+deploy/
+examples/
+
+# System
+.DS_Store
+*.log
+.env*

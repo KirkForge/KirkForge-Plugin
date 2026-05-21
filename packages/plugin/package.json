@@ -4,13 +4,44 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-events": "*",
-    "@55ndeep/correction-core": "*",
-    "@55ndeep/orchestrator": "*",
-    "@55ndeep/memory-palace": "*"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "devDependencies": {}
+  "dependencies": {
+    "@55ndeep/core-types": "^1.0.0",
+    "@55ndeep/core-events": "^1.0.0",
+    "@55ndeep/correction-core": "^1.0.0",
+    "@55ndeep/orchestrator": "^1.0.0",
+    "@55ndeep/memory-palace": "^1.0.0"
+  },
+  "devDependencies": {},
+  "private": false,
+  "license": "Apache-2.0",
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/55ndeep/55ndeep.git",
+    "directory": "packages/plugin"
+  },
+  "keywords": [
+    "verification",
+    "linting",
+    "agent",
+    "codex",
+    "claude-code",
+    "opencode",
+    "deterministic",
+    "55ndeep"
+  ],
+  "author": "55NDeep Contributors"
 }

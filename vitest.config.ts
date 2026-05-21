@@ -9,12 +9,12 @@ export default defineConfig({
     pool: "forks",
     maxWorkers: 1,
     sequence: { concurrent: false },
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "packages/**/tests/**/*.test.ts"],
+    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "packages/**/tests/**/*.test.ts", "e2e/**/*.test.ts"],
     coverage: {
       enabled: false,
       provider: "v8",
       include: ["packages/**/src/**", "apps/**/src/**"],
-      thresholds: { statements: 70, branches: 60, functions: 70, lines: 70 },
+      thresholds: { statements: 80, branches: 75, functions: 80, lines: 80 },
     },
   },
 });

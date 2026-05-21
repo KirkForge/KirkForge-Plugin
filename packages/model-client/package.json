@@ -16,5 +16,8 @@
     "@55ndeep/core-telemetry": "*",
     "@opentelemetry/api": "^1.9.0"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "files": [
+    "dist/"
+  ]
 }
