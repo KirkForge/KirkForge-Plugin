@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Deterministic delegation plugin for coding agents \u2014 verification, correction, and routing layer that plugs into Codex, Claude Code, OpenCode, and LangChain-style systems",
+  "description": "Deterministic delegation plugin for coding agents — verification, correction, and routing layer that plugs into Codex, Claude Code, OpenCode, and LangChain-style systems",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -15,6 +15,8 @@
     "test:coverage": "vitest run --coverage.enabled=true",
     "typecheck": "tsc --noEmit",
     "lint": "eslint packages apps",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "clean": "rm -rf packages/*/dist apps/*/dist packages/*/tsconfig.tsbuildinfo apps/*/tsconfig.tsbuildinfo",
     "test:adapter": "bash examples/shell-adapter/test-adapter.sh",
     "ci": "bash scripts/ci.sh",
@@ -25,6 +27,7 @@
     "docs:api": "typedoc"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitest/coverage-v8": "^3.0.0",
@@ -32,8 +35,7 @@
     "prettier": "^3.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.0.0",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "vitest": "^3.0.0"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
