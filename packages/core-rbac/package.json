@@ -12,8 +12,9 @@
     }
   },
   "dependencies": {
+    "@55ndeep/core-errors": "*",
     "@55ndeep/core-types": "*",
-    "@55ndeep/core-errors": "*"
+    "jose": "^6.2.3"
   },
   "files": [
     "dist/"

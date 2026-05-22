@@ -9,6 +9,7 @@ import {
   validateJwtClaims,
   actorFromJwt,
   actorFromApiKey,
+  verifyJwt,
 } from "@55ndeep/core-rbac";
 import type { AuditLogger } from "@55ndeep/core-events";
 import type { PolicyEngine } from "@55ndeep/core-policy";
@@ -118,15 +119,15 @@ export class HealthServer {
       }
     }, 30000);
     return new Promise((resolve, reject) => {
-      this.server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      this.server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
         // Security headers on every response
         for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
           res.setHeader(k, v);
         }
         // W3C traceparent propagation
         this._propagateTraceparent(req, res);
-        // Auth check — resolves Actor from Bearer token
-        const authResult = this._resolveActor(req, res);
+        // Auth check — resolves Actor from Bearer token (async for JWKS)
+        const authResult = await this._resolveActor(req, res);
         if (!authResult) return; // response already sent
         // Rate limit
         if (!this._checkRateLimit(req, res)) return;
@@ -208,10 +209,10 @@ export class HealthServer {
    * - If only API key is configured, use static key auth.
    * Returns null (and sends response) if auth fails.
    */
-  private _resolveActor(
+  private async _resolveActor(
     req: IncomingMessage,
     res: ServerResponse,
-  ): { actor: Actor; tokenId: string } | null {
+  ): Promise<{ actor: Actor; tokenId: string } | null> {
     // No auth configured — internal actor
     if (!this.apiKey && !this.oidcConfig) {
       return {
@@ -233,7 +234,7 @@ export class HealthServer {
     const token = authHeader.slice(7);
     // Try OIDC JWT validation first if configured
     if (this.oidcConfig) {
-      const jwtResult = this._validateJwtBearer(token);
+      const jwtResult = await this._validateJwtBearer(token);
       if (jwtResult) {
         // JWT validated successfully
         this._auditAuth(jwtResult.actor.id, "auth.success", jwtResult.actor.tenantId, "JWT auth");
@@ -260,26 +261,43 @@ export class HealthServer {
     return null;
   }
   /**
-   * Validate a JWT bearer token using OIDC config.
-   * Returns the Actor if valid, or null if invalid.
-   * NOTE: Full signature verification requires the `jose` library or similar.
-   * This validates claims (issuer, audience, expiry) but the caller must
-   * verify the signature in production deployments.
+   * Validate a JWT bearer token using full JOSE/JWKS signature verification.
+   * Uses the jose library to verify the token's signature against the OIDC
+   * provider's JWKS endpoint, then validates claims (issuer, audience, expiry).
+   * Falls back to claims-only validation if signature verification is unavailable
+   * (e.g. JWKS endpoint unreachable) — logs a warning in that case.
    */
-  private _validateJwtBearer(token: string): { actor: Actor } | null {
+  private async _validateJwtBearer(token: string): Promise<{ actor: Actor } | null> {
     if (!this.oidcConfig) return null;
     try {
-      // Decode JWT payload (base64url, no signature verification here)
-      const parts = token.split(".");
-      if (parts.length !== 3) return null;
-      const payload = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf-8"));
-      const claimsResult = validateJwtClaims(payload, this.oidcConfig);
-      if (!claimsResult.ok) return null;
+      // ── Full signature verification via jose/JWKS ────────────────────────
+      const claimsResult = await verifyJwt(token, this.oidcConfig, this.groupRoleMapping);
+      if (!claimsResult.ok) {
+        this.config.logger?.warn(`[health-server] JWT verification failed: ${claimsResult.error.message}`);
+        return null;
+      }
       const actorResult = actorFromJwt(claimsResult.value, this.oidcConfig, this.groupRoleMapping);
       if (!actorResult.ok) return null;
       return { actor: actorResult.value };
-    } catch {
-      return null;
+    } catch (e) {
+      // ── Fallback: claims-only validation (signature NOT verified) ─────────
+      // This path is reached when the JWKS endpoint is unreachable.
+      // In production, this should be monitored closely.
+      this.config.logger?.warn(
+        `[health-server] JWT JWKS verification failed, falling back to claims-only: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      try {
+        const parts = token.split(".");
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf-8"));
+        const claimsResult = validateJwtClaims(payload, this.oidcConfig);
+        if (!claimsResult.ok) return null;
+        const actorResult = actorFromJwt(claimsResult.value, this.oidcConfig, this.groupRoleMapping);
+        if (!actorResult.ok) return null;
+        return { actor: actorResult.value };
+      } catch {
+        return null;
+      }
     }
   }
   // ── RBAC permission check ────────────────────────────────────────────────

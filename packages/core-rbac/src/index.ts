@@ -350,4 +350,9 @@ export function actorFromApiKey(
   });
 }
 
+// ── Full JWT verification (signature + JWKS) ──────────────────────────
+
+export { verifyJwt, clearJwksCache } from "./jwt-verify.js";
+export type { VerifyJwtOptions } from "./jwt-verify.js";
+
 /** Lazy-load crypto to avoid circular imports at module level. */
