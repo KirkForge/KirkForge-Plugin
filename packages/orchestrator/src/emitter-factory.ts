@@ -9,7 +9,6 @@ import { TscEmitter } from "@55ndeep/tool-tsc";
 import { PyrightEmitter } from "@55ndeep/tool-pyright";
 import { GitnexusEmitter } from "@55ndeep/tool-gitnexus";
 import { GraphifyEmitter } from "@55ndeep/tool-graphify";
-import { EslintEmitter } from "@55ndeep/tool-eslint";
 import type { EventBus } from "@55ndeep/core-events";
 import type { TaskLanguage } from "./task-profile.js";
 
@@ -54,6 +53,5 @@ export function createVerificationEmitters(
     security: resolvedSecurity,
     changes: new GitnexusEmitter({ cwd, eventBus, writtenFiles }),
     graph: new GraphifyEmitter({ cwd, eventBus, files }),
-    eslint: new EslintEmitter({ cwd, eventBus, files }),
   };
 }

@@ -46,8 +46,7 @@
     "@55ndeep/tool-lint-go": "*",
     "@55ndeep/tool-lint-sql": "*",
     "@55ndeep/tool-lint-ts": "*",
-    "@55ndeep/tool-lint-py": "*",
-    "@55ndeep/tool-eslint": "*"
+    "@55ndeep/tool-lint-py": "*"
   },
   "devDependencies": {},
   "files": [

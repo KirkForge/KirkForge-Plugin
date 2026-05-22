@@ -77,9 +77,6 @@
       "path": "packages/prompt-core"
     },
     {
-      "path": "packages/tool-eslint"
-    },
-    {
       "path": "packages/tool-gitnexus"
     },
     {

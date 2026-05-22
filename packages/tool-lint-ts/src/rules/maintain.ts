@@ -22,4 +22,11 @@ export const maintainRules: LintRule[] = [
     pattern: /^export\s+(?:async\s+)?function\s+\w+(?![^{]*\/\*\*)/gm,
     message: "Exported function missing JSDoc comment",
   },
+  {
+    id: "no-require-import",
+    category: "maintain",
+    severity: "high",
+    pattern: /\brequire\s*\(\s*['"][^'"]+['"]\s*\)/g,
+    message: "Use ESM import instead of require() — if dynamic, add an eslint-disable comment",
+  },
 ];

@@ -74,9 +74,6 @@
     },
     {
       "path": "../tool-lint-sql"
-    },
-    {
-      "path": "../tool-eslint"
     }
   ],
   "exclude": ["dist", "**/*.test.ts"],

@@ -57,4 +57,25 @@ export const correctRules: LintRule[] = [
     pattern: /(\w+)\?\\.[\w.]+\(/g,
     message: "Optional chaining before function call may throw if undefined",
   },
+  {
+    id: "prefer-const",
+    category: "correct",
+    severity: "med",
+    pattern: /\blet\s+(\w+)\s*=\s*[^;]+;(?![\s\S]*?\1\s*=)/gm,
+    message: "Variable is never reassigned; use const instead of let",
+  },
+  {
+    id: "no-unused-expression",
+    category: "correct",
+    severity: "high",
+    pattern: /^\s*[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*)*\s*;\s*$/gm,
+    message: "Expected an assignment or function call — standalone expression does nothing",
+  },
+  {
+    id: "no-this-alias",
+    category: "correct",
+    severity: "med",
+    pattern: /(?:const|let|var)\s+(\w+)\s*=\s*this\s*;/g,
+    message: "Unexpected aliasing of this to a local variable — use arrow functions instead",
+  },
 ];

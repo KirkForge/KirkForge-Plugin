@@ -58,4 +58,11 @@ export const styleRules: LintRule[] = [
       /(?<![a-zA-Z0-9_."'\`#])(?<!\bcase\s)(?<!\bconst\s+\w+\s*=\s*)(?<!\blet\s+\w+\s*=\s*)(?<!\bvar\s+\w+\s*=\s*)\b\d{4,}\b(?!['\"])/g,
     message: "Magic number detected; extract to a named constant",
   },
+  {
+    id: "no-unused-import",
+    category: "correct",
+    severity: "med",
+    pattern: /^import\s+(?:type\s+)?(?:\{[^}]*\}|\w+)\s+from\s+['"][^'"]+['"]\s*;?\s*$/gm,
+    message: "Potential unused import — verify this symbol is actually referenced in the file",
+  },
 ];
