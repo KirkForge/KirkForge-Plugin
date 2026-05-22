@@ -45,6 +45,30 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+            {{- if .Values.enterprise.enabled }}
+            - name: 55NDEEP_ENTERPRISE_MODE
+              value: "1"
+            - name: MEMORY_BACKEND
+              value: {{ .Values.enterprise.memoryBackend | quote }}
+            - name: AUDIT_SINK_TYPE
+              value: {{ .Values.enterprise.audit.sinkType | quote }}
+            {{- if .Values.enterprise.audit.filePath }}
+            - name: AUDIT_FILE_PATH
+              value: {{ .Values.enterprise.audit.filePath | quote }}
+            {{- end }}
+            {{- if .Values.enterprise.audit.httpUrl }}
+            - name: AUDIT_HTTP_URL
+              value: {{ .Values.enterprise.audit.httpUrl | quote }}
+            {{- end }}
+            {{- if .Values.enterprise.policy.filePath }}
+            - name: POLICY_FILE_PATH
+              value: {{ .Values.enterprise.policy.filePath | quote }}
+            {{- end }}
+            {{- if .Values.enterprise.policy.serviceUrl }}
+            - name: POLICY_SERVICE_URL
+              value: {{ .Values.enterprise.policy.serviceUrl | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.observability.otel.enabled }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.observability.otel.otlpEndpoint | quote }}
@@ -55,7 +79,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           envFrom:
-            - configMapRef:
+            - configmapRef:
                 name: {{ include "55ndeep.fullname" . }}-config
             - secretRef:
                 name: {{ include "55ndeep.fullname" . }}-secret
@@ -73,7 +97,12 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-
+            {{- if .Values.enterprise.enabled }}
+            {{- if and .Values.enterprise.audit.sinkType (eq .Values.enterprise.audit.sinkType "file") }}
+            - name: audit
+              mountPath: /var/lib/55ndeep/audit
+            {{- end }}
+            {{- end }}
             - name: memory
               mountPath: {{ .Values.persistence.mountPath }}
           {{- end }}
@@ -81,7 +110,12 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-
+        {{- if .Values.enterprise.enabled }}
+        {{- if and .Values.enterprise.audit.sinkType (eq .Values.enterprise.audit.sinkType "file") }}
+        - name: audit
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
         - name: memory
           persistentVolumeClaim:
             claimName: {{ include "55ndeep.fullname" . }}-memory

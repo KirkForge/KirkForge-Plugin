@@ -1,4 +1,5 @@
 import type { DelegationMode } from "@55ndeep/core-types";
+import { NDeepError } from "@55ndeep/core-errors";
 import { ok, err } from "@55ndeep/core-types";
 import { EventBus } from "@55ndeep/core-events";
 import type { Logger } from "@55ndeep/core-logging";
@@ -153,6 +154,10 @@ export interface OrchestratorConfig {
   memoryStore?: MemoryStore;
   cwd?: string;
   decomposeProvider?: string;
+  /** Policy engine for deny-by-default enforcement. If set, tools and models are checked before execution. */
+  policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
+  /** Audit logger for policy deny events. */
+  auditLogger?: import("@55ndeep/core-events").AuditLogger;
 }
 
 const PROVIDER_COST_KEY_MAP: Record<string, string> = {
@@ -189,6 +194,8 @@ export class Orchestrator {
   private _classifierMemory: ClassifierMemory | null = null;
   private _baselineSnapshotDir: string | null = null;
   private _isolatedBaselineDirs: string[] = [];
+  private _policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
+  private _auditLogger?: import("@55ndeep/core-events").AuditLogger;
 
   constructor(config: OrchestratorConfig) {
     this.modelConfig = config.modelConfig;
@@ -206,11 +213,42 @@ export class Orchestrator {
       this._sloMonitor = new SloMonitor(this.memoryStore);
     }
     this._classifierMemory = new ClassifierMemory(this.memoryStore);
+    this._policyEngine = config.policyEngine;
+    this._auditLogger = config.auditLogger;
   }
 
   async delegate(task: TaskInput): Promise<OrchestratorResult> {
     if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
     const taskId = task.taskId ?? `task-${Date.now()}`;
+
+    // ── Policy enforcement ──────────────────────────────────────────
+    // If a policy engine is configured, check tools and models before
+    // proceeding. Deny-by-default: if the policy blocks the action,
+    // return an error and audit-log the denial.
+    if (this._policyEngine) {
+      const providerConfig = this._resolveProvider(null);
+      const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
+      if (!modelDecision.allowed) {
+        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash);
+        return err(
+          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+            rule: modelDecision.rule,
+            policyHash: modelDecision.policyHash,
+          }),
+        );
+      }
+      const profile = detectTaskProfile(task.description);
+      const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
+      if (!toolDecision.allowed) {
+        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash);
+        return err(
+          new NDeepError("POLICY_DENIED", toolDecision.reason, {
+            rule: toolDecision.rule,
+            policyHash: toolDecision.policyHash,
+          }),
+        );
+      }
+    }
 
     let decision = classifyTask(task, this._classifierMemory);
     const profile = detectTaskProfile(task.description);
@@ -631,6 +669,26 @@ export class Orchestrator {
   }
   getEventBus(): EventBus {
     return this.sharedEventBus;
+  }
+
+  private _auditPolicyDeny(
+    action: "model.deny" | "tool.deny",
+    reason: string,
+    policyHash: string,
+  ): void {
+    if (!this._auditLogger) return;
+    this._auditLogger
+      .record({
+        action: action as "model.deny" | "tool.deny",
+        outcome: "deny",
+        actorId: "system",
+        tenantId: "",
+        reason,
+        policyHash,
+      })
+      .catch(() => {
+        // Audit write failure must not block execution
+      });
   }
 
   private _resolveProvider(memoryRecommendation?: Recommendation | null): ModelProviderConfig {
@@ -1386,6 +1444,36 @@ export class Orchestrator {
     import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error>
   > {
     if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
+    const _taskId = task.taskId ?? `task-${Date.now()}`;
+
+    // ── Policy enforcement ──────────────────────────────────────────
+    // If a policy engine is configured, check tools and models before
+    // proceeding. Deny-by-default: if the policy blocks the action,
+    // return an error and audit-log the denial.
+    if (this._policyEngine) {
+      const providerConfig = this._resolveProvider(null);
+      const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
+      if (!modelDecision.allowed) {
+        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash);
+        return err(
+          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+            rule: modelDecision.rule,
+            policyHash: modelDecision.policyHash,
+          }),
+        );
+      }
+      const profile = detectTaskProfile(task.description);
+      const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
+      if (!toolDecision.allowed) {
+        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash);
+        return err(
+          new NDeepError("POLICY_DENIED", toolDecision.reason, {
+            rule: toolDecision.rule,
+            policyHash: toolDecision.policyHash,
+          }),
+        );
+      }
+    }
 
     const effectiveTaskId =
       task.taskId ?? `decomp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

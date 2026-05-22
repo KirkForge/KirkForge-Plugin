@@ -74,6 +74,12 @@
     },
     {
       "path": "../tool-lint-sql"
+    },
+    {
+      "path": "../core-policy"
+    },
+    {
+      "path": "../core-rbac"
     }
   ],
   "exclude": ["dist", "**/*.test.ts"],

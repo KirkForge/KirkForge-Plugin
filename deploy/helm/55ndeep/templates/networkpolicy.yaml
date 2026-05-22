@@ -1,0 +1,75 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "55ndeep.fullname" . }}
+  labels:
+    {{- include "55ndeep.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "55ndeep.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow health probes from same namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - port: {{ .Values.healthServer.port }}
+          protocol: TCP
+    {{- if .Values.ingress.enabled }}
+    # Allow ingress controller traffic
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressNamespaceLabels | nindent 14 }}
+      ports:
+        - port: {{ .Values.healthServer.port }}
+          protocol: TCP
+    {{- end }}
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if .Values.networkPolicy.allowOTelEgress }}
+    # Allow OTel export
+    - to:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.networkPolicy.allowVaultEgress }}
+    # Allow Vault secrets access
+    - to:
+        - podSelector:
+            matchLabels:
+              app: vault
+      ports:
+        - port: 8200
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.networkPolicy.allowModelProviderEgress }}
+    # Allow outbound to model providers (OpenAI, Anthropic, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+    {{- end }}
+{{- end }}

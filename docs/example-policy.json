@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "enterprise-default",
+  "tools": {
+    "allowed": ["eslint", "tsc", "pyright", "ruff", "bandit", "git", "prettier", "mypy"],
+    "denied": ["curl", "wget", "nc", "ssh", "telnet"],
+    "maxConcurrent": 4
+  },
+  "models": {
+    "allowed": [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "claude-sonnet-4-20250514",
+      "claude-haiku-4-20250414",
+      "local-ollama"
+    ],
+    "allowedProviders": ["openai", "anthropic", "local-ollama"],
+    "maxTokensPerRequest": 16384
+  },
+  "workspaces": {
+    "allowedRoots": ["/workspace", "/tmp/55ndeep"],
+    "maxPathDepth": 12,
+    "allowSymlinks": false
+  },
+  "execution": {
+    "networkAllowed": false,
+    "maxRuntimeSeconds": 120,
+    "maxMemoryMb": 1024,
+    "shellAllowed": false,
+    "allowedCommands": []
+  },
+  "tenantOverrides": {
+    "tenant-alpha": {
+      "tools": {
+        "allowed": ["eslint", "tsc", "pyright", "ruff", "git", "npm", "node"],
+        "denied": []
+      },
+      "models": {
+        "maxTokensPerRequest": 32768
+      }
+    },
+    "tenant-beta": {
+      "execution": {
+        "networkAllowed": true,
+        "maxRuntimeSeconds": 300
+      }
+    }
+  }
+}

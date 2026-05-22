@@ -177,3 +177,17 @@ export class EventBus {
     this._running = false;
   }
 }
+
+// Re-export audit sink module
+export {
+  AuditAction,
+  AuditOutcome,
+  AuditEvent,
+  AuditSink,
+  AuditSinkConfig,
+  FileAuditSink,
+  HttpAuditSink,
+  MemoryAuditSink,
+  AuditLogger,
+  createAuditSink,
+} from "./audit.js";

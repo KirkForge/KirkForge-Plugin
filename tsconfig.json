@@ -29,6 +29,9 @@
       "path": "packages/core-config"
     },
     {
+      "path": "packages/core-enterprise"
+    },
+    {
       "path": "packages/core-errors"
     },
     {
@@ -39,6 +42,12 @@
     },
     {
       "path": "packages/core-logging"
+    },
+    {
+      "path": "packages/core-policy"
+    },
+    {
+      "path": "packages/core-rbac"
     },
     {
       "path": "packages/core-schemas"

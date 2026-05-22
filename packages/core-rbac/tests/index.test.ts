@@ -1,0 +1,381 @@
+import { describe, it, expect } from "vitest";
+import {
+  hasPermission,
+  authorize,
+  authorizeTenant,
+  validateJwtClaims,
+  actorFromJwt,
+  actorFromApiKey,
+  resolveRole,
+  type Actor,
+  type OidcConfig,
+  type GroupRoleMapping,
+  type Role,
+} from "../src/index.js";
+
+describe("hasPermission", () => {
+  const admin: Actor = {
+    id: "admin1",
+    role: "admin",
+    tenantId: "t1",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+  const operator: Actor = {
+    id: "op1",
+    role: "operator",
+    tenantId: "t1",
+    authMethod: "api_key",
+    verifiedAt: new Date().toISOString(),
+  };
+  const developer: Actor = {
+    id: "dev1",
+    role: "developer",
+    tenantId: "t1",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+  const viewer: Actor = {
+    id: "view1",
+    role: "viewer",
+    tenantId: "t1",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+
+  it("admin has all admin permissions", () => {
+    expect(hasPermission(admin, "admin:config")).toBe(true);
+    expect(hasPermission(admin, "admin:policy")).toBe(true);
+    expect(hasPermission(admin, "admin:tenant")).toBe(true);
+    expect(hasPermission(admin, "admin:keys")).toBe(true);
+    expect(hasPermission(admin, "admin:audit_export")).toBe(true);
+  });
+
+  it("admin inherits operator, developer, and viewer permissions", () => {
+    expect(hasPermission(admin, "operator:health")).toBe(true);
+    expect(hasPermission(admin, "dev:verify")).toBe(true);
+    expect(hasPermission(admin, "viewer:status")).toBe(true);
+  });
+
+  it("operator cannot access admin or developer permissions", () => {
+    expect(hasPermission(operator, "admin:config")).toBe(false);
+    expect(hasPermission(operator, "dev:verify")).toBe(false);
+  });
+
+  it("operator has health, restart, audit, and viewer permissions", () => {
+    expect(hasPermission(operator, "operator:health")).toBe(true);
+    expect(hasPermission(operator, "operator:restart")).toBe(true);
+    expect(hasPermission(operator, "operator:view_audit")).toBe(true);
+    expect(hasPermission(operator, "viewer:status")).toBe(true);
+  });
+
+  it("developer can verify, correct, observe, and access memory", () => {
+    expect(hasPermission(developer, "dev:verify")).toBe(true);
+    expect(hasPermission(developer, "dev:correct")).toBe(true);
+    expect(hasPermission(developer, "dev:observe")).toBe(true);
+    expect(hasPermission(developer, "dev:memory_read")).toBe(true);
+    expect(hasPermission(developer, "dev:memory_write")).toBe(true);
+  });
+
+  it("developer cannot access admin or operator permissions", () => {
+    expect(hasPermission(developer, "admin:config")).toBe(false);
+    expect(hasPermission(developer, "operator:restart")).toBe(false);
+  });
+
+  it("viewer can only view status, results, and metrics", () => {
+    expect(hasPermission(viewer, "viewer:status")).toBe(true);
+    expect(hasPermission(viewer, "viewer:results")).toBe(true);
+    expect(hasPermission(viewer, "viewer:metrics")).toBe(true);
+    expect(hasPermission(viewer, "dev:verify")).toBe(false);
+    expect(hasPermission(viewer, "admin:config")).toBe(false);
+  });
+
+  it("unknown role denies everything", () => {
+    const unknown: Actor = {
+      id: "x",
+      role: "unknown" as Role,
+      tenantId: "",
+      authMethod: "oidc",
+      verifiedAt: new Date().toISOString(),
+    };
+    expect(hasPermission(unknown, "viewer:status")).toBe(false);
+  });
+});
+
+describe("authorize", () => {
+  const viewer: Actor = {
+    id: "v1",
+    role: "viewer",
+    tenantId: "t1",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+
+  it("returns ok for granted permissions", () => {
+    const result = authorize(viewer, "viewer:status");
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns err for denied permissions", () => {
+    const result = authorize(viewer, "admin:config");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("FORBIDDEN");
+    }
+  });
+});
+
+describe("authorizeTenant", () => {
+  const dev: Actor = {
+    id: "dev1",
+    role: "developer",
+    tenantId: "t1",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+  const admin: Actor = {
+    id: "admin1",
+    role: "admin",
+    tenantId: "t0",
+    authMethod: "oidc",
+    verifiedAt: new Date().toISOString(),
+  };
+
+  it("allows same-tenant access", () => {
+    const result = authorizeTenant(dev, "dev:verify", "t1");
+    expect(result.ok).toBe(true);
+  });
+
+  it("denies cross-tenant access for non-admin", () => {
+    const result = authorizeTenant(dev, "dev:verify", "t2");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("FORBIDDEN");
+    }
+  });
+
+  it("allows cross-tenant access for admin", () => {
+    const result = authorizeTenant(admin, "admin:config", "t1");
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("resolveRole", () => {
+  it("resolves known group to role", () => {
+    const mapping: GroupRoleMapping = { admins: "admin", devs: "developer" };
+    expect(resolveRole(["admins"], mapping)).toBe("admin");
+  });
+
+  it("defaults to viewer for unknown groups", () => {
+    const mapping: GroupRoleMapping = { admins: "admin" };
+    expect(resolveRole(["unknown-group"], mapping)).toBe("viewer");
+  });
+
+  it("prioritizes admin over other roles", () => {
+    const mapping: GroupRoleMapping = { admins: "admin", devs: "developer" };
+    expect(resolveRole(["devs", "admins"], mapping)).toBe("admin");
+  });
+
+  it("defaults to viewer without mapping", () => {
+    expect(resolveRole(["any-group"])).toBe("viewer");
+  });
+});
+
+describe("validateJwtClaims", () => {
+  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+  const now = Date.now();
+
+  it("accepts valid claims", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "55ndeep",
+        exp: now / 1000 + 3600,
+        iat: now / 1000 - 60,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects wrong issuer", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://evil.com",
+        aud: "55ndeep",
+        exp: now / 1000 + 3600,
+        iat: now / 1000 - 60,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_TOKEN");
+    }
+  });
+
+  it("rejects wrong audience", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "wrong-aud",
+        exp: now / 1000 + 3600,
+        iat: now / 1000 - 60,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects expired token", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "55ndeep",
+        exp: now / 1000 - 100,
+        iat: now / 1000 - 3600,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain("expired");
+    }
+  });
+
+  it("rejects future issued-at", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "55ndeep",
+        exp: now / 1000 + 7200,
+        iat: now / 1000 + 3600,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain("future");
+    }
+  });
+
+  it("accepts audience as array containing expected audience", () => {
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: ["55ndeep", "other"],
+        exp: now / 1000 + 3600,
+        iat: now / 1000 - 60,
+      },
+      config,
+      now,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("allows clock skew tolerance", () => {
+    const clockSkewConfig: OidcConfig = { ...config, clockSkewSec: 120 };
+    const result = validateJwtClaims(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "55ndeep",
+        exp: now / 1000 - 60,
+        iat: now / 1000 - 3600,
+      },
+      clockSkewConfig,
+      now,
+    );
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("actorFromJwt", () => {
+  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+
+  it("extracts actor from claims with group mapping", () => {
+    const mapping: GroupRoleMapping = { admins: "admin", devs: "developer" };
+    const result = actorFromJwt(
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "55ndeep",
+        exp: 9999999999,
+        iat: 1000,
+        groups: ["devs"],
+      },
+      config,
+      mapping,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.role).toBe("developer");
+      expect(result.value.authMethod).toBe("oidc");
+    }
+  });
+
+  it("defaults to viewer without groups", () => {
+    const result = actorFromJwt(
+      { sub: "user1", iss: "https://auth.example.com", aud: "55ndeep", exp: 9999999999, iat: 1000 },
+      config,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.role).toBe("viewer");
+    }
+  });
+});
+
+describe("actorFromApiKey", () => {
+  it("accepts matching API key", () => {
+    const result = actorFromApiKey(
+      "abcdef1234567890abcdef1234567890",
+      "abcdef1234567890abcdef1234567890",
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.authMethod).toBe("api_key");
+      expect(result.value.role).toBe("operator");
+    }
+  });
+
+  it("rejects mismatched API key", () => {
+    const result = actorFromApiKey(
+      "abcdef1234567890abcdef1234567890",
+      "00000000000000000000000000000000",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_TOKEN");
+    }
+  });
+
+  it("rejects empty token", () => {
+    const result = actorFromApiKey("", "some-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("UNAUTHORIZED");
+    }
+  });
+
+  it("uses provided role and tenant", () => {
+    const key = "abcdef1234567890abcdef1234567890";
+    const result = actorFromApiKey(key, key, "viewer", "t1");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.role).toBe("viewer");
+      expect(result.value.tenantId).toBe("t1");
+    }
+  });
+});

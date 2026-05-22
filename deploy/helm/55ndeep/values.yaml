@@ -139,3 +139,37 @@ affinity: {}
 extraEnv: []
 # - name: CUSTOM_VAR
 #   value: "custom-value"
+
+# ── Enterprise mode ──────────────────────────────────────────────────────────
+# When enabled, the pod will fail to start unless all required enterprise
+# controls (auth, audit, policy, durable storage) are configured.
+enterprise:
+  enabled: false  # Set to true and configure all required fields below
+
+  # ── Audit ──────────────────────────────────────────────────────────────
+  audit:
+    sinkType: "none"  # "file" | "http" | "none". REQUIRED: "file" or "http" when enterprise.enabled=true
+    filePath: ""      # Required when sinkType=file
+    httpUrl: ""       # Required when sinkType=http
+
+  # ── Policy ──────────────────────────────────────────────────────────────
+  policy:
+    filePath: ""      # Path to policy JSON file. REQUIRED when enterprise.enabled=true
+    serviceUrl: ""    # URL to policy service (alternative to filePath)
+
+  # ── Memory backend ──────────────────────────────────────────────────────
+  # "sqlite" is REQUIRED when enterprise.enabled=true
+  memoryBackend: "memory"  # "memory" | "sqlite"
+
+# ── Network policy ─────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: false  # Set to true in production
+  # Allow egress to OTel collector
+  allowOTelEgress: true
+  # Allow egress to Vault
+  allowVaultEgress: false
+  # Allow egress to model providers (OpenAI, Anthropic, etc.)
+  allowModelProviderEgress: true
+  # Namespace labels for ingress (when using ingress)
+  ingressNamespaceLabels:
+    app.kubernetes.io/name: ingress-nginx

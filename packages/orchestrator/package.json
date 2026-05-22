@@ -46,7 +46,9 @@
     "@55ndeep/tool-lint-go": "*",
     "@55ndeep/tool-lint-sql": "*",
     "@55ndeep/tool-lint-ts": "*",
-    "@55ndeep/tool-lint-py": "*"
+    "@55ndeep/tool-lint-py": "*",
+    "@55ndeep/core-policy": "*",
+    "@55ndeep/core-rbac": "*"
   },
   "devDependencies": {},
   "files": [

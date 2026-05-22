@@ -15,8 +15,7 @@ import { TenantRegistry } from "@55ndeep/core-tenancy";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { URL } from "node:url";
-import { HealthServer } from "@55ndeep/orchestrator/health-server";
-import { EventLogger } from "@55ndeep/orchestrator/event-log";
+import { startDaemon } from "./serve.js";
 
 const VERSION: string = (() => {
   try {
@@ -676,29 +675,8 @@ program
   .command("serve")
   .description("Start daemon with health-check HTTP server (blocks until SIGTERM)")
   .action(async () => {
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap({});
-    const healthServer = new HealthServer(orchestrator, {
-      logger: undefined, // uses console via orchestrator
-    });
-    // Wire event audit log if HMAC secret is configured
-    const eventLogSecret = process.env.EVENT_LOG_HMAC_SECRET;
-    if (eventLogSecret) {
-      new EventLogger(orchestrator.getEventBus(), eventLogSecret);
-      console.log("Event audit log enabled");
-    }
-    await healthServer.start();
-    healthServer.ready = true;
-    console.log("55NDeep daemon ready — health server listening");
-
-    const gracefulStop = async () => {
-      console.log("\nShutting down...");
-      healthServer.ready = false;
-      await healthServer.stop();
-      process.exit(0);
-    };
-
-    process.on("SIGTERM", gracefulStop);
-    process.on("SIGINT", gracefulStop);
+    const { orchestrator, eventBus, shutdown: _shutdown } = await createBootstrap({});
+    await startDaemon({ orchestrator, eventBus });
   });
 
 program.parse();
