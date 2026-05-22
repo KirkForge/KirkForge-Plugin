@@ -33,8 +33,12 @@ echo -e "${YELLOW}=== CI: $(basename "$(pwd)") ===${NC}"
 run_step "build"       npm run build
 run_step "typecheck"   npm run typecheck
 run_step "lint"        npm run lint
+run_step "format"      npm run format:check
 run_step "test"        npm test
 run_step "test:adapter" npm run test:adapter
+
+# 55NDeep verifies itself — dogfooding our own verification pipeline
+run_step "self-verify"  npm run self-verify
 
 if command -v trufflehog &>/dev/null; then
     run_step "secrets" trufflehog filesystem --no-update --directory=. --json

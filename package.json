@@ -26,7 +26,8 @@
     "test:all": "bash scripts/test-batched.sh && vitest run e2e/",
     "docs:api": "typedoc",
     "prepare": "husky",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "self-verify": "npx tsx apps/cli/src/index.ts verify --task \"verify self\""
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,yml,yaml,md}": [

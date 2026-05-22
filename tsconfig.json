@@ -35,13 +35,22 @@
       "path": "packages/core-events"
     },
     {
+      "path": "packages/core-flags"
+    },
+    {
       "path": "packages/core-logging"
     },
     {
       "path": "packages/core-schemas"
     },
     {
+      "path": "packages/core-secrets"
+    },
+    {
       "path": "packages/core-telemetry"
+    },
+    {
+      "path": "packages/core-tenancy"
     },
     {
       "path": "packages/core-types"
@@ -68,49 +77,43 @@
       "path": "packages/prompt-core"
     },
     {
+      "path": "packages/tool-eslint"
+    },
+    {
       "path": "packages/tool-gitnexus"
     },
     {
       "path": "packages/tool-graphify"
     },
     {
-      "path": "packages/tool-pyright"
-    },
-    {
-      "path": "packages/tool-tsc"
-    },
-    {
-      "path": "packages/core-tenancy"
-    },
-    {
-      "path": "packages/core-secrets"
+      "path": "packages/tool-lint-c"
     },
     {
       "path": "packages/tool-lint-core"
     },
     {
-      "path": "packages/tool-lint-ts"
+      "path": "packages/tool-lint-go"
     },
     {
       "path": "packages/tool-lint-py"
     },
     {
-      "path": "packages/tool-lint-sh"
-    },
-    {
-      "path": "packages/tool-lint-c"
-    },
-    {
       "path": "packages/tool-lint-rs"
     },
     {
-      "path": "packages/tool-lint-go"
+      "path": "packages/tool-lint-sh"
     },
     {
       "path": "packages/tool-lint-sql"
     },
     {
-      "path": "packages/core-flags"
+      "path": "packages/tool-lint-ts"
+    },
+    {
+      "path": "packages/tool-pyright"
+    },
+    {
+      "path": "packages/tool-tsc"
     }
   ]
 }
