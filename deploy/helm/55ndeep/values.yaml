@@ -37,6 +37,10 @@ securityContext:
 # ── Auth ────────────────────────────────────────────────────────────────────
 auth:
   apiKey: ""  # REQUIRED for production: set to a strong random bearer token for health endpoint auth
+  oidc:
+    issuer: ""      # OIDC issuer URL (e.g. https://auth.example.com/realms/myorg)
+    audience: ""    # Expected audience (e.g. 55ndeep)
+    groupRoleMap: "" # Comma-separated role:group mappings (e.g. admin:admins,operator:operators)
 
 healthServer:
   port: 9090
@@ -144,32 +148,43 @@ extraEnv: []
 # When enabled, the pod will fail to start unless all required enterprise
 # controls (auth, audit, policy, durable storage) are configured.
 enterprise:
-  enabled: false  # Set to true and configure all required fields below
+  enabled: false  # Set to true and configure ALL required fields below
 
   # ── Audit ──────────────────────────────────────────────────────────────
+  # REQUIRED when enterprise.enabled=true: sinkType must be "file" or "http"
   audit:
-    sinkType: "none"  # "file" | "http" | "none". REQUIRED: "file" or "http" when enterprise.enabled=true
-    filePath: ""      # Required when sinkType=file
+    sinkType: "none"  # "file" | "http" | "none". MUST be "file" or "http" in enterprise mode
+    filePath: ""      # Required when sinkType=file (default: /var/lib/55ndeep/audit/audit.jsonl)
     httpUrl: ""       # Required when sinkType=http
+    httpHeaders: {}   # Optional headers for HTTP audit sink (e.g. Authorization)
 
   # ── Policy ──────────────────────────────────────────────────────────────
+  # REQUIRED when enterprise.enabled=true: filePath or serviceUrl must be set
   policy:
-    filePath: ""      # Path to policy JSON file. REQUIRED when enterprise.enabled=true
+    filePath: ""      # Path to policy JSON file (mount via ConfigMap or Secret)
     serviceUrl: ""    # URL to policy service (alternative to filePath)
 
   # ── Memory backend ──────────────────────────────────────────────────────
-  # "sqlite" is REQUIRED when enterprise.enabled=true
-  memoryBackend: "memory"  # "memory" | "sqlite"
+  # REQUIRED when enterprise.enabled=true: must be "sqlite"
+  memoryBackend: "memory"  # "memory" | "sqlite". MUST be "sqlite" in enterprise mode
+
+  # ── OIDC (overrides auth.oidc when set) ──────────────────────────────────
+  oidc:
+    issuer: ""        # Overrides auth.oidc.issuer
+    audience: ""      # Overrides auth.oidc.audience
+    groupRoleMap: ""   # Overrides auth.oidc.groupRoleMap
 
 # ── Network policy ─────────────────────────────────────────────────────────
 networkPolicy:
-  enabled: false  # Set to true in production
-  # Allow egress to OTel collector
+  enabled: false  # REQUIRED in production: set to true
+  # Deny all egress by default; only allow explicitly configured egress
   allowOTelEgress: true
-  # Allow egress to Vault
   allowVaultEgress: false
-  # Allow egress to model providers (OpenAI, Anthropic, etc.)
   allowModelProviderEgress: true
+  # Allow egress to OIDC provider for JWKS verification
+  allowOidcEgress: false
+  # Allow egress to HTTP audit sink (SIEM)
+  allowAuditEgress: false
   # Namespace labels for ingress (when using ingress)
   ingressNamespaceLabels:
     app.kubernetes.io/name: ingress-nginx

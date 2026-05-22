@@ -23,4 +23,18 @@ Health endpoints:
 ⚠️  Auth is DISABLED. Set auth.apiKey or HEALTH_API_KEY in production.
 {{- end }}
 
+{{- if .Values.enterprise.enabled }}
+✓ Enterprise mode ENABLED. The pod will fail to start unless all required controls are configured:
+  - Auth: OIDC issuer/audience or API key
+  - Audit: Durable sink (file or HTTP)
+  - Policy: Policy file path or service URL
+  - Memory: SQLite backend (not in-memory)
+{{- else }}
+⚠️  Enterprise mode is DISABLED. For production shared-service deployment, set enterprise.enabled=true.
+{{- end }}
+
+{{- if and .Values.enterprise.enabled (eq .Values.networkPolicy.enabled false) }}
+⚠️  Enterprise mode is enabled but NetworkPolicy is DISABLED. Enable networkPolicy in production.
+{{- end }}
+
 Monitor: kubectl logs -f deployment/{{ include "55ndeep.fullname" . }}

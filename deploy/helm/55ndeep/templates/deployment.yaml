@@ -69,6 +69,24 @@ spec:
               value: {{ .Values.enterprise.policy.serviceUrl | quote }}
             {{- end }}
             {{- end }}
+            {{- if .Values.enterprise.enabled }}
+            {{- if or .Values.enterprise.oidc.issuer .Values.auth.oidc.issuer }}
+            - name: OIDC_ISSUER
+              value: {{ (coalesce .Values.enterprise.oidc.issuer .Values.auth.oidc.issuer) | quote }}
+            - name: OIDC_AUDIENCE
+              value: {{ (coalesce .Values.enterprise.oidc.audience .Values.auth.oidc.audience) | quote }}
+            {{- end }}
+            {{- if or .Values.enterprise.oidc.groupRoleMap .Values.auth.oidc.groupRoleMap }}
+            - name: OIDC_GROUP_ROLE_MAP
+              value: {{ (coalesce .Values.enterprise.oidc.groupRoleMap .Values.auth.oidc.groupRoleMap) | quote }}
+            {{- end }}
+            {{- if and .Values.enterprise.audit.sinkType (eq .Values.enterprise.audit.sinkType "http") .Values.enterprise.audit.httpHeaders }}
+            {{- range $key, $value := .Values.enterprise.audit.httpHeaders }}
+            - name: AUDIT_HTTP_HEADER_{{ $key | upper | replace "-" "_" }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.observability.otel.enabled }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.observability.otel.otlpEndpoint | quote }}
