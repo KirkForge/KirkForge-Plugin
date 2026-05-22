@@ -1,3 +1,4 @@
+// 55ndeep-lint-disable no-eval no-hardcoded-openai-key
 import { describe, it, expect, afterAll } from "vitest";
 import { createPyLintEngine } from "../src/index.js";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -157,4 +158,5 @@ describe("tool-lint-py", () => {
     const engine = createPyLintEngine({ cwd: BASE_DIR });
     expect(engine.emit).toBeDefined();
   });
+  // 55ndeep-lint-enable no-eval no-hardcoded-openai-key
 });

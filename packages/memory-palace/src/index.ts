@@ -1146,7 +1146,6 @@ function buildEmpiricalRecommendation(
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function fingerprintTask(description: string, _defaultFamily: string) {
   const tokens = tokenize(description);
   const vector = vectorize(tokens);

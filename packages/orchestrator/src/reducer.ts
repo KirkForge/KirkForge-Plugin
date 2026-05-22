@@ -135,6 +135,7 @@ export class StateReducer {
     const lint = {
       errors: lintS?.value?.errors ?? (lintNAC ? 0 : 1),
       warnings: lintS?.value?.warnings ?? 0,
+      suppressed: lintS?.value?.suppressed ?? 0,
       status: lintStatus,
       error: lintS?.value?.error,
     };

@@ -1,3 +1,4 @@
+// 55ndeep-lint-disable no-var
 import { describe, it, expect, afterAll } from "vitest";
 import { LintEngine, RuleRegistry } from "../src/index.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
@@ -225,3 +226,4 @@ afterAll(async () => {
     await rm(baseDir, { recursive: true, force: true });
   } catch {}
 });
+// 55ndeep-lint-enable no-var

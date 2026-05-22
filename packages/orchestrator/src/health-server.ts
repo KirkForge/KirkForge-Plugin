@@ -278,9 +278,9 @@ export class HealthServer {
 
   private _handleMetricsPrometheus(res: ServerResponse): void {
     // Use type assertions since orchestrator stats may extend over time
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const stats = this.orchestrator.getStats() as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const health = this.orchestrator.healthCheck() as any;
 
     const lines: string[] = [];

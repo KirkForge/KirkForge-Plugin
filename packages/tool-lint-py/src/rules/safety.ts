@@ -1,6 +1,7 @@
 import type { LintRule } from "@55ndeep/tool-lint-core";
 
 export const safetyRules: LintRule[] = [
+  // 55ndeep-lint-disable no-eval no-hardcoded-openai-key
   {
     id: "no-eval-exec",
     category: "safety",
@@ -114,4 +115,5 @@ export const safetyRules: LintRule[] = [
     message:
       "SQL query built with f-string interpolation — use parameterized queries: cursor.execute('SELECT ... WHERE id = %s', (id,))",
   },
+  // 55ndeep-lint-enable no-eval no-hardcoded-openai-key
 ];

@@ -13,6 +13,7 @@ export interface VerifyLintEvent {
     error?: string;
     errors: number;
     warnings: number;
+    suppressed?: number;
     filesScanned: number;
     durationMs: number;
     details: Array<{ file: string; line: number; rule: string; message: string }>;

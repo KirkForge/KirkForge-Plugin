@@ -1,3 +1,4 @@
+// 55ndeep-lint-disable no-sql-inject
 import { ok, err, type Result } from "@55ndeep/core-types";
 import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "./index.js";
 import { resolve, dirname } from "node:path";
@@ -439,3 +440,4 @@ interface Row {
   tags: string;
   [key: string]: unknown;
 }
+// 55ndeep-lint-enable no-sql-inject

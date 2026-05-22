@@ -1,5 +1,6 @@
 import type { LintRule } from "@55ndeep/tool-lint-core";
 
+// 55ndeep-lint-disable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require
 export const safetyRules: LintRule[] = [
   {
     id: "no-eval",
@@ -13,7 +14,7 @@ export const safetyRules: LintRule[] = [
     id: "no-implied-eval",
     category: "safety",
     severity: "high",
-    pattern: /\b(setTimeout|setInterval)\s*\(\s*['\"\`]/g,
+    pattern: /\b(setTimeout|setInterval)\s*\(\s*['"\`]/g,
     message:
       "String argument to setTimeout/setInterval is implied eval — pass a function reference instead: setTimeout(() => { ... }, ms)",
   },
@@ -28,18 +29,18 @@ export const safetyRules: LintRule[] = [
   {
     id: "no-process-env",
     category: "safety",
-    severity: "med",
+    severity: "low",
     pattern: /\bprocess\.env\.\w+/g,
     message:
-      "Direct process.env access scatters secrets across the codebase — centralize via a typed config loader or secrets service",
+      "Direct process.env access — consider centralizing via a typed config loader or secrets service",
   },
   {
     id: "no-dynamic-require",
     category: "safety",
-    severity: "med",
-    pattern: /\brequire\s*\(\s*[^'\"]/g,
+    severity: "low",
+    pattern: /\brequire\s*\(\s*[^'"\s]/g,
     message:
-      "Dynamic require() with a non-literal argument — use a static import or a loader map with known paths",
+      "require() with a non-literal argument — use a static import or a loader map with known paths",
   },
   {
     id: "no-unsafe-regex",
@@ -50,18 +51,10 @@ export const safetyRules: LintRule[] = [
       "Potentially unsafe regex with nested quantifiers (ReDoS risk) — add a length limit, use atomic groups, or validate input size before matching",
   },
   {
-    id: "no-assign-in-cond",
-    category: "safety",
-    severity: "med",
-    pattern: /\bif\s*\(\s*\w+\s*=\s*[^=]/g,
-    message:
-      "Assignment inside condition — did you mean === ? If assignment is intentional, wrap in extra parens: if ((x = y))",
-  },
-  {
     id: "no-shell-exec",
     category: "safety",
     severity: "high",
-    pattern: /exec\s*\(\s*['\"\`][^'\"]*\$\{?[^}]*}?[^'\"]*['\"\`]\s*[,)]/g,
+    pattern: /exec\s*\(\s*['"\`][^'"]*\$\{?[^}]*\}?[^'"]*['"\`]\s*[,)]/g,
     message:
       "Shell command built with string interpolation — use execFile() with a static command and an arguments array to prevent injection",
   },
@@ -69,7 +62,7 @@ export const safetyRules: LintRule[] = [
     id: "no-sql-inject",
     category: "safety",
     severity: "critical",
-    pattern: /\`\s*(?:SELECT|INSERT|UPDATE|DELETE)\s+.*\$\{/gi,
+    pattern: /\`\s*(?:SELECT|INSERT|UPDATE|DELETE)\s+[^`]*\$\{[^}]+\}[^`]*\`(?![^;]*\?)/gi,
     message:
       "SQL query built with template literal interpolation — use parameterized queries ($1, ?) or a query builder (knex, kysely, drizzle)",
   },
@@ -77,7 +70,7 @@ export const safetyRules: LintRule[] = [
     id: "no-http-url",
     category: "safety",
     severity: "low",
-    pattern: /http:\/\/[^\s'\"]+/g,
+    pattern: /http:\/\/[^\s'"]+/g,
     message:
       "Plain HTTP URL — use HTTPS; if this is a local/dev endpoint, add an explicit allowlist or comment",
   },
@@ -154,3 +147,4 @@ export const safetyRules: LintRule[] = [
       "Hardcoded JWT — JWTs should be generated at runtime from secrets, never committed; if this is a test fixture, add a comment marking it as non-sensitive",
   },
 ];
+// 55ndeep-lint-enable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require

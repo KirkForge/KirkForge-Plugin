@@ -95,7 +95,7 @@ export const ReducedStatePacketSchema = z.object({
     cycles: z.number(),
   }),
   verification: z.object({
-    lint: z.object({ errors: z.number(), warnings: z.number() }),
+    lint: z.object({ errors: z.number(), warnings: z.number(), suppressed: z.number().optional() }),
     types: z.object({ errors: z.number() }),
     security: z.object({ findings: z.number(), critical: z.number(), high: z.number() }),
     overall: z.enum(["pass", "warn", "fail"]),

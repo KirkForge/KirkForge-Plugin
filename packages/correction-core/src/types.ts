@@ -33,7 +33,7 @@ export interface ReducedStatePacket {
   changes: { filesChanged: number; paths: string[]; insertions: number; deletions: number };
   graph: { edgeCount: number; newEdges: number; brokenEdges: number; cycles: number };
   verification: {
-    lint: { errors: number; warnings: number };
+    lint: { errors: number; warnings: number; suppressed?: number };
     types: { errors: number };
     security: { findings: number; critical: number; high: number };
     overall: "pass" | "warn" | "fail";

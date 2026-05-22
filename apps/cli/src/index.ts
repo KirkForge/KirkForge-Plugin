@@ -327,6 +327,9 @@ program
       console.log(`\n--- Verification Report ---`);
       console.log(`  Lint errors:    ${packet.verification.lint.errors}`);
       console.log(`  Lint warnings:  ${packet.verification.lint.warnings}`);
+      if (packet.verification.lint.suppressed) {
+        console.log(`  Lint suppressed: ${packet.verification.lint.suppressed}`);
+      }
       console.log(`  Type errors:    ${packet.verification.types.errors}`);
       console.log(
         `  Security:       ${packet.verification.security.findings} findings (${packet.verification.security.critical} critical, ${packet.verification.security.high} high)`,
