@@ -1553,8 +1553,11 @@ export class Orchestrator {
     }
 
     // ── Policy enforcement for decomposition ────────────────────────────────
-    // Check model and tool policy using the decomposition's first subtask
-    // language profile (covers the dominant language of the task tree).
+    // Deny-by-default: check ALL unique languages in the decomposition upfront.
+    // If any subtask language violates policy, reject the entire decomposition
+    // before any work begins. This prevents partial execution and inconsistent state.
+    // A decomposition mixing languages is itself suspect — smaller models will
+    // hallucinate cross-language subtasks — so we validate every language upfront.
     if (this._policyEngine) {
       const providerConfig = this._resolveProvider(null);
       const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
@@ -1567,16 +1570,27 @@ export class Orchestrator {
           }),
         );
       }
-      const firstLanguage = recalled.value.tasks[0]?.language ?? "unknown";
-      const toolDecision = this._policyEngine.checkTool(firstLanguage);
-      if (!toolDecision.allowed) {
-        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, actor);
-        return err(
-          new NDeepError("POLICY_DENIED", toolDecision.reason, {
-            rule: toolDecision.rule,
-            policyHash: toolDecision.policyHash,
-          }),
-        );
+      // Collect all unique languages across subtasks
+      const languages = new Set<string>(
+        recalled.value.tasks.map((t) => t.language ?? "unknown"),
+      );
+      for (const lang of languages) {
+        const toolDecision = this._policyEngine.checkTool(lang);
+        if (!toolDecision.allowed) {
+          this._auditPolicyDeny(
+            "tool.deny",
+            `Tool policy denies language "${lang}" in decomposition: ${toolDecision.reason}`,
+            toolDecision.policyHash,
+            actor,
+          );
+          return err(
+            new NDeepError(
+              "POLICY_DENIED",
+              `Tool policy denies language "${lang}" in decomposition: ${toolDecision.reason}`,
+              { rule: toolDecision.rule, policyHash: toolDecision.policyHash, language: lang },
+            ),
+          );
+        }
       }
     }
 
