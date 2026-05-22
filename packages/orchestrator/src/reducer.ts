@@ -89,7 +89,12 @@ export class StateReducer {
     this.perTask.set(taskId, map);
   }
 
-  reduce(taskId: string, turn: number, policy?: VerifierPolicy, policyHash?: string): ReducedStatePacket {
+  reduce(
+    taskId: string,
+    turn: number,
+    policy?: VerifierPolicy,
+    policyHash?: string,
+  ): ReducedStatePacket {
     const map = this.perTask.get(taskId) ?? new Map();
     const get = <T extends ReducerSignal>(kind: string): T | undefined => {
       const arr = map.get(kind);

@@ -51,10 +51,10 @@ export const DEFAULT_SLO_TARGETS: SloTarget[] = [
 
 export const ENTERPRISE_SLO_TARGETS: SloTarget[] = [
   ...DEFAULT_SLO_TARGETS,
-  { name: "auth_failure_rate", target: 0.99, windowMs: 7 * 24 * 3600 * 1000 },  // <1% auth failures over 7d
+  { name: "auth_failure_rate", target: 0.99, windowMs: 7 * 24 * 3600 * 1000 }, // <1% auth failures over 7d
   { name: "auth_failure_rate", target: 0.999, windowMs: 30 * 24 * 3600 * 1000 }, // <0.1% auth failures over 30d
-  { name: "policy_deny_rate", target: 0.95, windowMs: 7 * 24 * 3600 * 1000 },   // <5% policy denials over 7d
-  { name: "audit_write_rate", target: 0.999, windowMs: 7 * 24 * 3600 * 1000 },   // <0.1% audit write failures over 7d
+  { name: "policy_deny_rate", target: 0.95, windowMs: 7 * 24 * 3600 * 1000 }, // <5% policy denials over 7d
+  { name: "audit_write_rate", target: 0.999, windowMs: 7 * 24 * 3600 * 1000 }, // <0.1% audit write failures over 7d
 ];
 
 // Evaluation windows for burn-rate alerting
@@ -181,7 +181,13 @@ export class SloMonitor {
 
 export interface AuthEvent {
   timestamp: number;
-  type: "auth.success" | "auth.failure" | "policy.deny" | "policy.allow" | "audit.write.success" | "audit.write.failure";
+  type:
+    | "auth.success"
+    | "auth.failure"
+    | "policy.deny"
+    | "policy.allow"
+    | "audit.write.success"
+    | "audit.write.failure";
   actorId?: string;
   tenantId?: string;
 }

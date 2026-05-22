@@ -687,7 +687,10 @@ program
 
     // Genesis hash matches the one in core-events/audit.ts
     const GENESIS_INPUT = "55ndeep-audit-genesis";
-    const genesisHash = createHash("sha256").update(GENESIS_INPUT, "utf-8").digest("hex").slice(0, 24);
+    const genesisHash = createHash("sha256")
+      .update(GENESIS_INPUT, "utf-8")
+      .digest("hex")
+      .slice(0, 24);
 
     let prevHash: string = genesisHash;
     let lineCount = 0;

@@ -71,7 +71,9 @@ describe("AuthPolicySloMonitor load baseline", () => {
     const p95 = percentile(latencies, 95);
     const p99 = percentile(latencies, 99);
 
-    console.log(`AuthPolicySloMonitor record burst: p95=${p95.toFixed(3)}ms p99=${p99.toFixed(3)}ms`);
+    console.log(
+      `AuthPolicySloMonitor record burst: p95=${p95.toFixed(3)}ms p99=${p99.toFixed(3)}ms`,
+    );
 
     // Single record should be sub-millisecond
     expect(p99).toBeLessThan(5);

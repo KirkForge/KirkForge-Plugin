@@ -1,8 +1,4 @@
-import {
-  jwtVerify,
-  createRemoteJWKSet,
-  type JWTVerifyGetKey,
-} from "jose";
+import { jwtVerify, createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 import { ok, err, type Result } from "@55ndeep/core-types";
 import { AuthError } from "@55ndeep/core-errors";
 import type { OidcConfig, JwtClaims, GroupRoleMapping } from "./index.js";
@@ -17,9 +13,15 @@ import type { OidcConfig, JwtClaims, GroupRoleMapping } from "./index.js";
 // key caching, rotation, and refresh internally via createRemoteJWKSet.
 
 const ALLOWED_ALGORITHMS = [
-  "RS256", "RS384", "RS512",
-  "ES256", "ES384", "ES512",
-  "PS256", "PS384", "PS512",
+  "RS256",
+  "RS384",
+  "RS512",
+  "ES256",
+  "ES384",
+  "ES512",
+  "PS256",
+  "PS384",
+  "PS512",
   "EdDSA",
 ];
 
@@ -93,7 +95,7 @@ export async function verifyJwt(
     const { payload } = await jwtVerify(token, getKey, {
       issuer: config.issuer,
       audience: config.audience,
-      clockTolerance: (options?.clockSkewSec ?? config.clockSkewSec ?? 30),
+      clockTolerance: options?.clockSkewSec ?? config.clockSkewSec ?? 30,
       algorithms: ALLOWED_ALGORITHMS,
     });
 

@@ -239,7 +239,11 @@ export class HealthServer {
         // JWT validated successfully
         this._auditAuth(jwtResult.actor.id, "auth.success", jwtResult.actor.tenantId, "JWT auth");
         this._authSuccessCount++;
-        this.orchestrator.recordAuthEvent("auth.success", jwtResult.actor.id, jwtResult.actor.tenantId);
+        this.orchestrator.recordAuthEvent(
+          "auth.success",
+          jwtResult.actor.id,
+          jwtResult.actor.tenantId,
+        );
         return { actor: jwtResult.actor, tokenId: jwtResult.actor.id };
       }
       // JWT failed — fall through to API key if configured
@@ -276,7 +280,9 @@ export class HealthServer {
       // ── Full signature verification via jose/JWKS ────────────────────────
       const claimsResult = await verifyJwt(token, this.oidcConfig, this.groupRoleMapping);
       if (!claimsResult.ok) {
-        this.config.logger?.warn(`[health-server] JWT verification failed: ${claimsResult.error.message}`);
+        this.config.logger?.warn(
+          `[health-server] JWT verification failed: ${claimsResult.error.message}`,
+        );
         return null;
       }
       const actorResult = actorFromJwt(claimsResult.value, this.oidcConfig, this.groupRoleMapping);
@@ -295,7 +301,11 @@ export class HealthServer {
         const payload = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf-8"));
         const claimsResult = validateJwtClaims(payload, this.oidcConfig);
         if (!claimsResult.ok) return null;
-        const actorResult = actorFromJwt(claimsResult.value, this.oidcConfig, this.groupRoleMapping);
+        const actorResult = actorFromJwt(
+          claimsResult.value,
+          this.oidcConfig,
+          this.groupRoleMapping,
+        );
         if (!actorResult.ok) return null;
         return { actor: actorResult.value };
       } catch {

@@ -21,29 +21,29 @@ npx vitest run tests/load/slo-monitor-load.test.ts --reporter=verbose
 
 ### InMemoryAdapter
 
-| Operation | p50 | p95 | p99 | Throughput |
-|-----------|-----|-----|-----|------------|
-| Single write | <0.5ms | <1ms | <2ms | >50,000 ops/sec |
-| Single read | <0.5ms | <1ms | <2ms | — |
-| Query by kind (200 results) | <10ms | <50ms | <100ms | — |
-| Recall (100 seeded) | <20ms | <100ms | <200ms | — |
+| Operation                   | p50    | p95    | p99    | Throughput      |
+| --------------------------- | ------ | ------ | ------ | --------------- |
+| Single write                | <0.5ms | <1ms   | <2ms   | >50,000 ops/sec |
+| Single read                 | <0.5ms | <1ms   | <2ms   | —               |
+| Query by kind (200 results) | <10ms  | <50ms  | <100ms | —               |
+| Recall (100 seeded)         | <20ms  | <100ms | <200ms | —               |
 
 ### FileAdapter
 
-| Operation | p50 | p95 | p99 | Throughput |
-|-----------|-----|-----|-----|------------|
+| Operation                     | p50   | p95   | p99    | Throughput     |
+| ----------------------------- | ----- | ----- | ------ | -------------- |
 | Write + persist (100 entries) | <20ms | <50ms | <100ms | >1,000 ops/sec |
-| Read after persist | <5ms | <10ms | <20ms | — |
+| Read after persist            | <5ms  | <10ms | <20ms  | —              |
 
 ### SqliteAdapter
 
-| Operation | p50 | p95 | p99 | Throughput |
-|-----------|-----|-----|-----|------------|
-| Single write | <1ms | <5ms | <10ms | >10,000 ops/sec |
-| Single read | <1ms | <5ms | <10ms | — |
-| WriteRun + emissions (1 run, 5 emissions) | <2ms | <10ms | <20ms | — |
-| Backup (10k rows) | — | <5s | <10s | — |
-| Restore (10k rows) | — | <5s | <10s | — |
+| Operation                                 | p50  | p95   | p99   | Throughput      |
+| ----------------------------------------- | ---- | ----- | ----- | --------------- |
+| Single write                              | <1ms | <5ms  | <10ms | >10,000 ops/sec |
+| Single read                               | <1ms | <5ms  | <10ms | —               |
+| WriteRun + emissions (1 run, 5 emissions) | <2ms | <10ms | <20ms | —               |
+| Backup (10k rows)                         | —    | <5s   | <10s  | —               |
+| Restore (10k rows)                        | —    | <5s   | <10s  | —               |
 
 > **Note**: SqliteAdapter benchmarks require the `better-sqlite3` native
 > binding, which is an optional dependency. Tests are skipped when the
@@ -51,32 +51,32 @@ npx vitest run tests/load/slo-monitor-load.test.ts --reporter=verbose
 
 ## SLO Monitor SLO Targets
 
-| Operation | Threshold | Notes |
-|-----------|-----------|-------|
-| AuthPolicySloMonitor.record() | p99 < 5ms | Single event recording |
-| AuthPolicySloMonitor.compute() (100k events) | <100ms | Full SLO report computation |
-| SloMonitor.compute() (10k observations) | <5s | Memory store query-based |
+| Operation                                    | Threshold | Notes                       |
+| -------------------------------------------- | --------- | --------------------------- |
+| AuthPolicySloMonitor.record()                | p99 < 5ms | Single event recording      |
+| AuthPolicySloMonitor.compute() (100k events) | <100ms    | Full SLO report computation |
+| SloMonitor.compute() (10k observations)      | <5s       | Memory store query-based    |
 
 ## Enterprise SLO Definitions
 
 ### Auth Failure Rate
 
-| Window | SLO Target | Burn-rate Critical | Burn-rate Warning |
-|--------|-----------|-------------------|-------------------|
-| 7-day | <1% failures | 14.4x | 10x |
-| 30-day | <0.1% failures | — | — |
+| Window | SLO Target     | Burn-rate Critical | Burn-rate Warning |
+| ------ | -------------- | ------------------ | ----------------- |
+| 7-day  | <1% failures   | 14.4x              | 10x               |
+| 30-day | <0.1% failures | —                  | —                 |
 
 ### Policy Deny Rate
 
-| Window | SLO Target | Notes |
-|--------|-----------|-------|
-| 7-day | <5% denials | Some denials are expected (bad requests) |
+| Window | SLO Target  | Notes                                    |
+| ------ | ----------- | ---------------------------------------- |
+| 7-day  | <5% denials | Some denials are expected (bad requests) |
 
 ### Audit Write Success Rate
 
-| Window | SLO Target | Notes |
-|--------|-----------|-------|
-| 7-day | >99.9% success | Audit failures are critical incidents |
+| Window | SLO Target     | Notes                                 |
+| ------ | -------------- | ------------------------------------- |
+| 7-day  | >99.9% success | Audit failures are critical incidents |
 
 ## Re-benchmarking Procedure
 

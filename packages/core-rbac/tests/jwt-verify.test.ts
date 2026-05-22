@@ -44,10 +44,10 @@ describe("verifyJwt", () => {
         );
       }
       if (urlStr.includes("/.well-known/jwks.json")) {
-        return new Response(
-          JSON.stringify({ keys }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ keys }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       // Fall through to real fetch for other URLs
       return originalFetch(url, init);
@@ -234,9 +234,7 @@ describe("verifyJwt", () => {
   it("returns INVALID_TOKEN when JWKS endpoint is unreachable", async () => {
     // No mock — all fetches will fail
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(() =>
-      Promise.reject(new Error("Network error")),
-    );
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error("Network error")));
 
     try {
       const now = Math.floor(Date.now() / 1000);

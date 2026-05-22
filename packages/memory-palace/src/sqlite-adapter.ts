@@ -446,9 +446,7 @@ export class SqliteAdapter implements MemoryAdapter {
       await this.persist();
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const backupPath = destPath
-        ? resolve(destPath)
-        : `${this.filePath}.backup.${timestamp}`;
+      const backupPath = destPath ? resolve(destPath) : `${this.filePath}.backup.${timestamp}`;
 
       // Ensure destination directory exists
       const backupDir = dirname(backupPath);

@@ -46,40 +46,44 @@ kind: CronJob
 metadata:
   name: 55ndeep-backup
 spec:
-  schedule: "0 */6 * * *"  # Every 6 hours
+  schedule: "0 */6 * * *" # Every 6 hours
   jobTemplate:
     spec:
       template:
         spec:
           containers:
-          - name: backup
-            image: 55ndeep:latest
-            command: ["node", "-e", "
-              const { SqliteAdapter } = require('@55ndeep/memory-palace/sqlite-adapter');
-              const a = new SqliteAdapter(process.env.DB_PATH);
-              a.backup(process.env.BACKUP_PATH).then(r => {
-                if (r.ok) { console.log('Backup OK:', r.value.filePath); process.exit(0); }
-                else { console.error('Backup FAIL:', r.error); process.exit(1); }
-              });"]
+            - name: backup
+              image: 55ndeep:latest
+              command: [
+                  "node",
+                  "-e",
+                  "
+                  const { SqliteAdapter } = require('@55ndeep/memory-palace/sqlite-adapter');
+                  const a = new SqliteAdapter(process.env.DB_PATH);
+                  a.backup(process.env.BACKUP_PATH).then(r => {
+                  if (r.ok) { console.log('Backup OK:', r.value.filePath); process.exit(0); }
+                  else { console.error('Backup FAIL:', r.error); process.exit(1); }
+                  });",
+                ]
           env:
-          - name: DB_PATH
-            value: /data/55ndeep/memory.db
-          - name: BACKUP_PATH
-            value: /backups/55ndeep/hourly-$(date +%Y%m%d%H%M).db
+            - name: DB_PATH
+              value: /data/55ndeep/memory.db
+            - name: BACKUP_PATH
+              value: /backups/55ndeep/hourly-$(date +%Y%m%d%H%M).db
 ```
 
 ### Backup Metadata
 
 Each `backup()` call returns a `BackupMetadata` object:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `filePath` | string | Absolute path of the backup file |
-| `sizeBytes` | number | Size in bytes |
-| `sha256` | string | SHA-256 hash of the backup file |
-| `schemaVersion` | number \| null | Schema version at time of backup |
-| `timestamp` | string | ISO timestamp when backup was created |
-| `rowCount` | object | Row counts per table (observations, runs, emissions) |
+| Field           | Type           | Description                                          |
+| --------------- | -------------- | ---------------------------------------------------- |
+| `filePath`      | string         | Absolute path of the backup file                     |
+| `sizeBytes`     | number         | Size in bytes                                        |
+| `sha256`        | string         | SHA-256 hash of the backup file                      |
+| `schemaVersion` | number \| null | Schema version at time of backup                     |
+| `timestamp`     | string         | ISO timestamp when backup was created                |
+| `rowCount`      | object         | Row counts per table (observations, runs, emissions) |
 
 ## Restore
 
@@ -102,17 +106,20 @@ if (restoreResult.ok) {
 ### Disaster Recovery Procedure
 
 1. **Stop the daemon** to prevent writes during restore:
+
    ```bash
    kubectl scale deploy/55ndeep --replicas=0
    ```
 
 2. **Verify the backup integrity** (SHA-256 checksum):
+
    ```bash
    sha256sum /backups/55ndeep/daily.db
    # Compare with the hash recorded at backup time
    ```
 
 3. **Restore from backup**:
+
    ```bash
    kubectl exec deploy/55ndeep -- node -e "
      const { SqliteAdapter } = require('@55ndeep/memory-palace/sqlite-adapter');
@@ -158,18 +165,18 @@ const customBackups = adapter.listBackups("/backups/55ndeep/");
 
 Recommended backup retention:
 
-| Frequency | Retention | Storage estimate |
-|-----------|-----------|-----------------|
-| Hourly | 24 hours | ~24 × avg DB size |
-| Daily | 30 days | ~30 × avg DB size |
-| Weekly | 90 days | ~12 × avg DB size |
+| Frequency | Retention | Storage estimate  |
+| --------- | --------- | ----------------- |
+| Hourly    | 24 hours  | ~24 × avg DB size |
+| Daily     | 30 days   | ~30 × avg DB size |
+| Weekly    | 90 days   | ~12 × avg DB size |
 
 ## Troubleshooting
 
-| Symptom | Cause | Resolution |
-|---------|-------|------------|
-| `backup failed: SQLITE_BUSY` | Concurrent write lock | Retry after WAL checkpoint |
-| `backup failed: ENOSPC` | Disk full | Free disk space or use different volume |
-| `restore failed: not found` | Backup file missing | Verify backup path |
-| `restore failed: SQLITE_CORRUPT` | Backup file corrupted | Use an earlier backup |
-| Row counts mismatch after restore | Partial backup | Verify SHA-256 matches |
+| Symptom                           | Cause                 | Resolution                              |
+| --------------------------------- | --------------------- | --------------------------------------- |
+| `backup failed: SQLITE_BUSY`      | Concurrent write lock | Retry after WAL checkpoint              |
+| `backup failed: ENOSPC`           | Disk full             | Free disk space or use different volume |
+| `restore failed: not found`       | Backup file missing   | Verify backup path                      |
+| `restore failed: SQLITE_CORRUPT`  | Backup file corrupted | Use an earlier backup                   |
+| Row counts mismatch after restore | Partial backup        | Verify SHA-256 matches                  |

@@ -10,11 +10,7 @@
  * modern hardware. Adjust thresholds if your CI runner is slower.
  */
 import { describe, it, expect } from "vitest";
-import {
-  InMemoryAdapter,
-  FileAdapter,
-  MemoryStore,
-} from "@55ndeep/memory-palace";
+import { InMemoryAdapter, FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -85,7 +81,9 @@ describe("InMemoryAdapter load baseline", () => {
     const p95 = percentile(latencies, 95);
     const p99 = percentile(latencies, 99);
 
-    console.log(`InMemory write: p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`);
+    console.log(
+      `InMemory write: p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`,
+    );
 
     // Soft assertion: document the baseline, but don't fail CI on slow runners
     if (p95 > SLO.inMemoryWriteP95) {
@@ -117,7 +115,9 @@ describe("InMemoryAdapter load baseline", () => {
     const p95 = percentile(latencies, 95);
     const p99 = percentile(latencies, 99);
 
-    console.log(`InMemory read: p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`);
+    console.log(
+      `InMemory read: p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`,
+    );
 
     if (p95 > SLO.inMemoryReadP95) {
       console.warn(
@@ -132,7 +132,13 @@ describe("InMemoryAdapter load baseline", () => {
 
     // Write 1000 entries across 5 kinds
     for (let i = 0; i < 1000; i++) {
-      const kind = ["task-observation", "benchmark.run", "verify.lint", "verify.types", "state.changes"][i % 5]!;
+      const kind = [
+        "task-observation",
+        "benchmark.run",
+        "verify.lint",
+        "verify.types",
+        "state.changes",
+      ][i % 5]!;
       await adapter.write(makeObservation(`q-${i}`, kind));
     }
 
@@ -204,7 +210,9 @@ describe("InMemoryAdapter load baseline", () => {
     const elapsed = performance.now() - start;
     const opsPerSec = Math.round((count / elapsed) * 1000);
 
-    console.log(`InMemory write throughput: ${opsPerSec.toLocaleString()} ops/sec (${count} ops in ${elapsed.toFixed(0)}ms)`);
+    console.log(
+      `InMemory write throughput: ${opsPerSec.toLocaleString()} ops/sec (${count} ops in ${elapsed.toFixed(0)}ms)`,
+    );
 
     if (opsPerSec < SLO.inMemoryWriteThroughput) {
       console.warn(
@@ -265,7 +273,9 @@ describe("FileAdapter load baseline", () => {
       const elapsed = performance.now() - start;
       const opsPerSec = Math.round((count / elapsed) * 1000);
 
-      console.log(`File write throughput: ${opsPerSec.toLocaleString()} ops/sec (${count} ops in ${elapsed.toFixed(0)}ms)`);
+      console.log(
+        `File write throughput: ${opsPerSec.toLocaleString()} ops/sec (${count} ops in ${elapsed.toFixed(0)}ms)`,
+      );
 
       if (opsPerSec < SLO.fileWriteThroughput) {
         console.warn(

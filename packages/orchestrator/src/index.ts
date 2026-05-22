@@ -231,7 +231,12 @@ export class Orchestrator {
       const providerConfig = this._resolveProvider(null);
       const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
       if (!modelDecision.allowed) {
-        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, task.actor);
+        this._auditPolicyDeny(
+          "model.deny",
+          modelDecision.reason,
+          modelDecision.policyHash,
+          task.actor,
+        );
         return err(
           new NDeepError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
@@ -242,7 +247,12 @@ export class Orchestrator {
       const profile = detectTaskProfile(task.description);
       const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
       if (!toolDecision.allowed) {
-        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, task.actor);
+        this._auditPolicyDeny(
+          "tool.deny",
+          toolDecision.reason,
+          toolDecision.policyHash,
+          task.actor,
+        );
         return err(
           new NDeepError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
@@ -411,12 +421,24 @@ export class Orchestrator {
           turns.push({
             action: "escalate",
             rationale: `delegation failed: ${result.error.message}`,
-            packet: this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash()),
+            packet: this.reducer.reduce(
+              taskId,
+              turn,
+              profile.verifierPolicy,
+              this._policyEngine?.getHash(),
+            ),
             correctionCount: turn,
             workerTokens: 0,
             sessionTokens,
           });
-          allPackets.push(this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash()));
+          allPackets.push(
+            this.reducer.reduce(
+              taskId,
+              turn,
+              profile.verifierPolicy,
+              this._policyEngine?.getHash(),
+            ),
+          );
           this._cleanupTurnWorkspace();
           break;
         }
@@ -436,7 +458,8 @@ export class Orchestrator {
         );
 
         const packet =
-          delegationResult.packet ?? this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash());
+          delegationResult.packet ??
+          this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash());
         const emittedFiles = packet.emissions?.files?.map((f) => ({ path: f.path })) ?? [];
         if (structuredValidator) {
           taskValidation = await this._runStructuredTaskValidator(
@@ -600,13 +623,20 @@ export class Orchestrator {
       const escalateDecision: CorrectionDecision = {
         action: "escalate",
         rationale: `internal orchestrator error: ${errMsg}`,
-        packet: this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash()),
+        packet: this.reducer.reduce(
+          taskId,
+          0,
+          profile.verifierPolicy,
+          this._policyEngine?.getHash(),
+        ),
         correctionCount: turns.length,
         workerTokens: 0,
         sessionTokens,
       };
       turns.push(escalateDecision);
-      allPackets.push(this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash()));
+      allPackets.push(
+        this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash()),
+      );
       const taskValidation: TaskValidationResult = {
         status: "error",
         validator: "orchestrator",
@@ -657,7 +687,12 @@ export class Orchestrator {
     const taskId = task.taskId ?? `verify-${Date.now()}`;
     const profile = detectTaskProfile(task.description ?? "verify current TypeScript workspace");
     await this._runVerifiers(taskId, task.files, profile.language);
-    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash());
+    const packet = this.reducer.reduce(
+      taskId,
+      0,
+      profile.verifierPolicy,
+      this._policyEngine?.getHash(),
+    );
     this.reducer.resetTask(taskId);
     return packet;
   }
@@ -1449,7 +1484,11 @@ export class Orchestrator {
   }
 
   /** Record an auth event for SLO monitoring. */
-  recordAuthEvent(type: "auth.success" | "auth.failure", actorId?: string, tenantId?: string): void {
+  recordAuthEvent(
+    type: "auth.success" | "auth.failure",
+    actorId?: string,
+    tenantId?: string,
+  ): void {
     this._authPolicySlo.record({ timestamp: Date.now(), type, actorId, tenantId });
   }
 
@@ -1488,7 +1527,12 @@ export class Orchestrator {
       const providerConfig = this._resolveProvider(null);
       const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
       if (!modelDecision.allowed) {
-        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, task.actor);
+        this._auditPolicyDeny(
+          "model.deny",
+          modelDecision.reason,
+          modelDecision.policyHash,
+          task.actor,
+        );
         return err(
           new NDeepError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
@@ -1499,7 +1543,12 @@ export class Orchestrator {
       const profile = detectTaskProfile(task.description);
       const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
       if (!toolDecision.allowed) {
-        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, task.actor);
+        this._auditPolicyDeny(
+          "tool.deny",
+          toolDecision.reason,
+          toolDecision.policyHash,
+          task.actor,
+        );
         return err(
           new NDeepError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
@@ -1604,9 +1653,7 @@ export class Orchestrator {
         );
       }
       // Collect all unique languages across subtasks
-      const languages = new Set<string>(
-        recalled.value.tasks.map((t) => t.language ?? "unknown"),
-      );
+      const languages = new Set<string>(recalled.value.tasks.map((t) => t.language ?? "unknown"));
       for (const lang of languages) {
         const toolDecision = this._policyEngine.checkTool(lang);
         if (!toolDecision.allowed) {
@@ -2018,7 +2065,12 @@ export class Orchestrator {
     }
     const writtenFiles = extractWrittenFiles(result.value);
     await this._runVerifiers(taskId, writtenFiles, profile.language, writtenFiles);
-    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash());
+    const packet = this.reducer.reduce(
+      taskId,
+      0,
+      profile.verifierPolicy,
+      this._policyEngine?.getHash(),
+    );
     result.value.packet = packet;
     if (mode === "artifact" && packet.changes.filesChanged === 0 && !packet.artifactEnforcement) {
       result.value.packet = {
