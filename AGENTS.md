@@ -1,3 +1,14 @@
+# ⚠️ Mandatory Rules — Read Before Editing
+
+- **Never commit**: `node_modules/`, `.venv/`, `__pycache__/`, `*.pyc`, `dist/`, `.next/`, `coverage/`, `.mypy_cache/`, `.pytest_cache/`, `.DS_Store`, `*.log`, `.env`, `*.pem`, `*.key`
+- **Always pull before work, push after work**
+- **Git identity**: `Henrik Kirk <285947470+KirkForge@users.noreply.github.com>`
+- **Commit format**: `type(scope): message` — feat, fix, docs, refactor, test, chore, wip
+- **Package manager**: This project uses **npm**. Always use `npm ci` for installs, `npm run` for scripts.
+- **Pre-push CI**: `ci-cleandev` hooks block pushes on failure. Fix, don't bypass.
+
+---
+
 # AGENTS.md — 55NDeep Integration Guide
 
 ## Purpose
