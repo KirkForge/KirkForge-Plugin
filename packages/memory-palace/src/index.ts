@@ -4,6 +4,7 @@ import { openSync, writeFileSync, fsyncSync, closeSync, rmSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 
+export type { BackupMetadata } from "./sqlite-adapter.js";
 export interface MemoryObject {
   id: string;
   kind: string;

@@ -2,7 +2,24 @@
 import { ok, err, type Result } from "@55ndeep/core-types";
 import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "./index.js";
 import { resolve, dirname } from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync, copyFileSync, readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+
+/** Metadata returned by SqliteAdapter.backup(). */
+export interface BackupMetadata {
+  /** Absolute path of the backup file. */
+  filePath: string;
+  /** Size of the backup file in bytes. */
+  sizeBytes: number;
+  /** SHA-256 hash of the backup file contents. */
+  sha256: string;
+  /** Schema version at time of backup. */
+  schemaVersion: number | null;
+  /** ISO timestamp when the backup was created. */
+  timestamp: string;
+  /** Number of rows in each table at backup time. */
+  rowCount: { observations: number; runs: number; emissions: number };
+}
 
 export class SqliteAdapter implements MemoryAdapter {
   private db: any;
@@ -30,6 +47,11 @@ export class SqliteAdapter implements MemoryAdapter {
     this.filePath = resolve(filePath);
     mkdirSync(dirname(this.filePath), { recursive: true });
     this.db = new Database(this.filePath);
+    this._initSchema();
+    this._prepareStatements();
+  }
+
+  private _initSchema(): void {
     this.db.exec("PRAGMA journal_mode=WAL");
     this.db.exec("PRAGMA busy_timeout=5000");
     this.db.exec(`
@@ -128,8 +150,10 @@ export class SqliteAdapter implements MemoryAdapter {
         .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
         .run(1, new Date().toISOString());
     }
+  }
 
-    // Cache prepared statements for performance (B9)
+  /** Re-prepare cached statements. Called after reopen (e.g. restore). */
+  private _prepareStatements(): void {
     this._stmtInsertObs = this.db.prepare(
       "INSERT OR REPLACE INTO observations (id, kind, task_id, timestamp, description, properties, tags) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
@@ -176,8 +200,9 @@ export class SqliteAdapter implements MemoryAdapter {
 
   async read(id: string): Promise<Result<MemoryObject | null, Error>> {
     try {
-      const stmt = this.db.prepare("SELECT * FROM observations WHERE id = ?");
-      const row = stmt.get(id) as Row | undefined;
+      const row = this.db.prepare("SELECT * FROM observations WHERE id = ?").get(id) as
+        | Row
+        | undefined;
       if (!row) return ok(null);
       return ok(this._rowToObject(row));
     } catch (cause) {
@@ -192,7 +217,7 @@ export class SqliteAdapter implements MemoryAdapter {
   async query(q: MemoryQuery): Promise<Result<MemoryObject[], Error>> {
     try {
       const conditions: string[] = [];
-      const params: (string | number | null)[] = [];
+      const params: unknown[] = [];
 
       if (q.kind) {
         conditions.push("kind = ?");
@@ -202,18 +227,22 @@ export class SqliteAdapter implements MemoryAdapter {
         conditions.push("timestamp >= ?");
         params.push(q.since);
       }
+
+      // For tag queries, we do a LIKE match on the JSON array stored in tags column.
+      // This is a simplified approach — for large datasets, a junction table would be better.
       if (q.tags && q.tags.length > 0) {
-        const tagConditions = q.tags.map(() => "tags LIKE ?");
-        conditions.push(`(${tagConditions.join(" OR ")})`);
-        for (const tag of q.tags) params.push(`%${JSON.stringify(tag).slice(1, -1)}%`);
+        for (const tag of q.tags) {
+          conditions.push("tags LIKE ?");
+          params.push(`%"${tag}"%`);
+        }
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-      const limit = q.limit ? `LIMIT ${Math.floor(q.limit)}` : "";
-      const sql = `SELECT * FROM observations ${where} ORDER BY timestamp DESC ${limit}`;
+      const limit = q.limit ?? 1000;
+      const sql = `SELECT * FROM observations ${where} ORDER BY timestamp DESC LIMIT ?`;
+      params.push(limit);
 
-      const stmt = this.db.prepare(sql);
-      const rows = stmt.all(...params) as Row[];
+      const rows = this.db.prepare(sql).all(...params) as Row[];
       return ok(rows.map((r) => this._rowToObject(r)));
     } catch (cause) {
       return err(
@@ -226,12 +255,12 @@ export class SqliteAdapter implements MemoryAdapter {
 
   async stats(): Promise<Result<MemoryStats, Error>> {
     try {
-      const countStmt = this.db.prepare("SELECT COUNT(*) as cnt FROM observations");
-      const countRow = countStmt.get() as { cnt: number };
-      const lastStmt = this.db.prepare(
-        "SELECT timestamp FROM observations ORDER BY timestamp DESC LIMIT 1",
-      );
-      const lastRow = lastStmt.get() as { timestamp: string } | undefined;
+      const countRow = this.db.prepare("SELECT COUNT(*) as cnt FROM observations").get() as {
+        cnt: number;
+      };
+      const lastRow = this.db
+        .prepare("SELECT timestamp FROM observations ORDER BY timestamp DESC LIMIT 1")
+        .get() as { timestamp: string } | undefined;
       return ok({
         totalObjects: countRow.cnt,
         lastWrite: lastRow?.timestamp ?? "never",
@@ -400,6 +429,169 @@ export class SqliteAdapter implements MemoryAdapter {
   async persist(): Promise<void> {
     // WAL checkpoint to flush to disk
     this.db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  }
+
+  /**
+   * Create a consistent backup of the SQLite database.
+   * Uses better-sqlite3's native backup API which produces a snapshot
+   * safe to use even while writes are in progress.
+   *
+   * @param destPath - Path for the backup file. If omitted, uses
+   *   `<dbPath>.backup.<timestamp>`.
+   * @returns BackupMetadata with file info, checksum, and row counts.
+   */
+  async backup(destPath?: string): Promise<Result<BackupMetadata, Error>> {
+    try {
+      // WAL checkpoint first for a consistent snapshot
+      await this.persist();
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const backupPath = destPath
+        ? resolve(destPath)
+        : `${this.filePath}.backup.${timestamp}`;
+
+      // Ensure destination directory exists
+      const backupDir = dirname(backupPath);
+      if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true });
+
+      // Use better-sqlite3's native backup API — safe concurrent snapshot
+      await this.db.backup(backupPath);
+
+      // Verify the backup by opening it read-only and counting rows
+      let Database: any;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        Database = require("better-sqlite3");
+      } catch {
+        return err(new Error("better-sqlite3 not available for backup verification"));
+      }
+
+      const verifyDb = new Database(backupPath, { readonly: true });
+      const obsCount = (
+        verifyDb.prepare("SELECT COUNT(*) as cnt FROM observations").get() as { cnt: number }
+      ).cnt;
+      const runsCount = (
+        verifyDb.prepare("SELECT COUNT(*) as cnt FROM runs").get() as { cnt: number }
+      ).cnt;
+      const emitCount = (
+        verifyDb.prepare("SELECT COUNT(*) as cnt FROM emissions").get() as { cnt: number }
+      ).cnt;
+      verifyDb.close();
+
+      // Compute SHA-256 of the backup file
+      const fileContents = readFileSync(backupPath);
+      const sha256 = createHash("sha256").update(fileContents).digest("hex");
+
+      return ok({
+        filePath: backupPath,
+        sizeBytes: fileContents.length,
+        sha256,
+        schemaVersion: this.schemaVersion(),
+        timestamp: new Date().toISOString(),
+        rowCount: {
+          observations: obsCount,
+          runs: runsCount,
+          emissions: emitCount,
+        },
+      });
+    } catch (cause) {
+      return err(
+        new Error(
+          `SqliteAdapter backup failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Restore the database from a backup file.
+   * Closes the current database, replaces it with the backup, and reopens.
+   *
+   * IMPORTANT: This is a destructive operation. The current database file
+   * is overwritten. Callers should create a backup first if they want to
+   * preserve the current state.
+   *
+   * @param backupPath - Path to the backup file to restore from.
+   * @returns Result with the BackupMetadata of the restored database.
+   */
+  async restore(backupPath: string): Promise<Result<BackupMetadata, Error>> {
+    try {
+      const sourcePath = resolve(backupPath);
+      if (!existsSync(sourcePath)) {
+        return err(new Error(`Backup file not found: ${sourcePath}`));
+      }
+
+      // Compute SHA-256 of the backup file before restoring
+      const fileContents = readFileSync(sourcePath);
+      const sha256 = createHash("sha256").update(fileContents).digest("hex");
+
+      // Close current database
+      this.db.close();
+
+      // Replace current database file with backup
+      copyFileSync(sourcePath, this.filePath);
+
+      // Reopen the database (triggers schema init for any missing tables)
+      let Database: any;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        Database = require("better-sqlite3");
+      } catch {
+        return err(new Error("better-sqlite3 not available for restore"));
+      }
+      this.db = new Database(this.filePath);
+      this._initSchema();
+      this._prepareStatements();
+
+      // Count rows in restored database
+      const obsCount = (
+        this.db.prepare("SELECT COUNT(*) as cnt FROM observations").get() as { cnt: number }
+      ).cnt;
+      const runsCount = (
+        this.db.prepare("SELECT COUNT(*) as cnt FROM runs").get() as { cnt: number }
+      ).cnt;
+      const emitCount = (
+        this.db.prepare("SELECT COUNT(*) as cnt FROM emissions").get() as { cnt: number }
+      ).cnt;
+
+      return ok({
+        filePath: sourcePath,
+        sizeBytes: fileContents.length,
+        sha256,
+        schemaVersion: this.schemaVersion(),
+        timestamp: new Date().toISOString(),
+        rowCount: {
+          observations: obsCount,
+          runs: runsCount,
+          emissions: emitCount,
+        },
+      });
+    } catch (cause) {
+      return err(
+        new Error(
+          `SqliteAdapter restore failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * List available backups in a directory.
+   * Looks for files matching the pattern `<basename>.backup.*`.
+   *
+   * @param directory - Directory to search. Defaults to the database file's directory.
+   * @returns Array of backup file paths sorted by name (newest last).
+   */
+  listBackups(directory?: string): string[] {
+    const dir = directory ? resolve(directory) : dirname(this.filePath);
+    if (!existsSync(dir)) return [];
+    const base = this.filePath.split("/").pop()!;
+    const prefix = `${base}.backup.`;
+    const entries = readdirSync(dir);
+    return entries
+      .filter((e: string) => e.startsWith(prefix))
+      .sort()
+      .map((e: string) => resolve(dir, e));
   }
 
   schemaVersion(): number | null {
