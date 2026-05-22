@@ -4,3 +4,4 @@ coverage
 **/*.min.*
 **/*.snap
 sbom.json
+deploy/helm/**

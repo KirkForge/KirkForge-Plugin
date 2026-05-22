@@ -1,9 +1,11 @@
 # ADR 005: Verification commoditizes model choice
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-13
 
 ## Context
@@ -19,6 +21,7 @@ Use a **mid-tier cheap model** as the worker that generates code, and run **dete
 When the correction loop exhausts its budget or hits a problem it can't fix (security finding, broken import graph), it **escalates** — the frontier model takes over for the hard case.
 
 This means:
+
 - The frontier model is reserved for **thinking** (classification, escalation decisions) and the mid-tier model does the **work** (generation, targeted correction)
 - The orchestrator never sees the full worker output — only the reduced state packet
 - Correction prompts are short and specific (`"Fix 2 lint errors. The orchestrator will re-run ruff."`)
@@ -30,13 +33,13 @@ This means:
 
 On the 6-worker × 4-task Docker-validated matrix:
 
-| Worker | Passes | Tokens/pass | Relative cost |
-|---|---|---|---|
-| glm-5-1 (mid-tier) | 3/4 | 1,650 | 1× |
-| deepseek-v4-flash | 3/4 | 2,419 | 1.5× |
-| rnj-1:8b | 1/4 | 2,744 | 1.7× |
-| qwen3-coder-next | 1/4 | 4,580 | 2.8× |
-| glm-4-7 (frontier-class) | 2/4 | 5,375 | 3.3× |
+| Worker                   | Passes | Tokens/pass | Relative cost |
+| ------------------------ | ------ | ----------- | ------------- |
+| glm-5-1 (mid-tier)       | 3/4    | 1,650       | 1×            |
+| deepseek-v4-flash        | 3/4    | 2,419       | 1.5×          |
+| rnj-1:8b                 | 1/4    | 2,744       | 1.7×          |
+| qwen3-coder-next         | 1/4    | 4,580       | 2.8×          |
+| glm-4-7 (frontier-class) | 2/4    | 5,375       | 3.3×          |
 
 No single model "wins." The pattern is: verification compresses the model-choice axis. Mid-tier models with the verifier gate are competitive on cost-per-validated-pass. Frontier models pay 2-3× the tokens for marginal pass-rate gains.
 

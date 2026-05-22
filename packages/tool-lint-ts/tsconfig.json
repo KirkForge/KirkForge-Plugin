@@ -5,9 +5,7 @@
     "outDir": "./dist",
     "composite": true
   },
-  "references": [
-    { "path": "../tool-lint-core" }
-  ],
+  "references": [{ "path": "../tool-lint-core" }],
   "exclude": ["dist", "**/*.test.ts"],
   "include": ["src"]
 }

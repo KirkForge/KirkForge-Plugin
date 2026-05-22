@@ -4,9 +4,9 @@ on:
   push:
     branches: [master]
     paths:
-      - 'packages/plugin/**'
-      - 'package.json'
-      - '.github/workflows/release.yml'
+      - "packages/plugin/**"
+      - "package.json"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: write
@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
 
       - run: npm ci --ignore-scripts

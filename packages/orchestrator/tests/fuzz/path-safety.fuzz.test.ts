@@ -238,9 +238,7 @@ describe("parseArtifacts fuzz", () => {
     // not treated as content. This is expected marker-parser behavior.
     // The collision warning fires for content between markers that matches the pattern
     // (e.g. when content is pushed before the next marker is consumed).
-    const result = parseArtifacts(
-      "### FILE: a.txt\nreal content\n### FILE: b.txt\nmore\n### END"
-    );
+    const result = parseArtifacts("### FILE: a.txt\nreal content\n### FILE: b.txt\nmore\n### END");
     // Both files extracted; second ### FILE: starts a new file
     expect(result.artifacts.length).toBeGreaterThanOrEqual(2);
   });

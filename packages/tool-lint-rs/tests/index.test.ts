@@ -9,7 +9,7 @@ const BASE = resolve(tmpdir(), "55ndeep-lint-rs-" + Date.now());
 let n = 0;
 
 async function s(files: Record<string, string>) {
-  const d = join(BASE, "t" + (++n));
+  const d = join(BASE, "t" + ++n);
   await mkdir(d, { recursive: true });
   for (const [name, content] of Object.entries(files)) {
     const fp = join(d, name);
@@ -19,26 +19,30 @@ async function s(files: Record<string, string>) {
   return d;
 }
 
-afterAll(async () => { await rm(BASE, { recursive: true, force: true }); });
+afterAll(async () => {
+  await rm(BASE, { recursive: true, force: true });
+});
 
 describe("tool-lint-rs", () => {
   it("detects .unwrap() as high severity", async () => {
-    const d = await s({ "bad.rs": 'fn main() {\n  let x = Some(1);\n  let v = x.unwrap();\n}\n' });
+    const d = await s({ "bad.rs": "fn main() {\n  let x = Some(1);\n  let v = x.unwrap();\n}\n" });
     const engine = createRsLintEngine({ cwd: d });
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
     expect(r.value.status).toBe("fail");
-    expect(r.value.details.some(x => x.rule === "no-unwrap")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-unwrap")).toBe(true);
   });
 
   it("detects unsafe block", async () => {
-    const d = await s({ "bad.rs": 'fn main() {\n  unsafe {\n    let p: *const i32 = &42;\n  }\n}\n' });
+    const d = await s({
+      "bad.rs": "fn main() {\n  unsafe {\n    let p: *const i32 = &42;\n  }\n}\n",
+    });
     const engine = createRsLintEngine({ cwd: d });
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-unsafe")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-unsafe")).toBe(true);
   });
 
   it("detects println! in lib code", async () => {
@@ -47,7 +51,7 @@ describe("tool-lint-rs", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-println-in-lib")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-println-in-lib")).toBe(true);
   });
 
   it("detects todo!() and dbg!()", async () => {
@@ -56,8 +60,8 @@ describe("tool-lint-rs", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-todo")).toBe(true);
-    expect(r.value.details.some(x => x.rule === "no-dbg")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-todo")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-dbg")).toBe(true);
   });
 
   it("detects .expect() usage", async () => {
@@ -66,11 +70,13 @@ describe("tool-lint-rs", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-expect-in-prod")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-expect-in-prod")).toBe(true);
   });
 
   it("passes clean Rust code", async () => {
-    const d = await s({ "good.rs": 'fn main() -> Result<(), Box<dyn std::error::Error>> {\n  Ok(())\n}\n' });
+    const d = await s({
+      "good.rs": "fn main() -> Result<(), Box<dyn std::error::Error>> {\n  Ok(())\n}\n",
+    });
     const engine = createRsLintEngine({ cwd: d });
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
@@ -80,7 +86,7 @@ describe("tool-lint-rs", () => {
 
   it("respects file filter", async () => {
     const d = await s({
-      "src/bad.rs": 'let v = x.unwrap();\n',
+      "src/bad.rs": "let v = x.unwrap();\n",
       "src/lib.rs": 'println!("no lint here");\n',
     });
     const engine = createRsLintEngine({ cwd: d, files: ["src/bad.rs"] });

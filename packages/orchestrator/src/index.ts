@@ -1,35 +1,40 @@
-import type { Result, DelegationMode } from "@55ndeep/core-types";
+import type { DelegationMode } from "@55ndeep/core-types";
 import { ok, err } from "@55ndeep/core-types";
-import { ConfigError } from "@55ndeep/core-errors";
 import { EventBus } from "@55ndeep/core-events";
 import type { Logger } from "@55ndeep/core-logging";
 import { scrubSecrets } from "@55ndeep/core-logging";
 import type { ModelConfig, ModelProviderConfig } from "@55ndeep/model-config";
 import { Agent } from "@55ndeep/agent-core";
-import type { PromptTemplate, TaskBrief } from "@55ndeep/prompt-core";
+import type { TaskBrief } from "@55ndeep/prompt-core";
 import { BUILTIN_TEMPLATES, getContractTemplate } from "@55ndeep/prompt-core";
 import { classifyTask } from "./classifier.js";
 import { StateReducer } from "./reducer.js";
 import { decideCorrection } from "./correction-loop.js";
 import { createVerificationEmitters } from "./emitter-factory.js";
 import { executeHardPrompt, executeSchemaContract } from "./modes.js";
-import { executeArtifact, parseJsonlArtifacts } from "./artifact-mode.js";
+import { executeArtifact } from "./artifact-mode.js";
+
 export { parseJsonlArtifacts } from "./artifact-mode.js";
 export type { JsonlArtifact, ParsedArtifact, ParseResult } from "./artifact-mode.js";
 import { detectTaskProfile, profileForLanguage } from "./task-profile.js";
 import type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
-import { computeFinalVerdict, finalVerdictFromValidation, finalVerdictFromVerifier, validationOutcomeForMemory } from './truth-model.js';
+import { computeFinalVerdict } from "./truth-model.js";
 import { SloMonitor, type SloReport } from "./slo-monitor.js";
 import { ClassifierMemory } from "./classifier-persistence.js";
-import type { FinalVerdict, SourceOfTruth } from './truth-model.js';
+import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 import { extractWrittenFiles, extractEmissionFiles } from "./types.js";
 import type { MemoryStore } from "@55ndeep/memory-palace";
 import type { Recommendation } from "@55ndeep/memory-palace";
-import type { ReducedStatePacket, CorrectionDecision, TaskValidationResult, TaskOutcome } from "@55ndeep/correction-core";
+import type {
+  ReducedStatePacket,
+  CorrectionDecision,
+  TaskValidationResult,
+  TaskOutcome,
+} from "@55ndeep/correction-core";
 import { taskOutcomeFromValidation, makeSkippedValidation } from "@55ndeep/correction-core";
 import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { cpSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, copyFileSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, relative, isAbsolute, dirname } from "node:path";
@@ -41,8 +46,12 @@ export { decideCorrection } from "./correction-loop.js";
 export { buildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
 export type { CorrectionConfig, CorrectionDecision } from "@55ndeep/correction-core";
 export type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
-export type { DecompositionResult, SubtaskExecutionResult, DecompositionExecutionResult } from "./types.js";
-export type { FinalVerdict, SourceOfTruth } from './truth-model.js';
+export type {
+  DecompositionResult,
+  SubtaskExecutionResult,
+  DecompositionExecutionResult,
+} from "./types.js";
+export type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 export { extractWrittenFiles } from "./types.js";
 export type { TaskLanguage, TaskProfile, EmissionSchema } from "./task-profile.js";
 export { detectTaskProfile, extensionForLanguage, profileForLanguage } from "./task-profile.js";
@@ -52,20 +61,25 @@ const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 // Directories and file patterns excluded when copying turn/validator workspaces
-const TURN_COPY_EXCLUDED = new Set(["node_modules", ".git", "dist", ".tsbuildinfo", "tsconfig.tsbuildinfo"]);
+const TURN_COPY_EXCLUDED = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  ".tsbuildinfo",
+  "tsconfig.tsbuildinfo",
+]);
 
 function shouldExcludeFromTurnCopy(src: string, baseLen: number): boolean {
   const rel = src.slice(baseLen + 1);
   if (!rel) return false; // root itself
   const segments = rel.split("/");
   // Check path segments (directories like node_modules, .git, dist)
-  if (segments.some(seg => TURN_COPY_EXCLUDED.has(seg))) return true;
+  if (segments.some((seg) => TURN_COPY_EXCLUDED.has(seg))) return true;
   // Check last segment (files like tsconfig.tsbuildinfo)
   const last = segments[segments.length - 1];
   if (last && TURN_COPY_EXCLUDED.has(last)) return true;
   return false;
 }
-
 
 export interface ValidatorRunConfig {
   shellCommand?: string;
@@ -84,16 +98,30 @@ export interface StructuredValidatorConfig {
   timeoutMs?: number;
 }
 
-function resolveValidatorShellCommand(validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig): string | undefined {
+function resolveValidatorShellCommand(
+  validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig,
+): string | undefined {
   if (!validator) return undefined;
   if ("shellCommand" in validator && validator.shellCommand) return validator.shellCommand;
-  if ("command" in validator && !(validator as StructuredValidatorConfig).args && (validator as LegacyValidatorRunConfig).command) return (validator as LegacyValidatorRunConfig).command;
+  if (
+    "command" in validator &&
+    !(validator as StructuredValidatorConfig).args &&
+    (validator as LegacyValidatorRunConfig).command
+  )
+    return (validator as LegacyValidatorRunConfig).command;
   return undefined;
 }
 
-function resolveStructuredValidatorConfig(validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig): StructuredValidatorConfig | undefined {
+function resolveStructuredValidatorConfig(
+  validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig,
+): StructuredValidatorConfig | undefined {
   if (!validator) return undefined;
-  if ("command" in validator && "args" in validator && Array.isArray((validator as StructuredValidatorConfig).args)) return validator as StructuredValidatorConfig;
+  if (
+    "command" in validator &&
+    "args" in validator &&
+    Array.isArray((validator as StructuredValidatorConfig).args)
+  )
+    return validator as StructuredValidatorConfig;
   return undefined;
 }
 
@@ -131,11 +159,11 @@ const PROVIDER_COST_KEY_MAP: Record<string, string> = {
   "local-ollama": "local-ollama",
   "openrouter-free": "openrouter-free",
   "nvidia-free": "nvidia-free",
-  "openai": "openai",
-  "anthropic": "anthropic",
-  "deepseek": "deepseek",
-  "openrouter": "openrouter-free",
-  "nvidia": "nvidia-free",
+  openai: "openai",
+  anthropic: "anthropic",
+  deepseek: "deepseek",
+  openrouter: "openrouter-free",
+  nvidia: "nvidia-free",
 };
 
 function resolveCostProviderKey(providerResolved: string): string {
@@ -174,7 +202,9 @@ export class Orchestrator {
     const eb = config.eventBus ?? new EventBus();
     this.sharedEventBus = eb;
     this.reducer = new StateReducer(eb);
-    if (this.memoryStore) { this._sloMonitor = new SloMonitor(this.memoryStore); }
+    if (this.memoryStore) {
+      this._sloMonitor = new SloMonitor(this.memoryStore);
+    }
     this._classifierMemory = new ClassifierMemory(this.memoryStore);
   }
 
@@ -185,29 +215,56 @@ export class Orchestrator {
     let decision = classifyTask(task, this._classifierMemory);
     const profile = detectTaskProfile(task.description);
     const memoryRecommendation = await this._recallMemory(task);
-    if (!task.modeOverride && memoryRecommendation?.routingBias && memoryRecommendation.confidence >= 0.75 && memoryRecommendation.evidence >= 3) {
+    if (
+      !task.modeOverride &&
+      memoryRecommendation?.routingBias &&
+      memoryRecommendation.confidence >= 0.75 &&
+      memoryRecommendation.evidence >= 3
+    ) {
       decision = {
         ...decision,
         mode: memoryRecommendation.mode as typeof decision.mode,
         reason: `${decision.reason}; memory bias ${memoryRecommendation.mode} (${memoryRecommendation.evidence} similar)`,
       };
     }
-    this.logger?.info(`[orchestrator] Routing "${task.description.slice(0, 80)}" → ${decision.mode} (${decision.reason})`);
+    this.logger?.info(
+      `[orchestrator] Routing "${task.description.slice(0, 80)}" → ${decision.mode} (${decision.reason})`,
+    );
 
     const providerConfig = this._resolveProvider(memoryRecommendation);
     const delegationStartedAt = Date.now();
 
     switch (decision.mode) {
       case "hard-prompt": {
-        const agent = new Agent(`agent-${taskId}`, providerConfig, BUILTIN_TEMPLATES["hard-prompt"]);
+        const agent = new Agent(
+          `agent-${taskId}`,
+          providerConfig,
+          BUILTIN_TEMPLATES["hard-prompt"],
+        );
         const brief = this._makeBrief(task);
-        return this._finalizeDelegation(await executeHardPrompt(agent, brief, taskId, this.cwd, profile), taskId, task, decision.mode, profile, providerConfig, delegationStartedAt);
+        return this._finalizeDelegation(
+          await executeHardPrompt(agent, brief, taskId, this.cwd, profile),
+          taskId,
+          task,
+          decision.mode,
+          profile,
+          providerConfig,
+          delegationStartedAt,
+        );
       }
       case "schema-contract": {
         const contractTemplate = getContractTemplate(profile.language, profile.promptHint);
         const agent = new Agent(`agent-${taskId}`, providerConfig, contractTemplate);
         const brief = this._makeBrief(task);
-        return this._finalizeDelegation(await executeSchemaContract(agent, brief, taskId), taskId, task, decision.mode, profile, providerConfig, delegationStartedAt);
+        return this._finalizeDelegation(
+          await executeSchemaContract(agent, brief, taskId),
+          taskId,
+          task,
+          decision.mode,
+          profile,
+          providerConfig,
+          delegationStartedAt,
+        );
       }
       case "task-decompose": {
         const decomp = await this.decomposeTask(task);
@@ -222,31 +279,60 @@ export class Orchestrator {
             totalTokens: decomp.value.totalEstimatedTokens,
             model: "decompose",
             format: "task-decompose",
-            schemaContract: { taskCount: decomp.value.tasks.length, rationale: decomp.value.rationale, tasks: decomp.value.tasks },
+            schemaContract: {
+              taskCount: decomp.value.tasks.length,
+              rationale: decomp.value.rationale,
+              tasks: decomp.value.tasks,
+            },
           },
-          signals: [{
-            id: `sig-${taskId}`,
-            taskId,
-            domain: "task",
-            kind: "decomposed",
-            source: "decomposer",
-            ts: new Date().toISOString(),
-            value: { taskCount: decomp.value.tasks.length, tasks: decomp.value.tasks.map(t => t.id) },
-          }],
+          signals: [
+            {
+              id: `sig-${taskId}`,
+              taskId,
+              domain: "task",
+              kind: "decomposed",
+              source: "decomposer",
+              ts: new Date().toISOString(),
+              value: {
+                taskCount: decomp.value.tasks.length,
+                tasks: decomp.value.tasks.map((t) => t.id),
+              },
+            },
+          ],
         };
-        return this._finalizeDelegation(ok(dr), taskId, task, decision.mode, profile, providerConfig, delegationStartedAt);
+        return this._finalizeDelegation(
+          ok(dr),
+          taskId,
+          task,
+          decision.mode,
+          profile,
+          providerConfig,
+          delegationStartedAt,
+        );
       }
 
       case "artifact": {
         const agent = new Agent(`agent-${taskId}`, providerConfig, BUILTIN_TEMPLATES["artifact"]);
         const brief = this._makeBrief(task);
-        return this._finalizeDelegation(await executeArtifact(agent, brief, taskId, this.cwd, profile), taskId, task, decision.mode, profile, providerConfig, delegationStartedAt);
+        return this._finalizeDelegation(
+          await executeArtifact(agent, brief, taskId, this.cwd, profile),
+          taskId,
+          task,
+          decision.mode,
+          profile,
+          providerConfig,
+          delegationStartedAt,
+        );
       }
     }
   }
 
-  async runCorrectionLoop(task: TaskInput, config: CorrectionLoopConfig): Promise<CorrectionLoopOutcome> {
-    if (this._busy) throw new Error("Orchestrator busy — only one correction loop may run concurrently");
+  async runCorrectionLoop(
+    task: TaskInput,
+    config: CorrectionLoopConfig,
+  ): Promise<CorrectionLoopOutcome> {
+    if (this._busy)
+      throw new Error("Orchestrator busy — only one correction loop may run concurrently");
     this._busy = true;
     const baseId = task.taskId ?? `task-${Date.now()}`;
     let taskId = baseId;
@@ -258,141 +344,215 @@ export class Orchestrator {
     let sessionTokens = 0;
     let sessionCost = 0;
     let done = false;
-    let taskValidation: TaskValidationResult = makeSkippedValidation("none", "no task validator configured");
+    let taskValidation: TaskValidationResult = makeSkippedValidation(
+      "none",
+      "no task validator configured",
+    );
     const loopStartedAt = Date.now();
     try {
-    if (this._classifierMemory && !this._classifierLoaded) {
-      await this._classifierMemory.loadFromStore();
-      this._classifierLoaded = true;
-    }
-    let actualMode: string = classifyTask(task, this._classifierMemory).mode;
-    let actualModel: string = "unknown";
-    const validatorShellCommand = resolveValidatorShellCommand(config.validator);
-    const structuredValidator = resolveStructuredValidatorConfig(config.validator);
-
-    // Snapshot the workspace once as a clean baseline so consecutive
-    // turn copies and validator workspaces are based on a single frozen
-    // state.  Concurrent edits during the correction loop cannot
-    // contaminate verification.
-    const originalCwd = this.cwd;
-    const baselineCwd = this._ensureBaselineSnapshot();
-    for (let turn = 0; turn <= config.maxCorrections && !done; turn++) {
-      const result = await this._runIsolatedTurn(task, taskId, baselineCwd);
-      if (!result.ok) {
-        turns.push({
-          action: "escalate",
-          rationale: `delegation failed: ${result.error.message}`,
-          packet: this.reducer.reduce(taskId, turn, profile.verifierPolicy),
-          correctionCount: turn,
-          workerTokens: 0,
-          sessionTokens,
-        });
-        allPackets.push(this.reducer.reduce(taskId, turn, profile.verifierPolicy));
-        this._cleanupTurnWorkspace();
-        break;
+      if (this._classifierMemory && !this._classifierLoaded) {
+        await this._classifierMemory.loadFromStore();
+        this._classifierLoaded = true;
       }
+      let actualMode: string = classifyTask(task, this._classifierMemory).mode;
+      let actualModel: string = "unknown";
+      const validatorShellCommand = resolveValidatorShellCommand(config.validator);
+      const structuredValidator = resolveStructuredValidatorConfig(config.validator);
 
-      const delegationResult = result.value;
-      actualMode = delegationResult.emission.format;
-      actualModel = delegationResult.emission.model;
+      // Snapshot the workspace once as a clean baseline so consecutive
+      // turn copies and validator workspaces are based on a single frozen
+      // state.  Concurrent edits during the correction loop cannot
+      // contaminate verification.
+      const _originalCwd = this.cwd; // preserved for debug
+      const baselineCwd = this._ensureBaselineSnapshot();
+      for (let turn = 0; turn <= config.maxCorrections && !done; turn++) {
+        const result = await this._runIsolatedTurn(task, taskId, baselineCwd);
+        if (!result.ok) {
+          turns.push({
+            action: "escalate",
+            rationale: `delegation failed: ${result.error.message}`,
+            packet: this.reducer.reduce(taskId, turn, profile.verifierPolicy),
+            correctionCount: turn,
+            workerTokens: 0,
+            sessionTokens,
+          });
+          allPackets.push(this.reducer.reduce(taskId, turn, profile.verifierPolicy));
+          this._cleanupTurnWorkspace();
+          break;
+        }
 
-      const emission = delegationResult.emission;
-      const workerTokens = emission.totalTokens;
-      sessionTokens += workerTokens;
-      const costKey = resolveCostProviderKey(delegationResult.providerResolved ?? "local-ollama");
-      sessionCost += estimateSimpleCost(costKey, emission.promptTokens, emission.completionTokens);
+        const delegationResult = result.value;
+        actualMode = delegationResult.emission.format;
+        actualModel = delegationResult.emission.model;
 
-      const packet = delegationResult.packet ?? this.reducer.reduce(taskId, turn, profile.verifierPolicy);
-      const emittedFiles = packet.emissions?.files?.map(f => ({ path: f.path })) ?? [];
-      if (structuredValidator) {
-        taskValidation = await this._runStructuredTaskValidator(structuredValidator, emittedFiles, this._activeTurnWorkspace ?? undefined);
-        task = { ...task, taskPass: taskValidation.status === "pass" ? true : taskValidation.status === "fail" ? false : null };
-      } else if (validatorShellCommand) {
-        taskValidation = await this._runTaskValidator(validatorShellCommand, config.validator?.timeoutMs ?? 120000, emittedFiles, this._activeTurnWorkspace ?? undefined);
-        task = { ...task, taskPass: taskValidation.status === "pass" ? true : taskValidation.status === "fail" ? false : null };
+        const emission = delegationResult.emission;
+        const workerTokens = emission.totalTokens;
+        sessionTokens += workerTokens;
+        const costKey = resolveCostProviderKey(delegationResult.providerResolved ?? "local-ollama");
+        sessionCost += estimateSimpleCost(
+          costKey,
+          emission.promptTokens,
+          emission.completionTokens,
+        );
+
+        const packet =
+          delegationResult.packet ?? this.reducer.reduce(taskId, turn, profile.verifierPolicy);
+        const emittedFiles = packet.emissions?.files?.map((f) => ({ path: f.path })) ?? [];
+        if (structuredValidator) {
+          taskValidation = await this._runStructuredTaskValidator(
+            structuredValidator,
+            emittedFiles,
+            this._activeTurnWorkspace ?? undefined,
+          );
+          task = {
+            ...task,
+            taskPass:
+              taskValidation.status === "pass"
+                ? true
+                : taskValidation.status === "fail"
+                  ? false
+                  : null,
+          };
+        } else if (validatorShellCommand) {
+          taskValidation = await this._runTaskValidator(
+            validatorShellCommand,
+            config.validator?.timeoutMs ?? 120000,
+            emittedFiles,
+            this._activeTurnWorkspace ?? undefined,
+          );
+          task = {
+            ...task,
+            taskPass:
+              taskValidation.status === "pass"
+                ? true
+                : taskValidation.status === "fail"
+                  ? false
+                  : null,
+          };
+        }
+        this._cleanupTurnWorkspace();
+
+        // If validator had an infrastructure error (timeout, crash, missing tool),
+        // escalate immediately rather than consuming correction attempts
+        if (taskValidation.status === "error") {
+          const escalateDecision: CorrectionDecision = {
+            action: "escalate",
+            rationale: `validator infrastructure error: ${taskValidation.reason ?? "unknown"}`,
+            packet,
+            correctionCount: turn,
+            workerTokens,
+            sessionTokens,
+          };
+          turns.push(escalateDecision);
+          allPackets.push(packet);
+          done = true;
+          this._cleanupTurnWorkspace();
+          continue;
+        }
+
+        const decision = decideCorrection(
+          packet,
+          turn,
+          config.maxCorrections,
+          workerTokens,
+          sessionTokens,
+          sessionCost,
+          config.maxCost,
+          profile.language,
+          task.taskPass,
+        );
+
+        turns.push(decision);
+        allPackets.push(packet);
+
+        if (decision.action === "correct") {
+          const nextTaskId = `${baseId}-c${turn + 1}`;
+          const validatorFeedback =
+            taskValidation.status === "fail"
+              ? `\n\nExternal task validator (${taskValidation.validator}) ${taskValidation.status}: ${taskValidation.reason ?? "no reason provided"}`
+              : "";
+          // Validator infrastructure errors (timeout, crash, missing tool) are NOT sent as correction
+          // feedback — the model cannot fix host/infrastructure problems.
+          // taskPass === null means validator error/skip, which should escalate not correct.
+          task = {
+            ...task,
+            description:
+              task.description + "\n\n" + (decision.correctionPrompt ?? "") + validatorFeedback,
+            taskId: nextTaskId,
+          };
+          taskId = nextTaskId;
+        } else {
+          done = true;
+        }
       }
       this._cleanupTurnWorkspace();
 
-      // If validator had an infrastructure error (timeout, crash, missing tool),
-      // escalate immediately rather than consuming correction attempts
-      if (taskValidation.status === "error") {
-        const escalateDecision: CorrectionDecision = {
-          action: "escalate",
-          rationale: `validator infrastructure error: ${taskValidation.reason ?? "unknown"}`,
-          packet,
-          correctionCount: turn,
-          workerTokens,
-          sessionTokens,
-        };
-        turns.push(escalateDecision);
-        allPackets.push(packet);
-        done = true;
-        this._cleanupTurnWorkspace();
-        continue;
+      let finalAction: "accept" | "escalate" =
+        turns[turns.length - 1]!.action === "accept" ? "accept" : "escalate";
+      if ((validatorShellCommand || structuredValidator) && taskValidation.status !== "pass") {
+        finalAction = "escalate";
       }
-
-      const decision = decideCorrection(
-        packet,
-        turn,
-        config.maxCorrections,
-        workerTokens,
+      const loopDurationMs = Date.now() - loopStartedAt;
+      const taskOutcome = taskOutcomeFromValidation(taskValidation);
+      const lastPacket = allPackets[allPackets.length - 1];
+      const protocolBroken =
+        lastPacket?.artifactEnforcement?.status === "fail" &&
+        (lastPacket.artifactEnforcement.unterminated || lastPacket.artifactEnforcement.truncated);
+      const truth = computeFinalVerdict({
+        taskValidation,
+        hasValidator: !!(validatorShellCommand || structuredValidator),
+        finalAction,
+        packet: lastPacket,
+        profile: { language: profile.language, validatorRequired: profile.validatorRequired },
+        actualMode,
+        protocolBroken,
+      });
+      const sourceOfTruth = truth.sourceOfTruth;
+      const finalVerdict = truth.finalVerdict;
+      await this._writeCorrectionMemoryObservation(
+        originalDescription,
+        originalProfile.language,
+        task,
+        taskId,
+        finalAction,
+        turns,
+        allPackets,
         sessionTokens,
-        sessionCost,
-        config.maxCost,
-        profile.language,
-        task.taskPass,
+        taskValidation,
+        finalVerdict,
+        sourceOfTruth,
+        actualModel,
+        actualMode,
+        loopDurationMs,
       );
 
-      turns.push(decision);
-      allPackets.push(packet);
-
-      if (decision.action === "correct") {
-        const nextTaskId = `${baseId}-c${turn + 1}`;
-        const validatorFeedback = taskValidation.status === "fail"
-          ? `\n\nExternal task validator (${taskValidation.validator}) ${taskValidation.status}: ${taskValidation.reason ?? "no reason provided"}`
-          : "";
-        // Validator infrastructure errors (timeout, crash, missing tool) are NOT sent as correction
-        // feedback — the model cannot fix host/infrastructure problems.
-        // taskPass === null means validator error/skip, which should escalate not correct.
-        task = { ...task, description: task.description + "\n\n" + (decision.correctionPrompt ?? "") + validatorFeedback, taskId: nextTaskId };
-        taskId = nextTaskId;
-      } else {
-        done = true;
+      // Learn from outcome to improve future NLP classification
+      if (this._classifierMemory) {
+        const outcomeClass =
+          taskOutcome === "pass"
+            ? "pass"
+            : taskValidation.status === "error"
+              ? "validator_error"
+              : "task_fail";
+        this._classifierMemory.learn(
+          originalDescription,
+          actualMode as DelegationMode,
+          outcomeClass,
+        );
       }
-    }
-    this._cleanupTurnWorkspace();
-
-    let finalAction: "accept" | "escalate" = turns[turns.length - 1]!.action === "accept" ? "accept" : "escalate";
-    if ((validatorShellCommand || structuredValidator) && taskValidation.status !== "pass") {
-      finalAction = "escalate";
-    }
-    const loopDurationMs = Date.now() - loopStartedAt;
-    const taskOutcome = taskOutcomeFromValidation(taskValidation);
-    const lastPacket = allPackets[allPackets.length - 1];
-    const protocolBroken = lastPacket?.artifactEnforcement?.status === "fail" &&
-      (lastPacket.artifactEnforcement.unterminated || lastPacket.artifactEnforcement.truncated);
-    const truth = computeFinalVerdict({
-      taskValidation,
-      hasValidator: !!(validatorShellCommand || structuredValidator),
-      finalAction,
-      packet: lastPacket,
-      profile: { language: profile.language, validatorRequired: profile.validatorRequired },
-      actualMode,
-      protocolBroken,
-    });
-    const sourceOfTruth = truth.sourceOfTruth;
-    const finalVerdict = truth.finalVerdict;
-    await this._writeCorrectionMemoryObservation(originalDescription, originalProfile.language, task, taskId, finalAction, turns, allPackets, sessionTokens, taskValidation, finalVerdict, sourceOfTruth, actualModel, actualMode, loopDurationMs);
-
-    // Learn from outcome to improve future NLP classification
-    if (this._classifierMemory) {
-      const outcomeClass = taskOutcome === "pass" ? "pass"
-        : taskValidation.status === "error" ? "validator_error"
-        : "task_fail";
-      this._classifierMemory.learn(originalDescription, actualMode as DelegationMode, outcomeClass);
-    }
-    await this._flushMemory();
-    return { finalAction, finalVerdict, sourceOfTruth, taskValidation, taskOutcome, turns, allPackets, sessionTokens, sessionCost, validatorDurationMs: taskValidation.durationMs ?? 0 };
+      await this._flushMemory();
+      return {
+        finalAction,
+        finalVerdict,
+        sourceOfTruth,
+        taskValidation,
+        taskOutcome,
+        turns,
+        allPackets,
+        sessionTokens,
+        sessionCost,
+        validatorDurationMs: taskValidation.durationMs ?? 0,
+      };
     } catch (error) {
       this._busy = false;
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -407,13 +567,27 @@ export class Orchestrator {
       };
       turns.push(escalateDecision);
       allPackets.push(this.reducer.reduce(taskId, 0, profile.verifierPolicy));
-      const taskValidation: TaskValidationResult = { status: "error", validator: "orchestrator", reason: errMsg };
+      const taskValidation: TaskValidationResult = {
+        status: "error",
+        validator: "orchestrator",
+        reason: errMsg,
+      };
       try {
         if (this._classifierMemory) {
-          this._classifierMemory.learn(originalDescription, "hard-prompt" as DelegationMode, "validator_error");
+          this._classifierMemory.learn(
+            originalDescription,
+            "hard-prompt" as DelegationMode,
+            "validator_error",
+          );
         }
-      } catch { /* best effort */ }
-      try { await this._flushMemory(); } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
+      try {
+        await this._flushMemory();
+      } catch {
+        /* best effort */
+      }
       return {
         finalAction: "escalate",
         finalVerdict: "unknown",
@@ -437,7 +611,9 @@ export class Orchestrator {
     return this.reducer.reduce(taskId, turn ?? 0);
   }
 
-  async verify(task: { taskId?: string; description?: string; files?: string[] } = {}): Promise<ReducedStatePacket> {
+  async verify(
+    task: { taskId?: string; description?: string; files?: string[] } = {},
+  ): Promise<ReducedStatePacket> {
     const taskId = task.taskId ?? `verify-${Date.now()}`;
     const profile = detectTaskProfile(task.description ?? "verify current TypeScript workspace");
     await this._runVerifiers(taskId, task.files, profile.language);
@@ -450,8 +626,12 @@ export class Orchestrator {
     return { ...this.stats };
   }
 
-  getReducer(): StateReducer { return this.reducer; }
-  getEventBus(): EventBus { return this.sharedEventBus; }
+  getReducer(): StateReducer {
+    return this.reducer;
+  }
+  getEventBus(): EventBus {
+    return this.sharedEventBus;
+  }
 
   private _resolveProvider(memoryRecommendation?: Recommendation | null): ModelProviderConfig {
     const pc = this.modelConfig.providers[this.providerKey];
@@ -461,21 +641,36 @@ export class Orchestrator {
     throw new Error(`No provider found`);
   }
 
-  private _applyMemoryModelBias(providerConfig: ModelProviderConfig, memoryRecommendation?: Recommendation | null): ModelProviderConfig {
+  private _applyMemoryModelBias(
+    providerConfig: ModelProviderConfig,
+    memoryRecommendation?: Recommendation | null,
+  ): ModelProviderConfig {
     const preferred = memoryRecommendation?.routingBias?.prefer?.[0];
     const confidence = memoryRecommendation?.routingBias?.confidence ?? 0;
-    if (!preferred || confidence < 0.65 || preferred === providerConfig.defaultModel) return providerConfig;
-    const isProviderModel = preferred.includes(":") ? preferred.startsWith(providerConfig.provider + ":") : true;
+    if (!preferred || confidence < 0.65 || preferred === providerConfig.defaultModel)
+      return providerConfig;
+    const isProviderModel = preferred.includes(":")
+      ? preferred.startsWith(providerConfig.provider + ":")
+      : true;
     if (!isProviderModel) {
-      this.logger?.info(`[orchestrator] Memory bias prefers ${preferred} but it belongs to a different provider than ${providerConfig.provider}; ignoring cross-provider bias`);
+      this.logger?.info(
+        `[orchestrator] Memory bias prefers ${preferred} but it belongs to a different provider than ${providerConfig.provider}; ignoring cross-provider bias`,
+      );
       return providerConfig;
     }
-    const isKnownModel = preferred.includes(":") || preferred === providerConfig.defaultModel || Object.values(this.modelConfig.providers).some(p => p.defaultModel === preferred);
+    const isKnownModel =
+      preferred.includes(":") ||
+      preferred === providerConfig.defaultModel ||
+      Object.values(this.modelConfig.providers).some((p) => p.defaultModel === preferred);
     if (!isKnownModel) {
-      this.logger?.info(`[orchestrator] Memory bias prefers ${preferred} which is not a known model for provider ${providerConfig.provider}; ignoring unknown model bias`);
+      this.logger?.info(
+        `[orchestrator] Memory bias prefers ${preferred} which is not a known model for provider ${providerConfig.provider}; ignoring unknown model bias`,
+      );
       return providerConfig;
     }
-    this.logger?.info(`[orchestrator] Memory bias prefers model ${preferred} over ${providerConfig.defaultModel} (${Math.round(confidence * 100)}% confidence)`);
+    this.logger?.info(
+      `[orchestrator] Memory bias prefers model ${preferred} over ${providerConfig.defaultModel} (${Math.round(confidence * 100)}% confidence)`,
+    );
     return { ...providerConfig, defaultModel: preferred };
   }
 
@@ -485,15 +680,27 @@ export class Orchestrator {
       const result = await this.memoryStore.recall(task.description);
       return result.ok ? result.value : null;
     } catch (e) {
-      this.logger?.warn(`[orchestrator] Memory recall failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger?.warn(
+        `[orchestrator] Memory recall failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
       return null;
     }
   }
 
-  private async _runVerifiers(taskId: string, files?: string[], language?: ReturnType<typeof detectTaskProfile>["language"], writtenFiles?: string[]): Promise<void> {
+  private async _runVerifiers(
+    taskId: string,
+    files?: string[],
+    language?: ReturnType<typeof detectTaskProfile>["language"],
+    writtenFiles?: string[],
+  ): Promise<void> {
     const profile = language ? profileForLanguage(language) : undefined;
     if (profile?.checkCommand && writtenFiles && writtenFiles.length > 0) {
-      await this._runCheckCommand(profile.checkCommand, writtenFiles, taskId, profile.structuredCheck);
+      await this._runCheckCommand(
+        profile.checkCommand,
+        writtenFiles,
+        taskId,
+        profile.structuredCheck,
+      );
     }
     const eb = this.sharedEventBus;
     const emitters = createVerificationEmitters(this.cwd, eb, files, language, writtenFiles);
@@ -504,28 +711,54 @@ export class Orchestrator {
       emitters.changes.emit(taskId),
       emitters.graph.emit(taskId),
     ]);
- }
+  }
 
-  private async _runCheckCommand(checkCommand: string, files: string[], taskId: string, structured?: { command: string; args: string[]; appendFiles?: boolean }): Promise<void> {
+  private async _runCheckCommand(
+    checkCommand: string,
+    files: string[],
+    taskId: string,
+    structured?: { command: string; args: string[]; appendFiles?: boolean },
+  ): Promise<void> {
     if (structured && structured.command) {
-      const args = structured.appendFiles !== false ? [...structured.args, ...files] : structured.args;
+      const args =
+        structured.appendFiles !== false ? [...structured.args, ...files] : structured.args;
       try {
-        const { stdout, stderr } = await execFileAsync(structured.command, args, { cwd: this.cwd, timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+        const { stdout, stderr } = await execFileAsync(structured.command, args, {
+          cwd: this.cwd,
+          timeout: 30000,
+          maxBuffer: 10 * 1024 * 1024,
+        });
         const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
         if (output) {
-          this.logger?.info(`[orchestrator] checkCommand ${structured.command} passed for ${files.length} file(s)`);
+          this.logger?.info(
+            `[orchestrator] checkCommand ${structured.command} passed for ${files.length} file(s)`,
+          );
         }
       } catch (e) {
         const errObj = e as { stdout?: string; stderr?: string; message?: string };
         const output = `${errObj.stdout ?? ""}${errObj.stderr ? `\n${errObj.stderr}` : ""}`.trim();
-        this.logger?.warn(`[orchestrator] checkCommand ${structured.command} failed: ${output || errObj.message || "unknown error"}`);
+        this.logger?.warn(
+          `[orchestrator] checkCommand ${structured.command} failed: ${output || errObj.message || "unknown error"}`,
+        );
         await this.sharedEventBus.emit({
           kind: "verify.types",
           schemaVersion: "v3",
           sequence: 1,
           streamId: taskId,
           taskId,
-          value: { status: "fail", errors: 1, durationMs: 0, details: [{ file: "<checkCommand>", line: 0, code: "CHECK_CMD_FAIL", message: `${structured.command}: ${output || errObj.message || "failed"}` }] },
+          value: {
+            status: "fail",
+            errors: 1,
+            durationMs: 0,
+            details: [
+              {
+                file: "<checkCommand>",
+                line: 0,
+                code: "CHECK_CMD_FAIL",
+                message: `${structured.command}: ${output || errObj.message || "failed"}`,
+              },
+            ],
+          },
           timestamp: new Date().toISOString(),
         });
       }
@@ -537,22 +770,42 @@ export class Orchestrator {
     if (!cmd || files.length === 0) return;
     const args = [...parts.slice(1), ...files];
     try {
-      const { stdout, stderr } = await execFileAsync(cmd, args, { cwd: this.cwd, timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+      const { stdout, stderr } = await execFileAsync(cmd, args, {
+        cwd: this.cwd,
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024,
+      });
       const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
       if (output) {
-        this.logger?.info(`[orchestrator] checkCommand ${checkCommand} passed for ${files.length} file(s)`);
+        this.logger?.info(
+          `[orchestrator] checkCommand ${checkCommand} passed for ${files.length} file(s)`,
+        );
       }
     } catch (e) {
       const errObj = e as { stdout?: string; stderr?: string; message?: string };
       const output = `${errObj.stdout ?? ""}${errObj.stderr ? `\n${errObj.stderr}` : ""}`.trim();
-      this.logger?.warn(`[orchestrator] checkCommand ${checkCommand} failed: ${output || errObj.message || "unknown error"}`);
+      this.logger?.warn(
+        `[orchestrator] checkCommand ${checkCommand} failed: ${output || errObj.message || "unknown error"}`,
+      );
       await this.sharedEventBus.emit({
         kind: "verify.types",
         schemaVersion: "v3",
         sequence: 1,
         streamId: taskId,
         taskId,
-        value: { status: "fail", errors: 1, durationMs: 0, details: [{ file: "<checkCommand>", line: 0, code: "CHECK_CMD_FAIL", message: `${checkCommand}: ${output || errObj.message || "failed"}` }] },
+        value: {
+          status: "fail",
+          errors: 1,
+          durationMs: 0,
+          details: [
+            {
+              file: "<checkCommand>",
+              line: 0,
+              code: "CHECK_CMD_FAIL",
+              message: `${checkCommand}: ${output || errObj.message || "failed"}`,
+            },
+          ],
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -560,14 +813,17 @@ export class Orchestrator {
 
   private _makeBrief(task: TaskInput): TaskBrief {
     const profile = detectTaskProfile(task.description);
-    const forbiddenList = profile.forbiddenExtensions.length > 0
-      ? `\nForbidden file types: ${profile.forbiddenExtensions.join(", ")}.`
-      : "";
-    const emissionRules = profile.allowedExtensions.length > 0
-      ? `\nAllowed file extensions for ${profile.language}: ${profile.allowedExtensions.join(", ")}.`
-      : "";
+    const forbiddenList =
+      profile.forbiddenExtensions.length > 0
+        ? `\nForbidden file types: ${profile.forbiddenExtensions.join(", ")}.`
+        : "";
+    const emissionRules =
+      profile.allowedExtensions.length > 0
+        ? `\nAllowed file extensions for ${profile.language}: ${profile.allowedExtensions.join(", ")}.`
+        : "";
     const contextSection = task.context ? `\nContext: ${task.context}` : "";
-    const filesSection = task.files && task.files.length > 0 ? `\nTarget files: ${task.files.join(", ")}` : "";
+    const filesSection =
+      task.files && task.files.length > 0 ? `\nTarget files: ${task.files.join(", ")}` : "";
     return {
       description: task.description + contextSection + filesSection,
       variables: {
@@ -590,7 +846,13 @@ export class Orchestrator {
     result: DelegationResult,
     language: string,
     durationMs: number,
-    emissions?: Array<{ path: string; sha256: string; bytes: number; beforeHash: string | null; existed: boolean }>,
+    emissions?: Array<{
+      path: string;
+      sha256: string;
+      bytes: number;
+      beforeHash: string | null;
+      existed: boolean;
+    }>,
   ): Promise<void> {
     if (!this.memoryStore) return;
     const packet = result.packet;
@@ -615,7 +877,12 @@ export class Orchestrator {
         model: result.emission.model,
         promptShape: result.emission.format,
         verifierOverall: packet?.verification.overall,
-        finalAction: task.taskPass === true ? "accept" : (packet?.verification.overall === "pass" ? "accept" : "escalate"),
+        finalAction:
+          task.taskPass === true
+            ? "accept"
+            : packet?.verification.overall === "pass"
+              ? "accept"
+              : "escalate",
         taskPass: task.taskPass,
         outcome,
         reason,
@@ -625,7 +892,9 @@ export class Orchestrator {
         emissions: emissions ?? [],
       });
     } catch (e) {
-      this.logger?.warn(`[orchestrator] Memory write failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger?.warn(
+        `[orchestrator] Memory write failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -670,7 +939,13 @@ export class Orchestrator {
       outcome = "error";
     }
 
-    let outcomeClass: "pass" | "task_fail" | "validator_error" | "tool_error" | "escalated" | "unknown";
+    let outcomeClass:
+      | "pass"
+      | "task_fail"
+      | "validator_error"
+      | "tool_error"
+      | "escalated"
+      | "unknown";
     if (outcome === "pass") {
       outcomeClass = "pass";
     } else if (task.taskPass === false) {
@@ -694,15 +969,18 @@ export class Orchestrator {
       routingLesson = "neutral";
     }
 
-    const reason = task.taskPass === false
-      ? (taskValidation.status === "fail" || taskValidation.status === "error" ? `task validator ${taskValidation.status}: ${taskValidation.reason ?? "validator failed"}` : "task validator failed")
-      : task.taskPass === true
-        ? "task passed"
-        : finalAction === "accept"
-          ? "verification passed"
-          : finalAction === "escalate"
-            ? "correction loop escalated"
-            : "task outcome unknown";
+    const reason =
+      task.taskPass === false
+        ? taskValidation.status === "fail" || taskValidation.status === "error"
+          ? `task validator ${taskValidation.status}: ${taskValidation.reason ?? "validator failed"}`
+          : "task validator failed"
+        : task.taskPass === true
+          ? "task passed"
+          : finalAction === "accept"
+            ? "verification passed"
+            : finalAction === "escalate"
+              ? "correction loop escalated"
+              : "task outcome unknown";
 
     const providerKey = this.providerKey;
     const providerConfig = this.modelConfig.providers[providerKey];
@@ -738,7 +1016,7 @@ export class Orchestrator {
         durationMs,
         turns: turns.length,
         validatorDurationMs: taskValidation.durationMs ?? 0,
-        emissions: emissions.map(f => ({
+        emissions: emissions.map((f) => ({
           path: f.path,
           sha256: f.sha256,
           bytes: f.bytes,
@@ -751,7 +1029,7 @@ export class Orchestrator {
       const runTurn = turns.length;
 
       // Pre-compute emission IDs so they can be stored on the run record
-      const emissionRecords = emissions.map((f, i) => ({
+      const emissionRecords = emissions.map((f, _i) => ({
         path: f.path,
         sha256: f.sha256,
         bytes: f.bytes,
@@ -795,10 +1073,11 @@ export class Orchestrator {
       // Write run and emissions transactionally
       await this.memoryStore.writeRunAndEmissions(runRecord, emissionRecords, runTurn);
     } catch (e) {
-      this.logger?.warn(`[orchestrator] Memory write (correction) failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger?.warn(
+        `[orchestrator] Memory write (correction) failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
-
 
   private _isolatedWorkspaceDirs: string[] = [];
   private _activeTurnWorkspace: string | null = null;
@@ -834,10 +1113,15 @@ export class Orchestrator {
         rmSync(this._activeTurnWorkspace, { recursive: true, force: true });
         this._activeTurnWorkspace = null;
       }
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
-  private async _createIsolatedWorkspace(emittedFiles?: Array<{ path: string; content?: string }>, baselineDir?: string): Promise<string> {
+  private async _createIsolatedWorkspace(
+    emittedFiles?: Array<{ path: string; content?: string }>,
+    baselineDir?: string,
+  ): Promise<string> {
     try {
       const tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-validator-"));
 
@@ -860,9 +1144,15 @@ export class Orchestrator {
             if (f.content !== undefined) {
               writeFileSync(dst, f.content, "utf-8");
             } else {
-              try { copyFileSync(src, dst); } catch { /* file may not exist — skip */ }
+              try {
+                copyFileSync(src, dst);
+              } catch {
+                /* file may not exist — skip */
+              }
             }
-          } catch { /* best effort per file */ }
+          } catch {
+            /* best effort per file */
+          }
         }
       } else {
         // Legacy fallback: copy full cwd (used when emitted files unknown)
@@ -877,21 +1167,31 @@ export class Orchestrator {
       this._isolatedWorkspaceDirs.push(tmpDir);
       return tmpDir;
     } catch (e) {
-      this.logger?.error(`[orchestrator] Failed to create isolated validator workspace: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger?.error(
+        `[orchestrator] Failed to create isolated validator workspace: ${e instanceof Error ? e.message : String(e)}`,
+      );
       throw e instanceof Error ? e : new Error(String(e));
     }
   }
 
   private _cleanupIsolatedWorkspace(): void {
     for (const dir of this._isolatedWorkspaceDirs) {
-      try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        /* best effort */
+      }
     }
     this._isolatedWorkspaceDirs = [];
   }
 
   private _cleanupBaselineDirs(): void {
     for (const dir of this._isolatedBaselineDirs) {
-      try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        /* best effort */
+      }
     }
     this._isolatedBaselineDirs = [];
   }
@@ -916,7 +1216,11 @@ export class Orchestrator {
     return snapshotDir;
   }
 
-  private async _runStructuredTaskValidator(config: StructuredValidatorConfig, emittedFiles?: Array<{ path: string; content?: string }>, baselineDir?: string): Promise<TaskValidationResult> {
+  private async _runStructuredTaskValidator(
+    config: StructuredValidatorConfig,
+    emittedFiles?: Array<{ path: string; content?: string }>,
+    baselineDir?: string,
+  ): Promise<TaskValidationResult> {
     const started = Date.now();
     const isolatedBase = await this._createIsolatedWorkspace(emittedFiles, baselineDir);
     const cwd = config.cwd ?? isolatedBase;
@@ -934,7 +1238,11 @@ export class Orchestrator {
     }
     const timeoutMs = config.timeoutMs ?? 120000;
     try {
-      const { stdout, stderr } = await execFileAsync(config.command, config.args, { cwd, timeout: timeoutMs, maxBuffer: 1024 * 1024 * 10 });
+      const { stdout, stderr } = await execFileAsync(config.command, config.args, {
+        cwd,
+        timeout: timeoutMs,
+        maxBuffer: 1024 * 1024 * 10,
+      });
       const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
       return {
         status: "pass",
@@ -944,7 +1252,14 @@ export class Orchestrator {
         details: { exitCode: 0, stdout: stdout.slice(-8000), stderr: stderr.slice(-8000) },
       };
     } catch (cause) {
-      const errObj = cause as { code?: unknown; signal?: unknown; stdout?: string; stderr?: string; killed?: boolean; message?: string };
+      const errObj = cause as {
+        code?: unknown;
+        signal?: unknown;
+        stdout?: string;
+        stderr?: string;
+        killed?: boolean;
+        message?: string;
+      };
       const stdout = errObj.stdout ?? "";
       const stderr = errObj.stderr ?? "";
       const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
@@ -952,19 +1267,33 @@ export class Orchestrator {
       return {
         status: timedOut ? "error" : "fail",
         validator: `${config.command} ${config.args.join(" ")}`,
-        reason: outputSummary(output) || errObj.message || (timedOut ? "validator timed out" : "validator exited non-zero"),
+        reason:
+          outputSummary(output) ||
+          errObj.message ||
+          (timedOut ? "validator timed out" : "validator exited non-zero"),
         durationMs: Date.now() - started,
-        details: { exitCode: errObj.code ?? null, signal: errObj.signal ?? null, stdout: stdout.slice(-8000), stderr: stderr.slice(-8000) },
+        details: {
+          exitCode: errObj.code ?? null,
+          signal: errObj.signal ?? null,
+          stdout: stdout.slice(-8000),
+          stderr: stderr.slice(-8000),
+        },
       };
     }
   }
 
-  private async _runTaskValidator(command: string, timeoutMs = 120000, emittedFiles?: Array<{ path: string; content?: string }>, baselineDir?: string): Promise<TaskValidationResult> {
+  private async _runTaskValidator(
+    command: string,
+    timeoutMs = 120000,
+    emittedFiles?: Array<{ path: string; content?: string }>,
+    baselineDir?: string,
+  ): Promise<TaskValidationResult> {
     if (process.env.ALLOW_UNSAFE_VALIDATOR_SHELL !== "1") {
       return {
         status: "error",
         validator: command,
-        reason: "validator-shell is disabled: set ALLOW_UNSAFE_VALIDATOR_SHELL=1 to enable raw shell validators",
+        reason:
+          "validator-shell is disabled: set ALLOW_UNSAFE_VALIDATOR_SHELL=1 to enable raw shell validators",
         durationMs: 0,
         details: {},
       };
@@ -972,7 +1301,11 @@ export class Orchestrator {
     const started = Date.now();
     const isolatedCwd = await this._createIsolatedWorkspace(emittedFiles, baselineDir);
     try {
-      const { stdout, stderr } = await execAsync(command, { cwd: isolatedCwd, timeout: timeoutMs, maxBuffer: 1024 * 1024 * 10 });
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: isolatedCwd,
+        timeout: timeoutMs,
+        maxBuffer: 1024 * 1024 * 10,
+      });
       const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
       return {
         status: "pass",
@@ -982,7 +1315,14 @@ export class Orchestrator {
         details: { exitCode: 0, stdout: stdout.slice(-8000), stderr: stderr.slice(-8000) },
       };
     } catch (cause) {
-      const errObj = cause as { code?: unknown; signal?: unknown; stdout?: string; stderr?: string; killed?: boolean; message?: string };
+      const errObj = cause as {
+        code?: unknown;
+        signal?: unknown;
+        stdout?: string;
+        stderr?: string;
+        killed?: boolean;
+        message?: string;
+      };
       const stdout = errObj.stdout ?? "";
       const stderr = errObj.stderr ?? "";
       const output = `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
@@ -990,9 +1330,17 @@ export class Orchestrator {
       return {
         status: timedOut ? "error" : "fail",
         validator: command,
-        reason: outputSummary(output) || errObj.message || (timedOut ? "validator timed out" : "validator exited non-zero"),
+        reason:
+          outputSummary(output) ||
+          errObj.message ||
+          (timedOut ? "validator timed out" : "validator exited non-zero"),
         durationMs: Date.now() - started,
-        details: { exitCode: errObj.code ?? null, signal: errObj.signal ?? null, stdout: stdout.slice(-8000), stderr: stderr.slice(-8000) },
+        details: {
+          exitCode: errObj.code ?? null,
+          signal: errObj.signal ?? null,
+          stdout: stdout.slice(-8000),
+          stderr: stderr.slice(-8000),
+        },
       };
     }
   }
@@ -1020,20 +1368,34 @@ export class Orchestrator {
 
   healthCheck() {
     return {
-      status: this._shuttingDown ? "shutting_down" : "healthy" as const,
+      status: this._shuttingDown ? "shutting_down" : ("healthy" as const),
       stats: { ...this.stats },
-      eventBus: { running: this.sharedEventBus.running, inflight: this.sharedEventBus.inflightCount, bufferSize: this.sharedEventBus.getBufferSize() },
+      eventBus: {
+        running: this.sharedEventBus.running,
+        inflight: this.sharedEventBus.inflightCount,
+        bufferSize: this.sharedEventBus.getBufferSize(),
+      },
       memory: this.memoryStore ? "connected" : "none",
       providers: Object.keys(this.modelConfig.providers).length,
     };
   }
 
-  async decomposeTask(task: TaskInput): Promise<import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error>> {
+  async decomposeTask(
+    task: TaskInput,
+  ): Promise<
+    import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error>
+  > {
     if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
 
-    const effectiveTaskId = task.taskId ?? `decomp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const effectiveTaskId =
+      task.taskId ?? `decomp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const profile = detectTaskProfile(task.description);
-    const agent = Agent.fromConfig("decomposer-" + effectiveTaskId, this.modelConfig, this.decomposeProvider, BUILTIN_TEMPLATES["task-decompose"]);
+    const agent = Agent.fromConfig(
+      "decomposer-" + effectiveTaskId,
+      this.modelConfig,
+      this.decomposeProvider,
+      BUILTIN_TEMPLATES["task-decompose"],
+    );
     if (!agent.ok) return err(agent.error);
 
     const brief = {
@@ -1051,7 +1413,9 @@ export class Orchestrator {
     const parsed = this._parseDecomposition(emission.content);
     if (!parsed.ok) {
       const retryResult = await agent.value.execute({
-        description: task.description + "\n\n---\nYour previous output could not be parsed as valid JSON. Output ONLY a JSON array, no markdown, no explanation.",
+        description:
+          task.description +
+          "\n\n---\nYour previous output could not be parsed as valid JSON. Output ONLY a JSON array, no markdown, no explanation.",
         variables: {
           language: profile.language,
           defaultFile: profile.defaultFile,
@@ -1059,47 +1423,67 @@ export class Orchestrator {
       });
       if (!retryResult.ok) return err(retryResult.error);
       const retryParsed = this._parseDecomposition(retryResult.value.content);
-      if (!retryParsed.ok) return err(new Error("Decomposition failed after retry: " + retryParsed.error.message));
-      const rdr = retryParsed.value; rdr.rootTask = task.description;
+      if (!retryParsed.ok)
+        return err(new Error("Decomposition failed after retry: " + retryParsed.error.message));
+      const rdr = retryParsed.value;
+      rdr.rootTask = task.description;
       if (this.memoryStore) {
-        this.memoryStore.writeDecomposition(effectiveTaskId, task.description, rdr.tasks, profile.language).catch(() => {});
+        this.memoryStore
+          .writeDecomposition(effectiveTaskId, task.description, rdr.tasks, profile.language)
+          .catch(() => {});
       }
       return ok(rdr);
     }
 
-    const dr = parsed.value; dr.rootTask = task.description;
+    const dr = parsed.value;
+    dr.rootTask = task.description;
     if (this.memoryStore) {
-      this.memoryStore.writeDecomposition(effectiveTaskId, task.description, dr.tasks, profile.language).catch(() => {
-        // Persistence failure is non-fatal
-      });
+      this.memoryStore
+        .writeDecomposition(effectiveTaskId, task.description, dr.tasks, profile.language)
+        .catch(() => {
+          // Persistence failure is non-fatal
+        });
     }
     return ok(dr);
   }
 
-  async executeDecomposition(taskId: string): Promise<import('@55ndeep/core-types').Result<import('./types.js').DecompositionExecutionResult, Error>> {
-    if (this._shuttingDown) return err(new Error('Orchestrator is shutting down'));
-    if (!this.memoryStore) return err(new Error('Memory store required for decomposition execution'));
+  async executeDecomposition(
+    taskId: string,
+  ): Promise<
+    import("@55ndeep/core-types").Result<import("./types.js").DecompositionExecutionResult, Error>
+  > {
+    if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
+    if (!this.memoryStore)
+      return err(new Error("Memory store required for decomposition execution"));
 
     const recalled = await this.memoryStore.recallDecomposition(taskId);
     if (!recalled.ok) return err(recalled.error);
     if (!recalled.value || recalled.value.tasks.length === 0) {
-      return err(new Error('No decomposition found for taskId: ' + taskId));
+      return err(new Error("No decomposition found for taskId: " + taskId));
     }
 
     const tasks = recalled.value.tasks;
     // Defensive re-sort: guarantee dependency order even for hand-edited or corrupted stores
     const sorted = this._topologicalSort(tasks);
-    if (!sorted.ok) return err(new Error('Stored decomposition has invalid dependency graph: ' + sorted.error.message));
+    if (!sorted.ok)
+      return err(
+        new Error("Stored decomposition has invalid dependency graph: " + sorted.error.message),
+      );
     const ordered = sorted.value;
-    const completed = new Map<string, import('./types.js').SubtaskExecutionResult>();
-    const results: import('./types.js').SubtaskExecutionResult[] = [];
+    const completed = new Map<string, import("./types.js").SubtaskExecutionResult>();
+    const results: import("./types.js").SubtaskExecutionResult[] = [];
     let totalTokens = 0;
     const startedAt = Date.now();
 
     for (const node of ordered) {
       for (const depId of node.dependsOn) {
         const depResult = completed.get(depId);
-        if (!depResult) return err(new Error('Dependency ' + depId + ' for task ' + node.id + ' was not found in execution plan'));
+        if (!depResult)
+          return err(
+            new Error(
+              "Dependency " + depId + " for task " + node.id + " was not found in execution plan",
+            ),
+          );
         if (!depResult.ok) {
           results.push({
             nodeId: node.id,
@@ -1108,7 +1492,7 @@ export class Orchestrator {
             language: node.language,
             durationMs: 0,
             tokensUsed: 0,
-            error: 'Skipped: dependency ' + depId + ' failed',
+            error: "Skipped: dependency " + depId + " failed",
           });
           completed.set(node.id, results[results.length - 1]!);
           continue;
@@ -1120,18 +1504,26 @@ export class Orchestrator {
 
       const subtaskStartedAt = Date.now();
       const SUBTASK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per subtask
-      this.logger?.info('[orchestrator] Executing subtask ' + node.id + ': ' + node.description.slice(0, 60));
+      this.logger?.info(
+        "[orchestrator] Executing subtask " + node.id + ": " + node.description.slice(0, 60),
+      );
 
       let result: Awaited<ReturnType<typeof this.delegate>>;
       try {
         result = await Promise.race([
           this.delegate({
-            taskId: taskId + '--' + node.id,
+            taskId: taskId + "--" + node.id,
             description: node.description,
             suppressMemory: false,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Subtask ' + node.id + ' timed out after ' + SUBTASK_TIMEOUT_MS + 'ms')), SUBTASK_TIMEOUT_MS)
+            setTimeout(
+              () =>
+                reject(
+                  new Error("Subtask " + node.id + " timed out after " + SUBTASK_TIMEOUT_MS + "ms"),
+                ),
+              SUBTASK_TIMEOUT_MS,
+            ),
           ),
         ]);
       } catch (e) {
@@ -1139,16 +1531,29 @@ export class Orchestrator {
       }
 
       if (!result.ok) {
-        this.logger?.warn('[orchestrator] Subtask ' + node.id + ' failed on first attempt, retrying once: ' + result.error.message);
+        this.logger?.warn(
+          "[orchestrator] Subtask " +
+            node.id +
+            " failed on first attempt, retrying once: " +
+            result.error.message,
+        );
         try {
           result = await Promise.race([
             this.delegate({
-              taskId: taskId + '--' + node.id + '-r',
+              taskId: taskId + "--" + node.id + "-r",
               description: node.description,
               suppressMemory: false,
             }),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Subtask ' + node.id + ' retry timed out after ' + SUBTASK_TIMEOUT_MS + 'ms')), SUBTASK_TIMEOUT_MS)
+              setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      "Subtask " + node.id + " retry timed out after " + SUBTASK_TIMEOUT_MS + "ms",
+                    ),
+                  ),
+                SUBTASK_TIMEOUT_MS,
+              ),
             ),
           ]);
         } catch (e) {
@@ -1157,7 +1562,7 @@ export class Orchestrator {
       }
 
       if (!result.ok) {
-        const sr: import('./types.js').SubtaskExecutionResult = {
+        const sr: import("./types.js").SubtaskExecutionResult = {
           nodeId: node.id,
           ok: false,
           description: node.description,
@@ -1173,12 +1578,12 @@ export class Orchestrator {
 
       const emission = result.value.emission;
       const packet = result.value.packet;
-      const verdict = packet?.verification?.overall ?? 'unknown';
+      const verdict = packet?.verification?.overall ?? "unknown";
       const files = extractWrittenFiles(result.value);
 
       totalTokens += emission.totalTokens;
 
-      const sr: import('./types.js').SubtaskExecutionResult = {
+      const sr: import("./types.js").SubtaskExecutionResult = {
         nodeId: node.id,
         ok: verdict === "pass" || verdict === "warn",
         description: node.description,
@@ -1192,8 +1597,8 @@ export class Orchestrator {
       completed.set(node.id, sr);
     }
 
-    const succeededCount = results.filter(r => r.ok).length;
-    const executionResult: import('./types.js').DecompositionExecutionResult = {
+    const succeededCount = results.filter((r) => r.ok).length;
+    const executionResult: import("./types.js").DecompositionExecutionResult = {
       rootTask: recalled.value.description,
       results,
       totalSubtasks: ordered.length,
@@ -1206,12 +1611,14 @@ export class Orchestrator {
     return ok(executionResult);
   }
 
-  private _parseDecomposition(raw: string): import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error> {
+  private _parseDecomposition(
+    raw: string,
+  ): import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error> {
     let jsonStr = raw.trim();
     const codeBlock = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
     if (codeBlock) jsonStr = codeBlock[1]!.trim();
     // Robust bracket heuristic: [{ is unambiguous JSON array start
-    const bracketPair = jsonStr.indexOf('[{');
+    const bracketPair = jsonStr.indexOf("[{");
     if (bracketPair > 0) jsonStr = jsonStr.slice(bracketPair);
     else {
       const braceStart = jsonStr.indexOf("[");
@@ -1227,7 +1634,8 @@ export class Orchestrator {
     let tasks: unknown[];
     try {
       const parsed = JSON.parse(jsonStr);
-      if (!Array.isArray(parsed)) return err(new Error("Decomposition output must be a JSON array"));
+      if (!Array.isArray(parsed))
+        return err(new Error("Decomposition output must be a JSON array"));
       tasks = parsed;
     } catch (e) {
       return err(new Error("Failed to parse decomposition JSON: " + (e as Error).message));
@@ -1241,8 +1649,10 @@ export class Orchestrator {
       const zodResult = decomposeSchema.safeParse(tasks);
       if (!zodResult.success) {
         // Model output doesn't match schema — continue with manual coercion below
-        this.logger?.warn('[orchestrator] Decomposition failed Zod validation: ' +
-          zodResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
+        this.logger?.warn(
+          "[orchestrator] Decomposition failed Zod validation: " +
+            zodResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        );
       }
       // If Zod succeeded, tasks is already the correct shape; coercion handles truncation & defaults
     }
@@ -1258,7 +1668,8 @@ export class Orchestrator {
       ids.add(id);
 
       const complexity = String(t.estimatedComplexity ?? "moderate");
-      if (!validComplexities.has(complexity)) return err(new Error(`Invalid complexity "${complexity}" in task ${id}`));
+      if (!validComplexities.has(complexity))
+        return err(new Error(`Invalid complexity "${complexity}" in task ${id}`));
 
       nodes.push({
         id,
@@ -1266,21 +1677,36 @@ export class Orchestrator {
         language: String(t.language ?? "text"),
         dependsOn: Array.isArray(t.dependsOn) ? (t.dependsOn as unknown[]).map(String) : [],
         estimatedComplexity: complexity as import("@55ndeep/core-types").EstimatedComplexity,
-        outputFiles: Array.isArray(t.outputFiles) ? (t.outputFiles as unknown[]).map(String).slice(0, 20) : [],
+        outputFiles: Array.isArray(t.outputFiles)
+          ? (t.outputFiles as unknown[]).map(String).slice(0, 20)
+          : [],
         verificationHint: String(t.verificationHint ?? "").slice(0, 200),
       });
     }
 
     for (const node of nodes) {
-      if (node.dependsOn.includes(node.id)) return err(new Error(`Task ${node.id} cannot depend on itself`));
+      if (node.dependsOn.includes(node.id))
+        return err(new Error(`Task ${node.id} cannot depend on itself`));
       for (const dep of node.dependsOn) {
         if (!ids.has(dep)) return err(new Error(`Task ${node.id} depends on unknown task: ${dep}`));
       }
     }
 
-    if (nodes.length > 24) return err(new Error(`Decomposition produced ${nodes.length} subtasks; maximum is 24`));
+    if (nodes.length > 24)
+      return err(new Error(`Decomposition produced ${nodes.length} subtasks; maximum is 24`));
 
-    const validLanguages = new Set(["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"]);
+    const validLanguages = new Set([
+      "typescript",
+      "javascript",
+      "python",
+      "shell",
+      "cpp",
+      "c",
+      "rust",
+      "go",
+      "sql",
+      "text",
+    ]);
     for (const node of nodes) {
       if (!validLanguages.has(node.language)) {
         // Coerce to text rather than rejecting — the model may output creative values
@@ -1292,17 +1718,20 @@ export class Orchestrator {
     const sorted = this._topologicalSort(nodes);
     if (!sorted.ok) return err(sorted.error);
 
-    const tokenEstimate = sorted.value.length * 400 + sorted.value.reduce((sum, n) => sum + n.description.length, 0);
+    const tokenEstimate =
+      sorted.value.length * 400 + sorted.value.reduce((sum, n) => sum + n.description.length, 0);
 
     return ok({
       rootTask: "", // filled in by decomposeTask
       tasks: sorted.value,
       totalEstimatedTokens: tokenEstimate,
-      rationale: `Decomposed into ${sorted.value.length} subtasks (${sorted.value.filter(n => n.dependsOn.length > 0).length} with dependencies)`,
+      rationale: `Decomposed into ${sorted.value.length} subtasks (${sorted.value.filter((n) => n.dependsOn.length > 0).length} with dependencies)`,
     });
   }
 
-  private _topologicalSort(nodes: import("@55ndeep/core-types").TaskNode[]): import("@55ndeep/core-types").Result<import("@55ndeep/core-types").TaskNode[], Error> {
+  private _topologicalSort(
+    nodes: import("@55ndeep/core-types").TaskNode[],
+  ): import("@55ndeep/core-types").Result<import("@55ndeep/core-types").TaskNode[], Error> {
     const byId = new Map<string, import("@55ndeep/core-types").TaskNode>();
     for (const n of nodes) byId.set(n.id, n);
 
@@ -1335,7 +1764,8 @@ export class Orchestrator {
       }
     }
 
-    if (sorted.length !== nodes.length) return err(new Error("Cycle detected in task dependencies"));
+    if (sorted.length !== nodes.length)
+      return err(new Error("Cycle detected in task dependencies"));
     return ok(sorted);
   }
 
@@ -1359,7 +1789,13 @@ export class Orchestrator {
           sequence: 0,
           streamId: sig.id,
           taskId: sig.taskId,
-          value: { blockedPaths: (sig.value as { blockedPaths: Array<{ path: string; reason: string }> }).blockedPaths, ...(sig.value as any).parseWarnings ? { parseWarnings: (sig.value as any).parseWarnings } : {} },
+          value: {
+            blockedPaths: (sig.value as { blockedPaths: Array<{ path: string; reason: string }> })
+              .blockedPaths,
+            ...((sig.value as any).parseWarnings
+              ? { parseWarnings: (sig.value as any).parseWarnings }
+              : {}),
+          },
           timestamp: sig.ts,
         });
       } else if (sig.kind === "artifact.unterminated") {
@@ -1379,11 +1815,25 @@ export class Orchestrator {
           sequence: 0,
           streamId: sig.id,
           taskId: sig.taskId,
-          value: { finishReason: (sig.value as { finishReason: string }).finishReason, warnings: (sig.value as { warnings: string[] }).warnings },
+          value: {
+            finishReason: (sig.value as { finishReason: string }).finishReason,
+            warnings: (sig.value as { warnings: string[] }).warnings,
+          },
           timestamp: sig.ts,
         });
       } else if (sig.kind === "artifact.emitted") {
-        const av = sig.value as { filesWritten: number; totalBytes: number; files: Array<{ path: string; sha256: string; bytes: number; beforeHash: string | null; existed: boolean }>; language: string };
+        const av = sig.value as {
+          filesWritten: number;
+          totalBytes: number;
+          files: Array<{
+            path: string;
+            sha256: string;
+            bytes: number;
+            beforeHash: string | null;
+            existed: boolean;
+          }>;
+          language: string;
+        };
         await this.sharedEventBus.emit({
           kind: "artifact.emitted",
           schemaVersion: "v3",
@@ -1415,12 +1865,25 @@ export class Orchestrator {
       result.value.packet = {
         ...packet,
         verification: { ...packet.verification, overall: "fail" },
-        artifactEnforcement: { blocked: 0, blockedPaths: [], status: "fail", reason: "schema-contract produced zero emissions" },
+        artifactEnforcement: {
+          blocked: 0,
+          blockedPaths: [],
+          status: "fail",
+          reason: "schema-contract produced zero emissions",
+        },
       };
     }
     if (!task.suppressMemory) {
       const _emissionFiles = extractEmissionFiles(result.value);
-      await this._writeMemoryObservation(task, taskId, mode, result.value, profile.language, Date.now() - startedAt, _emissionFiles);
+      await this._writeMemoryObservation(
+        task,
+        taskId,
+        mode,
+        result.value,
+        profile.language,
+        Date.now() - startedAt,
+        _emissionFiles,
+      );
     }
 
     this.stats.totalDelegations++;
@@ -1430,23 +1893,32 @@ export class Orchestrator {
 }
 
 function outputSummary(output: string): string | undefined {
-  const firstLines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 8).join("\n");
+  const firstLines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .join("\n");
   return firstLines ? firstLines.slice(0, 2000) : undefined;
 }
 
-function estimateSimpleCost(provider: string, promptTokens: number, completionTokens: number): number {
+function estimateSimpleCost(
+  provider: string,
+  promptTokens: number,
+  completionTokens: number,
+): number {
   const rates: Record<string, { input: number; output: number }> = {
     "local-ollama": { input: 0, output: 0 },
     "openrouter-free": { input: 0, output: 0 },
     "nvidia-free": { input: 0, output: 0 },
-    "openai": { input: 0.00015, output: 0.0006 },
-    "anthropic": { input: 0.0008, output: 0.004 },
-    "deepseek": { input: 0.000014, output: 0.000028 },
-    "google": { input: 0.0000375, output: 0.00015 },
-    "xai": { input: 0.0002, output: 0.0008 },
-    "groq": { input: 0.000059, output: 0.000079 },
-    "mistral": { input: 0.0002, output: 0.0006 },
-    "cohere": { input: 0.0003, output: 0.0015 },
+    openai: { input: 0.00015, output: 0.0006 },
+    anthropic: { input: 0.0008, output: 0.004 },
+    deepseek: { input: 0.000014, output: 0.000028 },
+    google: { input: 0.0000375, output: 0.00015 },
+    xai: { input: 0.0002, output: 0.0008 },
+    groq: { input: 0.000059, output: 0.000079 },
+    mistral: { input: 0.0002, output: 0.0006 },
+    cohere: { input: 0.0003, output: 0.0015 },
   };
   const r = rates[provider] ?? rates["local-ollama"]!;
   return (promptTokens * r.input + completionTokens * r.output) / 1000;

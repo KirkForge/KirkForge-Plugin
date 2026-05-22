@@ -13,7 +13,6 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // GCM recommended IV size
-const TAG_LENGTH = 16; // GCM auth tag
 
 function deriveKey(rawKey: string): Buffer {
   return createHash("sha256").update(rawKey).digest(); // 32 bytes
@@ -81,7 +80,7 @@ export class EncryptedAdapter implements MemoryAdapter {
     const result = await this.inner.query(q);
     if (!result.ok) return result;
 
-    const decrypted = result.value.map(obj => {
+    const decrypted = result.value.map((obj) => {
       try {
         return {
           ...obj,

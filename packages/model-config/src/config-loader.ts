@@ -31,20 +31,34 @@ function makeProvider(
   };
 }
 
-export function buildModelConfig(env?: Record<string, string | undefined>): Result<ModelConfig, ConfigError> {
+export function buildModelConfig(
+  env?: Record<string, string | undefined>,
+): Result<ModelConfig, ConfigError> {
   const envVars = env ?? (process.env as Record<string, string | undefined>);
   const providers: Record<string, ModelProviderConfig> = {};
 
   const ollama = makeProvider("ollama", DEFAULTS.ollama, envVars, "kimi-k2.6:cloud", false);
   if (ollama) providers["local-ollama"] = ollama;
 
-  const openrouter = makeProvider("openrouter", DEFAULTS.openrouter, envVars, "google/gemma-3-4b-it:free", true);
+  const openrouter = makeProvider(
+    "openrouter",
+    DEFAULTS.openrouter,
+    envVars,
+    "google/gemma-3-4b-it:free",
+    true,
+  );
   if (openrouter) providers["openrouter-free"] = openrouter;
 
   const openai = makeProvider("openai", DEFAULTS.openai, envVars, "gpt-4o-mini", true);
   if (openai) providers["openai"] = openai;
 
-  const anthropic = makeProvider("anthropic", DEFAULTS.anthropic, envVars, "claude-haiku-4-5-20251001", true);
+  const anthropic = makeProvider(
+    "anthropic",
+    DEFAULTS.anthropic,
+    envVars,
+    "claude-haiku-4-5-20251001",
+    true,
+  );
   if (anthropic) providers["anthropic"] = anthropic;
 
   const nvidia = makeProvider("nvidia", DEFAULTS.nvidia, envVars, "minimaxai/minimax-m2.7", true);
@@ -54,15 +68,24 @@ export function buildModelConfig(env?: Record<string, string | undefined>): Resu
   if (deepseek) providers["deepseek"] = deepseek;
 
   if (Object.keys(providers).length === 0) {
-    return err(new ConfigError("No model providers configured. Set OLLAMA_BASE_URL or provider API keys in .env"));
+    return err(
+      new ConfigError(
+        "No model providers configured. Set OLLAMA_BASE_URL or provider API keys in .env",
+      ),
+    );
   }
 
-  let defaultProvider = envVars.MODEL_DEFAULT_PROVIDER
-    ?? Object.entries(providers).find(([, p]) => p.apiKey != null)?.[0]
-    ?? Object.keys(providers)[0]!;
+  const defaultProvider =
+    envVars.MODEL_DEFAULT_PROVIDER ??
+    Object.entries(providers).find(([, p]) => p.apiKey != null)?.[0] ??
+    Object.keys(providers)[0]!;
 
   if (envVars.MODEL_DEFAULT_PROVIDER && !providers[defaultProvider]) {
-    return err(new ConfigError(`MODEL_DEFAULT_PROVIDER "${envVars.MODEL_DEFAULT_PROVIDER}" is not a valid provider key. Available: ${Object.keys(providers).join(", ")}`));
+    return err(
+      new ConfigError(
+        `MODEL_DEFAULT_PROVIDER "${envVars.MODEL_DEFAULT_PROVIDER}" is not a valid provider key. Available: ${Object.keys(providers).join(", ")}`,
+      ),
+    );
   }
 
   const config: ModelConfig = {
@@ -70,10 +93,10 @@ export function buildModelConfig(env?: Record<string, string | undefined>): Resu
     defaultProvider,
   };
   const parsed = ModelConfigSchema.safeParse(config);
-  if (!parsed.success) return err(new ConfigError(`Model config validation failed: ${parsed.error.message}`));
+  if (!parsed.success)
+    return err(new ConfigError(`Model config validation failed: ${parsed.error.message}`));
   return ok(parsed.data);
 }
-
 
 // ── Async version with secrets provider ──────────────────────────────────
 

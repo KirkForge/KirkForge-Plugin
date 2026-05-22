@@ -54,8 +54,12 @@ export class HealthServer {
     this.rateLimitPerSec = config.rateLimitPerSec ?? 20;
   }
 
-  get ready(): boolean { return this._ready; }
-  set ready(v: boolean) { this._ready = v; }
+  get ready(): boolean {
+    return this._ready;
+  }
+  set ready(v: boolean) {
+    this._ready = v;
+  }
 
   start(): Promise<void> {
     const port = this.config.port ?? parseInt(process.env.HEALTH_PORT ?? "9090", 10);
@@ -107,7 +111,9 @@ export class HealthServer {
       });
 
       this.server.listen(port, host, () => {
-        this.config.logger?.info(`[health-server] Listening on ${host}:${port}${this.apiKey ? " (auth enabled)" : ""}`);
+        this.config.logger?.info(
+          `[health-server] Listening on ${host}:${port}${this.apiKey ? " (auth enabled)" : ""}`,
+        );
         resolve();
       });
     });
@@ -131,13 +137,22 @@ export class HealthServer {
 
   private _routeV1(path: string, req: IncomingMessage, res: ServerResponse): void {
     switch (path) {
-      case "healthz": return this._handleHealthz(res);
-      case "readyz": return this._handleReadyz(res);
-      case "metrics": return this._handleMetricsPrometheus(res);
-      case "metrics/json": return this._handleMetricsJson(res);
+      case "healthz":
+        return this._handleHealthz(res);
+      case "readyz":
+        return this._handleReadyz(res);
+      case "metrics":
+        return this._handleMetricsPrometheus(res);
+      case "metrics/json":
+        return this._handleMetricsJson(res);
       default:
         res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "not_found", available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json"] }));
+        res.end(
+          JSON.stringify({
+            error: "not_found",
+            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json"],
+          }),
+        );
     }
   }
 
@@ -156,7 +171,7 @@ export class HealthServer {
 
     // Generate a new span ID for this server-side span
     const newSpanId = Array.from({ length: 16 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
+      Math.floor(Math.random() * 16).toString(16),
     ).join("");
 
     res.setHeader("traceresponse", `${version}-${traceId}-${newSpanId}-${flags}`);
@@ -191,9 +206,10 @@ export class HealthServer {
   // ── Rate limiting ─────────────────────────────────────────────────────────
 
   private _checkRateLimit(req: IncomingMessage, res: ServerResponse): boolean {
-    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-      ?? req.socket.remoteAddress
-      ?? "unknown";
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
+      req.socket.remoteAddress ??
+      "unknown";
 
     const now = Date.now();
     let bucket = this.buckets.get(ip);
@@ -225,11 +241,15 @@ export class HealthServer {
     const health = this.orchestrator.healthCheck();
     if (health.status === "shutting_down") {
       res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "unhealthy", stats: health.stats, providers: health.providers }));
+      res.end(
+        JSON.stringify({ status: "unhealthy", stats: health.stats, providers: health.providers }),
+      );
       return;
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "healthy", stats: health.stats, providers: health.providers }));
+    res.end(
+      JSON.stringify({ status: "healthy", stats: health.stats, providers: health.providers }),
+    );
   }
 
   private _handleReadyz(res: ServerResponse): void {
@@ -264,31 +284,52 @@ export class HealthServer {
     const health = this.orchestrator.healthCheck() as any;
 
     const lines: string[] = [];
-    const num = (v: unknown): number => typeof v === "number" ? v : 0;
+    const num = (v: unknown): number => (typeof v === "number" ? v : 0);
 
     const gauge = (name: string, help: string, value: number, labels?: Record<string, string>) => {
       lines.push(`# HELP ${name} ${help}`);
       lines.push(`# TYPE ${name} gauge`);
-      const labelStr = labels ? `{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(",")}}` : "";
+      const labelStr = labels
+        ? `{${Object.entries(labels)
+            .map(([k, v]) => `${k}="${v}"`)
+            .join(",")}}`
+        : "";
       lines.push(`${name}${labelStr} ${value}`);
     };
 
-    const counter = (name: string, help: string, value: number, labels?: Record<string, string>) => {
+    const counter = (
+      name: string,
+      help: string,
+      value: number,
+      labels?: Record<string, string>,
+    ) => {
       lines.push(`# HELP ${name} ${help}`);
       lines.push(`# TYPE ${name} counter`);
-      const labelStr = labels ? `{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(",")}}` : "";
+      const labelStr = labels
+        ? `{${Object.entries(labels)
+            .map(([k, v]) => `${k}="${v}"`)
+            .join(",")}}`
+        : "";
       lines.push(`${name}${labelStr} ${value}`);
     };
 
     gauge("55ndeep_up", "Is the 55NDeep server up", health.status === "healthy" ? 1 : 0);
-    counter("55ndeep_delegations_total", "Total number of delegated tasks", num(stats.totalDelegations));
+    counter(
+      "55ndeep_delegations_total",
+      "Total number of delegated tasks",
+      num(stats.totalDelegations),
+    );
     counter("55ndeep_tokens_total", "Total tokens consumed", num(stats.totalTokens));
 
     // Extended stats (available in future versions)
-    if (typeof stats.totalErrors === "number") counter("55ndeep_errors_total", "Total errors", stats.totalErrors);
-    if (typeof stats.activeTasks === "number") gauge("55ndeep_active_tasks", "Currently active tasks", stats.activeTasks);
-    if (typeof stats.memoryEntries === "number") gauge("55ndeep_memory_store_entries", "Memory store entries", stats.memoryEntries);
-    if (typeof stats.memorySizeBytes === "number") gauge("55ndeep_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
+    if (typeof stats.totalErrors === "number")
+      counter("55ndeep_errors_total", "Total errors", stats.totalErrors);
+    if (typeof stats.activeTasks === "number")
+      gauge("55ndeep_active_tasks", "Currently active tasks", stats.activeTasks);
+    if (typeof stats.memoryEntries === "number")
+      gauge("55ndeep_memory_store_entries", "Memory store entries", stats.memoryEntries);
+    if (typeof stats.memorySizeBytes === "number")
+      gauge("55ndeep_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
 
     // Process metrics
     const memUsage = process.memoryUsage();

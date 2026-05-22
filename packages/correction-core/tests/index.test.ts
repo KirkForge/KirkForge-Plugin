@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { toolNames, buildCorrectionPrompt } from "../src/index.js";
-import type { ReducedStatePacket, TaskLanguage, CorrectionConfig, CorrectionDecision, VerifierPolicy, VerifierPolicyResult } from "../src/index.js";
+import type {
+  ReducedStatePacket,
+  TaskLanguage,
+  CorrectionConfig,
+  CorrectionDecision,
+} from "../src/index.js";
 
 function makePacket(overrides?: Partial<ReducedStatePacket>): ReducedStatePacket {
   return {
@@ -13,7 +18,12 @@ function makePacket(overrides?: Partial<ReducedStatePacket>): ReducedStatePacket
       security: { findings: 2, critical: 0, high: 1 },
       overall: "fail",
     },
-    changes: { filesChanged: 2, paths: ["src/index.ts", "src/utils.ts"], insertions: 10, deletions: 5 },
+    changes: {
+      filesChanged: 2,
+      paths: ["src/index.ts", "src/utils.ts"],
+      insertions: 10,
+      deletions: 5,
+    },
     graph: { edgeCount: 5, newEdges: 0, brokenEdges: 0, cycles: 0 },
     contributingSignals: [],
     ...overrides,
@@ -22,23 +32,43 @@ function makePacket(overrides?: Partial<ReducedStatePacket>): ReducedStatePacket
 
 describe("toolNames()", () => {
   it("returns eslint/tsc/secdev for typescript", () => {
-    expect(toolNames("typescript")).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
+    expect(toolNames("typescript")).toEqual({
+      lint: "55NDeep TypeScript lint engine",
+      types: "tsc",
+      security: "55NDeep TypeScript lint engine (safety rules)",
+    });
   });
 
   it("returns eslint/tsc/secdev for javascript", () => {
-    expect(toolNames("javascript")).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
+    expect(toolNames("javascript")).toEqual({
+      lint: "55NDeep TypeScript lint engine",
+      types: "tsc",
+      security: "55NDeep TypeScript lint engine (safety rules)",
+    });
   });
 
   it("returns ruff/pyright/bandit for python", () => {
-    expect(toolNames("python")).toEqual({ lint: "55NDeep Python lint engine", types: "pyright", security: "55NDeep Python lint engine (safety rules)" });
+    expect(toolNames("python")).toEqual({
+      lint: "55NDeep Python lint engine",
+      types: "pyright",
+      security: "55NDeep Python lint engine (safety rules)",
+    });
   });
 
   it("returns shellcheck/bash -n/secdev for shell", () => {
-    expect(toolNames("shell")).toEqual({ lint: "55NDeep shell lint engine", types: "bash -n", security: "55NDeep shell lint engine (safety rules)" });
+    expect(toolNames("shell")).toEqual({
+      lint: "55NDeep shell lint engine",
+      types: "bash -n",
+      security: "55NDeep shell lint engine (safety rules)",
+    });
   });
 
   it("returns generic names for undefined/unknown language", () => {
-    expect(toolNames(undefined)).toEqual({ lint: "lint", types: "type-check", security: "security scanner" });
+    expect(toolNames(undefined)).toEqual({
+      lint: "lint",
+      types: "type-check",
+      security: "security scanner",
+    });
   });
 });
 
@@ -58,27 +88,58 @@ describe("buildCorrectionPrompt()", () => {
   });
 
   it("includes lint error count", () => {
-    const prompt = buildCorrectionPrompt(makePacket({ verification: { ...makePacket().verification, lint: { errors: 7, warnings: 0 } } }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({
+        verification: { ...makePacket().verification, lint: { errors: 7, warnings: 0 } },
+      }),
+      "typescript",
+    );
     expect(prompt).toContain("7 lint errors");
   });
 
   it("includes type error count", () => {
-    const prompt = buildCorrectionPrompt(makePacket({ verification: { ...makePacket().verification, types: { errors: 4 } } }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({ verification: { ...makePacket().verification, types: { errors: 4 } } }),
+      "typescript",
+    );
     expect(prompt).toContain("4 type errors");
   });
 
   it("includes security finding count", () => {
-    const prompt = buildCorrectionPrompt(makePacket({ verification: { ...makePacket().verification, security: { findings: 5, critical: 0, high: 3 } } }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({
+        verification: {
+          ...makePacket().verification,
+          security: { findings: 5, critical: 0, high: 3 },
+        },
+      }),
+      "typescript",
+    );
     expect(prompt).toContain("3 high-severity security findings");
   });
 
   it("includes broken import count", () => {
-    const prompt = buildCorrectionPrompt(makePacket({ graph: { edgeCount: 10, newEdges: 0, brokenEdges: 6, cycles: 0 } }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({ graph: { edgeCount: 10, newEdges: 0, brokenEdges: 6, cycles: 0 } }),
+      "typescript",
+    );
     expect(prompt).toContain("6 broken import edges");
   });
 
   it("includes artifact enforcement when present", () => {
-    const prompt = buildCorrectionPrompt(makePacket({ artifactEnforcement: { blocked: 2, blockedPaths: [{ path: "output.ts", reason: "python task cannot emit output.ts" }, { path: "/etc/passwd", reason: "absolute path is not allowed" }], status: "fail" } }), "python");
+    const prompt = buildCorrectionPrompt(
+      makePacket({
+        artifactEnforcement: {
+          blocked: 2,
+          blockedPaths: [
+            { path: "output.ts", reason: "python task cannot emit output.ts" },
+            { path: "/etc/passwd", reason: "absolute path is not allowed" },
+          ],
+          status: "fail",
+        },
+      }),
+      "python",
+    );
     expect(prompt).toContain("Artifact policy blocked");
     expect(prompt).toContain("output.ts: python task cannot emit output.ts");
     expect(prompt).toContain("/etc/passwd: absolute path is not allowed");
@@ -92,15 +153,18 @@ describe("buildCorrectionPrompt()", () => {
   });
 
   it("fallback still returns useful text when no issues exist", () => {
-    const prompt = buildCorrectionPrompt(makePacket({
-      verification: {
-        lint: { errors: 0, warnings: 0 },
-        types: { errors: 0 },
-        security: { findings: 0, critical: 0, high: 0 },
-        overall: "pass",
-      },
-      graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0 },
-    }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({
+        verification: {
+          lint: { errors: 0, warnings: 0 },
+          types: { errors: 0 },
+          security: { findings: 0, critical: 0, high: 0 },
+          overall: "pass",
+        },
+        graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0 },
+      }),
+      "typescript",
+    );
     expect(prompt).toContain("verification");
     expect(prompt.length).toBeGreaterThan(0);
     expect(prompt).not.toContain("lint errors");
@@ -115,9 +179,12 @@ describe("buildCorrectionPrompt()", () => {
   });
 
   it("shows unknown when paths are empty", () => {
-    const prompt = buildCorrectionPrompt(makePacket({
-      changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
-    }), "typescript");
+    const prompt = buildCorrectionPrompt(
+      makePacket({
+        changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
+      }),
+      "typescript",
+    );
     expect(prompt).toContain("unknown");
   });
 
@@ -215,7 +282,10 @@ describe("buildCorrectionPrompt()", () => {
 
   it("includes critical security findings in prompt", () => {
     const packet = makePacket({
-      verification: { ...makePacket().verification, security: { findings: 3, critical: 2, high: 1 } },
+      verification: {
+        ...makePacket().verification,
+        security: { findings: 3, critical: 2, high: 1 },
+      },
     });
     const prompt = buildCorrectionPrompt(packet, "python");
     expect(prompt).toContain("2 critical security findings");
@@ -224,7 +294,10 @@ describe("buildCorrectionPrompt()", () => {
 
   it("includes both critical and high security findings when both present", () => {
     const packet = makePacket({
-      verification: { ...makePacket().verification, security: { findings: 5, critical: 2, high: 3 } },
+      verification: {
+        ...makePacket().verification,
+        security: { findings: 5, critical: 2, high: 3 },
+      },
     });
     const prompt = buildCorrectionPrompt(packet, "typescript");
     expect(prompt).toContain("2 critical security findings");
@@ -240,7 +313,18 @@ describe("exported types compile-time", () => {
   });
 
   it("TaskLanguage type narrows to known languages", () => {
-    const langs: TaskLanguage[] = ["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"];
+    const langs: TaskLanguage[] = [
+      "typescript",
+      "javascript",
+      "python",
+      "shell",
+      "cpp",
+      "c",
+      "rust",
+      "go",
+      "sql",
+      "text",
+    ];
     expect(langs.length).toBe(10);
     const ts: TaskLanguage = "typescript";
     expect(ts).toBe("typescript");

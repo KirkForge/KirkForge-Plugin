@@ -16,7 +16,13 @@ function hasJsTs(files?: string[]): boolean {
   return (files ?? []).some((file) => /\.(?:[cm]?js|jsx|ts|tsx)$/.test(file));
 }
 
-export function createVerificationEmitters(cwd: string, eventBus: EventBus, files?: string[], language?: TaskLanguage, writtenFiles?: string[]) {
+export function createVerificationEmitters(
+  cwd: string,
+  eventBus: EventBus,
+  files?: string[],
+  language?: TaskLanguage,
+  writtenFiles?: string[],
+) {
   const pythonOnly = language === "python" || (!language && !hasJsTs(files));
 
   // Phase 1+2+3: 55NDeep native strict lint for all supported languages
@@ -34,13 +40,16 @@ export function createVerificationEmitters(cwd: string, eventBus: EventBus, file
     text: tsLint, // fallback to TS for text
   };
 
-  const resolvedLint = language && lintByLang[language] ? lintByLang[language]! : (pythonOnly ? pyLint : tsLint);
+  const resolvedLint =
+    language && lintByLang[language] ? lintByLang[language]! : pythonOnly ? pyLint : tsLint;
   // Security is now handled by the lint engine itself (emits verify.security for safety-category rules)
   const resolvedSecurity = resolvedLint;
 
   return {
     lint: resolvedLint,
-    types: pythonOnly ? new PyrightEmitter({ cwd, eventBus, files }) : new TscEmitter({ cwd, eventBus, files }),
+    types: pythonOnly
+      ? new PyrightEmitter({ cwd, eventBus, files })
+      : new TscEmitter({ cwd, eventBus, files }),
     security: resolvedSecurity,
     changes: new GitnexusEmitter({ cwd, eventBus, writtenFiles }),
     graph: new GraphifyEmitter({ cwd, eventBus, files }),

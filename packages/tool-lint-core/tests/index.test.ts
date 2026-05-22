@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { LintEngine, RuleRegistry } from "../src/index.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -22,10 +22,34 @@ async function writeTestFile(dir: string, relPath: string, content: string) {
 }
 
 const testRules: LintRule[] = [
-  { id: "no-var", category: "style", severity: "high", pattern: /\bvar\s+/g, message: "Use const or let instead of var" },
-  { id: "no-eval", category: "safety", severity: "critical", pattern: /\beval\s*\(/g, message: "eval is unsafe" },
-  { id: "no-console", category: "style", severity: "med", pattern: /console\.log\(/g, message: "Remove debug logging" },
-  { id: "todo-comment", category: "maintain", severity: "info", pattern: /\/\/\s*TODO/g, message: "Address TODO" },
+  {
+    id: "no-var",
+    category: "style",
+    severity: "high",
+    pattern: /\bvar\s+/g,
+    message: "Use const or let instead of var",
+  },
+  {
+    id: "no-eval",
+    category: "safety",
+    severity: "critical",
+    pattern: /\beval\s*\(/g,
+    message: "eval is unsafe",
+  },
+  {
+    id: "no-console",
+    category: "style",
+    severity: "med",
+    pattern: /console\.log\(/g,
+    message: "Remove debug logging",
+  },
+  {
+    id: "todo-comment",
+    category: "maintain",
+    severity: "info",
+    pattern: /\/\/\s*TODO/g,
+    message: "Address TODO",
+  },
 ];
 
 describe("RuleRegistry", () => {
@@ -80,7 +104,7 @@ describe("LintEngine", () => {
     if (result.ok) {
       expect(result.value.filesScanned).toBe(1);
       expect(result.value.errors).toBeGreaterThanOrEqual(2);
-      const detailIds = result.value.details.map(d => d.rule);
+      const detailIds = result.value.details.map((d) => d.rule);
       expect(detailIds).toContain("no-var");
       expect(detailIds).toContain("no-eval");
     }
@@ -118,7 +142,11 @@ describe("LintEngine", () => {
     const dir = testDir("filter");
     await writeTestFile(dir, "src/app.ts", "const x = 1;");
     await writeTestFile(dir, "src/other.ts", "var y = 2;"); // should not be scanned
-    const engine = new LintEngine({ cwd: dir, files: ["src/app.ts"], extensions: new Set([".ts"]) });
+    const engine = new LintEngine({
+      cwd: dir,
+      files: ["src/app.ts"],
+      extensions: new Set([".ts"]),
+    });
     engine.addRules(testRules);
     const result = await engine.emit("t5");
     expect(result.ok).toBe(true);
@@ -159,7 +187,7 @@ describe("LintEngine", () => {
     const result = await engine.emit("t8");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      const detail = result.value.details.find(d => d.rule === "no-var");
+      const detail = result.value.details.find((d) => d.rule === "no-var");
       expect(detail).toBeDefined();
       expect(detail!.file).toContain("issue.ts");
       expect(detail!.line).toBe(3);
@@ -193,5 +221,7 @@ describe("LintEngine", () => {
 
 // cleanup
 afterAll(async () => {
-  try { await rm(baseDir, { recursive: true, force: true }); } catch {}
+  try {
+    await rm(baseDir, { recursive: true, force: true });
+  } catch {}
 });

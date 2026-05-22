@@ -39,7 +39,17 @@ export interface ReducedStatePacket {
     overall: "pass" | "warn" | "fail";
   };
   artifactEnforcement?: ArtifactEnforcement;
-  emissions?: { filesWritten: number; totalBytes: number; files: Array<{ path: string; sha256: string; bytes: number; beforeHash: string | null; existed: boolean }> };
+  emissions?: {
+    filesWritten: number;
+    totalBytes: number;
+    files: Array<{
+      path: string;
+      sha256: string;
+      bytes: number;
+      beforeHash: string | null;
+      existed: boolean;
+    }>;
+  };
   verifierPolicy?: VerifierPolicyResult;
   contributingSignals: Array<{ kind: string; ts: string; source: string }>;
 }

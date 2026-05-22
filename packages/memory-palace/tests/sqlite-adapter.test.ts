@@ -7,6 +7,7 @@ import { join } from "node:path";
 
 let hasBetterSqlite3 = false;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require("better-sqlite3");
   const db = new Database(":memory:");
   db.close();
@@ -60,12 +61,22 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter", () => {
   it("queries by kind", async () => {
     const adapter = new SqliteAdapter(dbPath);
     await adapter.write({
-      id: "q-1", kind: "alpha", taskId: "t1", timestamp: "2026-01-01T00:00:00Z",
-      description: "alpha one", properties: {}, tags: [],
+      id: "q-1",
+      kind: "alpha",
+      taskId: "t1",
+      timestamp: "2026-01-01T00:00:00Z",
+      description: "alpha one",
+      properties: {},
+      tags: [],
     });
     await adapter.write({
-      id: "q-2", kind: "beta", taskId: "t2", timestamp: "2026-01-02T00:00:00Z",
-      description: "beta one", properties: {}, tags: [],
+      id: "q-2",
+      kind: "beta",
+      taskId: "t2",
+      timestamp: "2026-01-02T00:00:00Z",
+      description: "beta one",
+      properties: {},
+      tags: [],
     });
 
     const result = await adapter.query({ kind: "alpha" });

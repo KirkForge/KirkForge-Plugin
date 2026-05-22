@@ -3,7 +3,12 @@ import { EventBus } from "@55ndeep/core-events";
 import { StateReducer } from "../src/reducer.js";
 import { classifyTask } from "../src/classifier.js";
 import { decideCorrection } from "../src/correction-loop.js";
-import { computeFinalVerdict, finalVerdictFromValidation, finalVerdictFromVerifier, validationOutcomeForMemory } from "../src/truth-model.js";
+import {
+  computeFinalVerdict,
+  finalVerdictFromValidation,
+  finalVerdictFromVerifier,
+  validationOutcomeForMemory,
+} from "../src/truth-model.js";
 import { detectTaskProfile, profileForLanguage } from "../src/task-profile.js";
 import { isInsideCwd, safeRelativePath, isBinaryLikeContent } from "../src/path-safety.js";
 import type { VerifierPolicy } from "@55ndeep/correction-core";
@@ -88,7 +93,9 @@ describe("truth-model", () => {
       hasValidator: false,
       finalAction: "accept",
       packet: {
-        taskId: "t", turn: 0, ts: "now",
+        taskId: "t",
+        turn: 0,
+        ts: "now",
         changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
         graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0, status: "pass" },
         verification: {
@@ -119,7 +126,9 @@ describe("truth-model", () => {
 
   it("verifier accept+pass → pass", () => {
     const r = finalVerdictFromVerifier("accept", {
-      taskId: "t", turn: 0, ts: "now",
+      taskId: "t",
+      turn: 0,
+      ts: "now",
       changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
       graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0, status: "pass" },
       verification: {
@@ -140,7 +149,9 @@ describe("truth-model", () => {
 
   it("anything else → fail", () => {
     const r = finalVerdictFromVerifier("escalate", {
-      taskId: "t", turn: 0, ts: "now",
+      taskId: "t",
+      turn: 0,
+      ts: "now",
       changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
       graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0, status: "pass" },
       verification: {
@@ -258,7 +269,9 @@ describe("classifier (extended)", () => {
 describe("correction-loop (extended)", () => {
   function basePacket() {
     return {
-      taskId: "t1", turn: 0, ts: "now",
+      taskId: "t1",
+      turn: 0,
+      ts: "now",
       changes: { filesChanged: 0, paths: [], insertions: 0, deletions: 0 },
       graph: { edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0, status: "pass" as const },
       verification: {
@@ -384,7 +397,9 @@ describe("path safety (extended)", () => {
   });
 
   it("safeRelativePath allows hidden segments when opted in", () => {
-    expect(safeRelativePath("/home/user/project", ".vscode/settings.json", { allowHidden: true })).not.toBeNull();
+    expect(
+      safeRelativePath("/home/user/project", ".vscode/settings.json", { allowHidden: true }),
+    ).not.toBeNull();
   });
 
   it("safeRelativePath returns valid relative path", () => {
@@ -489,8 +504,31 @@ describe("StateReducer verifierPolicy", () => {
     const bus = new EventBus();
     const reducer = new StateReducer(bus);
     const policy: VerifierPolicy = { required: ["lint", "types", "security"], advisory: [] };
-    await bus.emit({ kind: "verify.lint", schemaVersion: "v3", sequence: 1, streamId: "s", taskId: "t-sec", value: { status: "pass", errors: 0, warnings: 0, filesScanned: 1, durationMs: 10, details: [] }, timestamp: "now" });
-    await bus.emit({ kind: "verify.types", schemaVersion: "v3", sequence: 2, streamId: "s", taskId: "t-sec", value: { status: "pass", errors: 0, durationMs: 10, details: [] }, timestamp: "now" });
+    await bus.emit({
+      kind: "verify.lint",
+      schemaVersion: "v3",
+      sequence: 1,
+      streamId: "s",
+      taskId: "t-sec",
+      value: {
+        status: "pass",
+        errors: 0,
+        warnings: 0,
+        filesScanned: 1,
+        durationMs: 10,
+        details: [],
+      },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "verify.types",
+      schemaVersion: "v3",
+      sequence: 2,
+      streamId: "s",
+      taskId: "t-sec",
+      value: { status: "pass", errors: 0, durationMs: 10, details: [] },
+      timestamp: "now",
+    });
     const packet = reducer.reduce("t-sec", 0, policy);
     expect(packet.verification.overall).toBe("fail");
     expect(packet.verifierPolicy?.missingRequired).toContain("security");
@@ -503,12 +541,95 @@ describe("StateReducer emission aggregation", () => {
   it("aggregates multiple artifact.emitted signals", async () => {
     const bus = new EventBus();
     const reducer = new StateReducer(bus);
-    await bus.emit({ kind: "verify.lint", schemaVersion: "v3", sequence: 1, streamId: "s", taskId: "t-em", value: { status: "pass", errors: 0, warnings: 0, filesScanned: 1, durationMs: 10, details: [] }, timestamp: "now" });
-    await bus.emit({ kind: "verify.types", schemaVersion: "v3", sequence: 2, streamId: "s", taskId: "t-em", value: { status: "pass", errors: 0, durationMs: 10, details: [] }, timestamp: "now" });
-    await bus.emit({ kind: "verify.security", schemaVersion: "v3", sequence: 3, streamId: "s", taskId: "t-em", value: { status: "pass", findings: 0, critical: 0, high: 0, filesScanned: 1, durationMs: 10, details: [] }, timestamp: "now" });
-    await bus.emit({ kind: "state.graph", schemaVersion: "v3", sequence: 4, streamId: "s", taskId: "t-em", value: { status: "pass", edgeCount: 0, newEdges: 0, brokenEdges: 0, cycles: 0, durationMs: 10 }, timestamp: "now" });
-    await bus.emit({ kind: "artifact.emitted", schemaVersion: "v3", sequence: 5, streamId: "s", taskId: "t-em", value: { filesWritten: 2, totalBytes: 100, files: [{ path: "a.ts", sha256: "abc", bytes: 50, beforeHash: null, existed: false }, { path: "b.ts", sha256: "def", bytes: 50, beforeHash: null, existed: false }], language: "typescript" }, timestamp: "now" });
-    await bus.emit({ kind: "artifact.emitted", schemaVersion: "v3", sequence: 6, streamId: "s", taskId: "t-em", value: { filesWritten: 1, totalBytes: 30, files: [{ path: "c.ts", sha256: "ghi", bytes: 30, beforeHash: null, existed: false }], language: "typescript" }, timestamp: "now" });
+    await bus.emit({
+      kind: "verify.lint",
+      schemaVersion: "v3",
+      sequence: 1,
+      streamId: "s",
+      taskId: "t-em",
+      value: {
+        status: "pass",
+        errors: 0,
+        warnings: 0,
+        filesScanned: 1,
+        durationMs: 10,
+        details: [],
+      },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "verify.types",
+      schemaVersion: "v3",
+      sequence: 2,
+      streamId: "s",
+      taskId: "t-em",
+      value: { status: "pass", errors: 0, durationMs: 10, details: [] },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "verify.security",
+      schemaVersion: "v3",
+      sequence: 3,
+      streamId: "s",
+      taskId: "t-em",
+      value: {
+        status: "pass",
+        findings: 0,
+        critical: 0,
+        high: 0,
+        filesScanned: 1,
+        durationMs: 10,
+        details: [],
+      },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "state.graph",
+      schemaVersion: "v3",
+      sequence: 4,
+      streamId: "s",
+      taskId: "t-em",
+      value: {
+        status: "pass",
+        edgeCount: 0,
+        newEdges: 0,
+        brokenEdges: 0,
+        cycles: 0,
+        durationMs: 10,
+      },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "artifact.emitted",
+      schemaVersion: "v3",
+      sequence: 5,
+      streamId: "s",
+      taskId: "t-em",
+      value: {
+        filesWritten: 2,
+        totalBytes: 100,
+        files: [
+          { path: "a.ts", sha256: "abc", bytes: 50, beforeHash: null, existed: false },
+          { path: "b.ts", sha256: "def", bytes: 50, beforeHash: null, existed: false },
+        ],
+        language: "typescript",
+      },
+      timestamp: "now",
+    });
+    await bus.emit({
+      kind: "artifact.emitted",
+      schemaVersion: "v3",
+      sequence: 6,
+      streamId: "s",
+      taskId: "t-em",
+      value: {
+        filesWritten: 1,
+        totalBytes: 30,
+        files: [{ path: "c.ts", sha256: "ghi", bytes: 30, beforeHash: null, existed: false }],
+        language: "typescript",
+      },
+      timestamp: "now",
+    });
     const packet = reducer.reduce("t-em", 0);
     expect(packet.emissions?.filesWritten).toBe(3);
     expect(packet.emissions?.totalBytes).toBe(130);
@@ -522,8 +643,33 @@ describe("StateReducer contributing signals", () => {
   it("tracks signal sources correctly", async () => {
     const bus = new EventBus();
     const reducer = new StateReducer(bus);
-    await bus.emit({ kind: "verify.lint", schemaVersion: "v3", sequence: 1, streamId: "s", taskId: "t-cs", value: { status: "pass", errors: 0, warnings: 0, filesScanned: 1, durationMs: 10, details: [] }, timestamp: "t1", source: "eslint" });
-    await bus.emit({ kind: "verify.types", schemaVersion: "v3", sequence: 2, streamId: "s", taskId: "t-cs", value: { status: "pass", errors: 0, durationMs: 10, details: [] }, timestamp: "t2", source: "tsc" });
+    await bus.emit({
+      kind: "verify.lint",
+      schemaVersion: "v3",
+      sequence: 1,
+      streamId: "s",
+      taskId: "t-cs",
+      value: {
+        status: "pass",
+        errors: 0,
+        warnings: 0,
+        filesScanned: 1,
+        durationMs: 10,
+        details: [],
+      },
+      timestamp: "t1",
+      source: "eslint",
+    });
+    await bus.emit({
+      kind: "verify.types",
+      schemaVersion: "v3",
+      sequence: 2,
+      streamId: "s",
+      taskId: "t-cs",
+      value: { status: "pass", errors: 0, durationMs: 10, details: [] },
+      timestamp: "t2",
+      source: "tsc",
+    });
     const packet = reducer.reduce("t-cs", 0);
     expect(packet.contributingSignals).toHaveLength(2);
     expect(packet.contributingSignals[0]!.source).toBe("eslint");
@@ -537,7 +683,22 @@ describe("StateReducer resetTask", () => {
   it("clears stored signals for a task", async () => {
     const bus = new EventBus();
     const reducer = new StateReducer(bus);
-    await bus.emit({ kind: "verify.lint", schemaVersion: "v3", sequence: 1, streamId: "s", taskId: "t-rst", value: { status: "fail", errors: 5, warnings: 0, filesScanned: 1, durationMs: 10, details: [] }, timestamp: "now" });
+    await bus.emit({
+      kind: "verify.lint",
+      schemaVersion: "v3",
+      sequence: 1,
+      streamId: "s",
+      taskId: "t-rst",
+      value: {
+        status: "fail",
+        errors: 5,
+        warnings: 0,
+        filesScanned: 1,
+        durationMs: 10,
+        details: [],
+      },
+      timestamp: "now",
+    });
     let packet = reducer.reduce("t-rst", 0);
     expect(packet.verification.lint.errors).toBe(5);
 

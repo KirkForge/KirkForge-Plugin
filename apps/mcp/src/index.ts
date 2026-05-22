@@ -19,10 +19,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   verifyWorkspace,
   doctor,
@@ -35,10 +32,16 @@ import { z } from "zod";
 
 // ── Runtime input validators ────────────────────────────────────────────────
 
-function validateArgs<T>(args: unknown, schema: z.ZodType<T>, toolName: string): T | { error: string } {
+function validateArgs<T>(
+  args: unknown,
+  schema: z.ZodType<T>,
+  toolName: string,
+): T | { error: string } {
   const result = schema.safeParse(args);
   if (!result.success) {
-    return { error: `Invalid arguments for ${toolName}: ${result.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")}` };
+    return {
+      error: `Invalid arguments for ${toolName}: ${result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`,
+    };
   }
   return result.data;
 }
@@ -46,12 +49,12 @@ function validateArgs<T>(args: unknown, schema: z.ZodType<T>, toolName: string):
 const VerifyWorkspaceSchema = z.object({
   workspace: z.string().min(1),
   files: z.array(z.string()).optional(),
-  language: z.enum(["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"]).optional(),
+  language: z
+    .enum(["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"])
+    .optional(),
   description: z.string().optional(),
   taskId: z.string().optional(),
 });
-
-const DoctorSchema = z.object({});
 
 const RecordObservationSchema = z.object({
   taskId: z.string().min(1),
@@ -85,14 +88,37 @@ const memoryStore = new MemoryStore({ backend: "memory" });
 const TOOLS = [
   {
     name: "55ndeep_verify_workspace",
-    description: "Run deterministic verification on a workspace. Returns a ReducedStatePacket with lint, type, security, change, and graph analysis results.",
+    description:
+      "Run deterministic verification on a workspace. Returns a ReducedStatePacket with lint, type, security, change, and graph analysis results.",
     inputSchema: {
       type: "object",
       properties: {
         workspace: { type: "string", description: "Absolute path to the workspace directory" },
-        files: { type: "array", items: { type: "string" }, description: "Specific files to verify (optional)" },
-        language: { type: "string", enum: ["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"], description: "Task language" },
-        description: { type: "string", description: "Task description for language profile detection" },
+        files: {
+          type: "array",
+          items: { type: "string" },
+          description: "Specific files to verify (optional)",
+        },
+        language: {
+          type: "string",
+          enum: [
+            "typescript",
+            "javascript",
+            "python",
+            "shell",
+            "cpp",
+            "c",
+            "rust",
+            "go",
+            "sql",
+            "text",
+          ],
+          description: "Task language",
+        },
+        description: {
+          type: "string",
+          description: "Task description for language profile detection",
+        },
         taskId: { type: "string", description: "Task identifier (optional, auto-generated)" },
       },
       required: ["workspace"],
@@ -100,7 +126,8 @@ const TOOLS = [
   },
   {
     name: "55ndeep_doctor",
-    description: "Check availability of all verification tools (eslint, tsc, ruff, pyright, bandit, git) and return a capability report.",
+    description:
+      "Check availability of all verification tools (eslint, tsc, ruff, pyright, bandit, git) and return a capability report.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -114,7 +141,11 @@ const TOOLS = [
         language: { type: "string", description: "Programming language" },
         mode: { type: "string", description: "Delegation mode used" },
         model: { type: "string", description: "Model used for the task" },
-        outcome: { type: "string", enum: ["pass", "fail", "escalate", "error"], description: "Task outcome" },
+        outcome: {
+          type: "string",
+          enum: ["pass", "fail", "escalate", "error"],
+          description: "Task outcome",
+        },
         durationMs: { type: "number", description: "Task duration in milliseconds" },
         tokens: { type: "number", description: "Total tokens consumed (optional)" },
         verifierOverall: { type: "string", description: "Overall verifier result (optional)" },
@@ -136,13 +167,17 @@ const TOOLS = [
   },
   {
     name: "55ndeep_build_correction_prompt",
-    description: "Generate a correction prompt from a ReducedStatePacket for the worker model to fix issues.",
+    description:
+      "Generate a correction prompt from a ReducedStatePacket for the worker model to fix issues.",
     inputSchema: {
       type: "object",
       properties: {
         packet: { type: "object", description: "ReducedStatePacket from verifyWorkspace" },
         language: { type: "string", description: "Task language for tool name mapping" },
-        maxTokens: { type: "number", description: "Maximum tokens for the correction prompt (optional)" },
+        maxTokens: {
+          type: "number",
+          description: "Maximum tokens for the correction prompt (optional)",
+        },
       },
       required: ["packet"],
     },
@@ -165,10 +200,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "55ndeep_verify_workspace": {
         const parsed = validateArgs(args, VerifyWorkspaceSchema, name);
-        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        if ("error" in parsed)
+          return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
         const result = await verifyWorkspace(parsed);
         if (!result.ok) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
+          return {
+            content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }],
+            isError: true,
+          };
         }
         return { content: [{ type: "text", text: JSON.stringify(result.value, null, 2) }] };
       }
@@ -180,27 +219,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "55ndeep_record_observation": {
         const parsed = validateArgs(args, RecordObservationSchema, name);
-        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        if ("error" in parsed)
+          return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
         const result = await recordObservation(parsed, memoryStore);
         if (!result.ok) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
+          return {
+            content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }],
+            isError: true,
+          };
         }
         return { content: [{ type: "text", text: "Observation recorded successfully" }] };
       }
 
       case "55ndeep_recall_routing_bias": {
         const parsed = validateArgs(args, RecallRoutingBiasSchema, name);
-        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
-        const result = await recallRoutingBias(parsed.taskDescription, parsed.workerModel, memoryStore);
+        if ("error" in parsed)
+          return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        const result = await recallRoutingBias(
+          parsed.taskDescription,
+          parsed.workerModel,
+          memoryStore,
+        );
         if (!result.ok) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }], isError: true };
+          return {
+            content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }],
+            isError: true,
+          };
         }
         return { content: [{ type: "text", text: JSON.stringify(result.value, null, 2) }] };
       }
 
       case "55ndeep_build_correction_prompt": {
         const parsed = validateArgs(args, BuildCorrectionPromptSchema, name);
-        if ("error" in parsed) return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
+        if ("error" in parsed)
+          return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
         const prompt = buildCorrectionPrompt(parsed.packet, {
           language: parsed.language,
           maxTokens: parsed.maxTokens,
@@ -213,7 +265,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   } catch (e) {
     return {
-      content: [{ type: "text", text: `Tool error: ${e instanceof Error ? e.message : String(e)}` }],
+      content: [
+        { type: "text", text: `Tool error: ${e instanceof Error ? e.message : String(e)}` },
+      ],
       isError: true,
     };
   }

@@ -45,6 +45,6 @@ export class RuleRegistry {
   filterBySeverity(minSeverity: Severity): LintRule[] {
     const order: Severity[] = ["critical", "high", "med", "low", "info"];
     const minIdx = order.indexOf(minSeverity);
-    return this.rules.filter(r => order.indexOf(r.severity) >= minIdx);
+    return this.rules.filter((r) => order.indexOf(r.severity) >= minIdx);
   }
 }

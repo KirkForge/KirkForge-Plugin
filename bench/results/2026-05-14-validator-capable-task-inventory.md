@@ -21,15 +21,15 @@ The four tasks used in the previous run (csv-to-parquet, broken-python, simple-w
 
 ### Task inventory from DEFAULT_TASKS list
 
-| Task | docker-compose.yaml | run-tests.sh | tests/ | Language | Suitable for v1 evidence? |
-|------|--------------------|--------------|-------|----------|--------------------------|
-| accelerate-maximal-square | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
-| create-bucket | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
-| broken-python | ❌ not found | ❌ not found | ❌ not found | Python | ❌ No — no validator |
-| debug-long-program | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
-| csv-to-parquet | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
-| simple-web-scraper | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
-| form-filling | ❌ not found | ❌ not found | ❌ not found | unknown | ❌ No — no validator |
+| Task                      | docker-compose.yaml | run-tests.sh | tests/       | Language | Suitable for v1 evidence? |
+| ------------------------- | ------------------- | ------------ | ------------ | -------- | ------------------------- |
+| accelerate-maximal-square | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
+| create-bucket             | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
+| broken-python             | ❌ not found        | ❌ not found | ❌ not found | Python   | ❌ No — no validator      |
+| debug-long-program        | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
+| csv-to-parquet            | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
+| simple-web-scraper        | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
+| form-filling              | ❌ not found        | ❌ not found | ❌ not found | unknown  | ❌ No — no validator      |
 
 (All 20 default tasks share the same status — no validator files on this host.)
 
@@ -38,6 +38,7 @@ The four tasks used in the previous run (csv-to-parquet, broken-python, simple-w
 **No validator-capable tasks are available in the current environment.** The TBench task directory must be populated with tasks that include `docker-compose.yaml`, `run-tests.sh`, and `tests/` directories before the benchmark can produce `taskPass: true` results.
 
 The benchmark runner supports two validator backends:
+
 - **`docker`** — requires `docker-compose.yaml` + `run-tests.sh` + `tests/` (Docker TBench)
 - **`local`** — requires `tests/` directory (local pytest runner)
 

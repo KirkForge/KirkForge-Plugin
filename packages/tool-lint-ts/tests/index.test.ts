@@ -33,8 +33,8 @@ describe("tool-lint-ts", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.status).toBe("fail");
-    expect(result.value.details.some(d => d.rule === "no-var")).toBe(true);
-    expect(result.value.details.some(d => d.rule === "no-console")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-var")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-console")).toBe(true);
   });
 
   it("passes clean code", async () => {
@@ -58,7 +58,7 @@ describe("tool-lint-ts", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.status).toBe("fail");
-    expect(result.value.details.some(d => d.rule === "no-eval")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-eval")).toBe(true);
   });
 
   it("detects throw literal", async () => {
@@ -69,7 +69,7 @@ describe("tool-lint-ts", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-throw-literal")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-throw-literal")).toBe(true);
   });
 
   it("detects process.env access", async () => {
@@ -81,7 +81,7 @@ describe("tool-lint-ts", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     const details = result.value.details;
-    expect(details.some(d => d.rule === "no-process-env")).toBe(true);
+    expect(details.some((d) => d.rule === "no-process-env")).toBe(true);
     expect(details.length).toBe(1);
   });
 

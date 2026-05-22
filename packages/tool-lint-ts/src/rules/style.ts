@@ -54,7 +54,8 @@ export const styleRules: LintRule[] = [
     id: "no-magic-numbers",
     category: "style",
     severity: "low",
-    pattern: /(?<![a-zA-Z0-9_."'\`#])(?<!\bcase\s)(?<!\bconst\s+\w+\s*=\s*)(?<!\blet\s+\w+\s*=\s*)(?<!\bvar\s+\w+\s*=\s*)\b\d{4,}\b(?!['\"])/g,
+    pattern:
+      /(?<![a-zA-Z0-9_."'\`#])(?<!\bcase\s)(?<!\bconst\s+\w+\s*=\s*)(?<!\blet\s+\w+\s*=\s*)(?<!\bvar\s+\w+\s*=\s*)\b\d{4,}\b(?!['\"])/g,
     message: "Magic number detected; extract to a named constant",
   },
 ];

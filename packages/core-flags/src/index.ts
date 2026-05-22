@@ -87,7 +87,7 @@ function hashTenant(tenantId: string): number {
   let hash = 0;
   for (let i = 0; i < tenantId.length; i++) {
     const char = tenantId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash |= 0;
   }
   return Math.abs(hash) % 100;
@@ -111,7 +111,7 @@ export function isEnabled(flagName: string): boolean {
   }
 
   // 3. Rollout percent (tenant-based)
-  const def = BUILTIN_FLAGS.find(f => f.name === flagName);
+  const def = BUILTIN_FLAGS.find((f) => f.name === flagName);
   if (def?.rolloutPercent && def.rolloutPercent > 0 && _tenantId) {
     const bucket = hashTenant(_tenantId);
     return bucket < def.rolloutPercent;
@@ -125,7 +125,7 @@ export function isEnabled(flagName: string): boolean {
  * Get all flag definitions and their current state.
  */
 export function getAllFlags(): Array<FlagDefinition & { enabled: boolean }> {
-  return BUILTIN_FLAGS.map(def => ({
+  return BUILTIN_FLAGS.map((def) => ({
     ...def,
     enabled: isEnabled(def.name),
   }));
@@ -134,6 +134,8 @@ export function getAllFlags(): Array<FlagDefinition & { enabled: boolean }> {
 /**
  * Get flags by stage.
  */
-export function getFlagsByStage(stage: FlagDefinition["stage"]): Array<FlagDefinition & { enabled: boolean }> {
-  return getAllFlags().filter(f => f.stage === stage);
+export function getFlagsByStage(
+  stage: FlagDefinition["stage"],
+): Array<FlagDefinition & { enabled: boolean }> {
+  return getAllFlags().filter((f) => f.stage === stage);
 }

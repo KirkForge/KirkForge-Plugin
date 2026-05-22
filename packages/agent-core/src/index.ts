@@ -75,7 +75,8 @@ export class Agent {
     if (parsed) {
       emission.schemaContract = parsed;
     } else if (compiled.value.format === "schema-contract") {
-      const retryPrompt = compiled.value.userPrompt +
+      const retryPrompt =
+        compiled.value.userPrompt +
         "\n\n---\nYour previous output could not be parsed as valid JSON. Output ONLY the JSON object, no markdown, no explanation.";
       const retryResponse = await this.client.complete(compiled.value.systemPrompt, retryPrompt);
       emission.content = retryResponse.content;
@@ -91,7 +92,10 @@ export class Agent {
   }
 }
 
-function extractSchemaContract(text: string, schema?: z.ZodType<any> | null): Record<string, unknown> | null {
+function extractSchemaContract(
+  text: string,
+  schema?: z.ZodType<any> | null,
+): Record<string, unknown> | null {
   const s = schema ?? z.record(z.string(), z.unknown());
   const codeBlock = text.match(/```(?:\w+)?\s*\n?([\s\S]*?)```/);
   if (codeBlock) {
@@ -114,13 +118,22 @@ function findBalancedBraceBlock(text: string): string | null {
 
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (escape) { escape = false; continue; }
-    if (ch === "\\") { escape = true; continue; }
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
     if (inString) {
       if (ch === inString) inString = null;
       continue;
     }
-    if (ch === '"' || ch === "'") { inString = ch; continue; }
+    if (ch === '"' || ch === "'") {
+      inString = ch;
+      continue;
+    }
     if (ch === "{") {
       if (depth === 0) firstOpen = i;
       depth++;
@@ -145,7 +158,9 @@ function tryParse(candidate: string, schema: z.ZodType<any>): Record<string, unk
         const parsed = JSON.parse(inner);
         const result = schema.safeParse(parsed);
         return result.success ? (result.data as Record<string, unknown>) : null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     }
     return null;
   }

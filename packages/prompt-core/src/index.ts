@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Result } from "@55ndeep/core-types";
-import { ok, err } from "@55ndeep/core-types";
+import { ok } from "@55ndeep/core-types";
 
 export type PromptFormat = "hard-prompt" | "schema-contract" | "artifact" | "task-decompose";
 
@@ -50,8 +50,7 @@ export const HARD_PROMPT_TEMPLATE: PromptTemplate = {
   id: "hard-prompt",
   name: "Free-Text Delegation",
   format: "hard-prompt",
-  systemPrompt:
-    "Complete the requested coding task. Keep output concise. {{languageHint}}",
+  systemPrompt: "Complete the requested coding task. Keep output concise. {{languageHint}}",
   userPromptTemplate: "{{task}}\n\nTarget language: {{language}}. Default file: {{defaultFile}}.",
 };
 
@@ -72,7 +71,10 @@ export function buildContractTemplate(language: string, hint: string): PromptTem
   };
 }
 
-export const DEFAULT_CONTRACT_TEMPLATE: PromptTemplate = buildContractTemplate("typescript", "Emit TypeScript.");
+export const DEFAULT_CONTRACT_TEMPLATE: PromptTemplate = buildContractTemplate(
+  "typescript",
+  "Emit TypeScript.",
+);
 
 export const ARTIFACT_TEMPLATE: PromptTemplate = {
   id: "artifact",
@@ -100,7 +102,6 @@ export function getContractTemplate(language: string, hint: string): PromptTempl
   return buildContractTemplate(language, hint);
 }
 
-
 export const DECOMPOSE_TEMPLATE: PromptTemplate = {
   id: "task-decompose",
   name: "Task Decomposition",
@@ -110,7 +111,7 @@ export const DECOMPOSE_TEMPLATE: PromptTemplate = {
     "Output ONLY a valid JSON array of task objects. No prose, no explanation, no markdown fences. " +
     "Each task object must have: id (kebab-case string), description (one sentence), language (one of: typescript, javascript, python, shell, cpp, c, rust, go, sql, text), " +
     "dependsOn (array of prerequisite task ids, empty if none), estimatedComplexity (one of: trivial, simple, moderate, complex), " +
-    "outputFiles (array of expected output file paths like [\"src/server.ts\"]), " +
+    'outputFiles (array of expected output file paths like ["src/server.ts"]), ' +
     "verificationHint (short sentence on how to verify this subtask works). " +
     "Order tasks by dependency. A task cannot depend on a task that comes after it. " +
     "Each subtask must be small enough that a single LLM call can complete it. " +
@@ -119,15 +120,17 @@ export const DECOMPOSE_TEMPLATE: PromptTemplate = {
     "Break this task into the smallest independently verifiable subtasks: {{task}}\n\n" +
     "Target language: {{language}}.\n\n" +
     "Return ONLY a JSON array. Each element must match the task schema exactly.",
-  responseSchema: z.array(z.object({
-    id: z.string().min(1),
-    description: z.string(),
-    language: z.string(),
-    dependsOn: z.array(z.string()),
-    estimatedComplexity: z.enum(['trivial', 'simple', 'moderate', 'complex']),
-    outputFiles: z.array(z.string()),
-    verificationHint: z.string(),
-  })),
+  responseSchema: z.array(
+    z.object({
+      id: z.string().min(1),
+      description: z.string(),
+      language: z.string(),
+      dependsOn: z.array(z.string()),
+      estimatedComplexity: z.enum(["trivial", "simple", "moderate", "complex"]),
+      outputFiles: z.array(z.string()),
+      verificationHint: z.string(),
+    }),
+  ),
 };
 
 export const BUILTIN_TEMPLATES: Record<string, PromptTemplate> = {

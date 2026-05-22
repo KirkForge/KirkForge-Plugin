@@ -4,9 +4,8 @@ import {
   isTaskPass,
   makeSkippedValidation,
 } from "@55ndeep/correction-core";
-import type { TaskValidationResult, TaskOutcome } from "@55ndeep/correction-core";
+import type { TaskValidationResult } from "@55ndeep/correction-core";
 import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
-import type { TaskObservationInput } from "@55ndeep/memory-palace";
 import { finalVerdictFromValidation } from "../src/truth-model.js";
 
 /**
@@ -20,7 +19,8 @@ describe("Validator truth contract: finalVerdict from taskValidation", () => {
     const validation: TaskValidationResult = { status: "pass", validator: "task-validator" };
     const finalVerdict = finalVerdictFromValidation(validation);
     const sourceOfTruth = "task-validator" as const;
-    const taskPass: boolean | null = validation.status === "pass" ? true : validation.status === "fail" ? false : null;
+    const taskPass: boolean | null =
+      validation.status === "pass" ? true : validation.status === "fail" ? false : null;
 
     expect(finalVerdict).toBe("pass");
     expect(sourceOfTruth).toBe("task-validator");
@@ -30,10 +30,15 @@ describe("Validator truth contract: finalVerdict from taskValidation", () => {
   });
 
   it("validator fail => finalVerdict fail, sourceOfTruth task-validator, taskPass false", () => {
-    const validation: TaskValidationResult = { status: "fail", validator: "task-validator", reason: "tests failed" };
+    const validation: TaskValidationResult = {
+      status: "fail",
+      validator: "task-validator",
+      reason: "tests failed",
+    };
     const finalVerdict = finalVerdictFromValidation(validation);
     const sourceOfTruth = "task-validator" as const;
-    const taskPass: boolean | null = validation.status === "pass" ? true : validation.status === "fail" ? false : null;
+    const taskPass: boolean | null =
+      validation.status === "pass" ? true : validation.status === "fail" ? false : null;
 
     expect(finalVerdict).toBe("fail");
     expect(sourceOfTruth).toBe("task-validator");
@@ -43,10 +48,15 @@ describe("Validator truth contract: finalVerdict from taskValidation", () => {
   });
 
   it("validator error/timeout => finalVerdict unknown, sourceOfTruth task-validator, taskPass null", () => {
-    const validation: TaskValidationResult = { status: "error", validator: "task-validator", reason: "timed out" };
+    const validation: TaskValidationResult = {
+      status: "error",
+      validator: "task-validator",
+      reason: "timed out",
+    };
     const finalVerdict = finalVerdictFromValidation(validation);
     const sourceOfTruth = "task-validator" as const;
-    const taskPass: boolean | null = validation.status === "pass" ? true : validation.status === "fail" ? false : null;
+    const taskPass: boolean | null =
+      validation.status === "pass" ? true : validation.status === "fail" ? false : null;
 
     expect(finalVerdict).toBe("unknown");
     expect(sourceOfTruth).toBe("task-validator");
@@ -58,7 +68,8 @@ describe("Validator truth contract: finalVerdict from taskValidation", () => {
   it("validator skipped => finalVerdict unknown, sourceOfTruth task-validator, taskPass null", () => {
     const validation = makeSkippedValidation("docker", "no docker available");
     const finalVerdict = finalVerdictFromValidation(validation);
-    const taskPass: boolean | null = validation.status === "pass" ? true : validation.status === "fail" ? false : null;
+    const taskPass: boolean | null =
+      validation.status === "pass" ? true : validation.status === "fail" ? false : null;
 
     expect(finalVerdict).toBe("unknown");
     expect(taskPass).toBe(null);
@@ -78,7 +89,11 @@ describe("Validator truth contract: verify-workspace failure is not task failure
 
   it("verification.overall=pass does not mean taskOutcome=pass when task validator says fail", () => {
     const verifierOverall = "pass";
-    const taskValidation: TaskValidationResult = { status: "fail", validator: "task-validator", reason: "output mismatch" };
+    const taskValidation: TaskValidationResult = {
+      status: "fail",
+      validator: "task-validator",
+      reason: "output mismatch",
+    };
 
     expect(verifierOverall).toBe("pass");
     expect(taskValidation.status).toBe("fail");
@@ -209,7 +224,7 @@ describe("Validator truth contract: observe/recall does not infer pass from veri
 
     if (recommendation && recommendation.routingBias) {
       const prefer = recommendation.routingBias.prefer;
-      const avoid = recommendation.routingBias.avoid;
+      const _avoid = recommendation.routingBias.avoid;
       expect(prefer.includes("model-b") || !prefer.includes("model-a")).toBe(true);
     }
   });
@@ -219,9 +234,8 @@ describe("Validator truth contract: sourceOfTruth determines verdict source", ()
   it("when sourceOfTruth=task-validator, validator result overrides verifier result", () => {
     const taskValidation: TaskValidationResult = { status: "pass", validator: "task-validator" };
     const sourceOfTruth = "task-validator" as const;
-    const finalVerdict = sourceOfTruth === "task-validator"
-      ? finalVerdictFromValidation(taskValidation)
-      : "fail";
+    const finalVerdict =
+      sourceOfTruth === "task-validator" ? finalVerdictFromValidation(taskValidation) : "fail";
 
     expect(finalVerdict).toBe("pass");
     expect(sourceOfTruth).toBe("task-validator");
@@ -231,9 +245,12 @@ describe("Validator truth contract: sourceOfTruth determines verdict source", ()
     const verifierOverall = "fail";
     const finalAction = "accept";
     const sourceOfTruth = "verifier" as const;
-    const finalVerdict = sourceOfTruth === "verifier"
-      ? (finalAction === "accept" && verifierOverall === "pass" ? "pass" : "fail")
-      : finalVerdictFromValidation({ status: "pass", validator: "test" });
+    const finalVerdict =
+      sourceOfTruth === "verifier"
+        ? finalAction === "accept" && verifierOverall === "pass"
+          ? "pass"
+          : "fail"
+        : finalVerdictFromValidation({ status: "pass", validator: "test" });
 
     expect(finalVerdict).toBe("fail");
     expect(sourceOfTruth).toBe("verifier");

@@ -1,15 +1,19 @@
 # ADR 001: Deterministic verification outside the model
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-13
 
 ## Context
+
 AI-generated code is unreliable. Common approaches — recursive prompting, "reflection loops," LLM self-evaluation — add cost without adding trust. Another LLM validating an LLM is not materially better than the original generation.
 
 ## Decision
+
 Run a battery of deterministic external tools on AI-generated output. No LLM in the verification path. The tool battery consists of:
 
 - **Lint**: ESLint (TypeScript/JavaScript) or Ruff (Python) — catches syntax violations, unused variables, structural errors

@@ -13,11 +13,6 @@
       "path": "../model-config"
     }
   ],
-  "exclude": [
-    "dist",
-    "**/*.test.ts"
-  ],
-  "include": [
-    "src"
-  ]
+  "exclude": ["dist", "**/*.test.ts"],
+  "include": ["src"]
 }

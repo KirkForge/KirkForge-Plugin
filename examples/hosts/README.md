@@ -12,11 +12,11 @@ Minimal post-generation hooks for three host CLIs. Each follows the same contrac
 
 ## Files
 
-| Sketch | Host | Notes |
-|--------|------|-------|
-| `55ndeep-openai-codex-hook.sh` | OpenAI Codex CLI | Codex writes files, then shells out to this hook |
-| `55ndeep-opencode-hook.sh` | OpenCode | Node-based CLI; config shown as YAML template |
-| `55ndeep-claude-code-hook.sh` | Claude Code | Anthropic's CLI; hook config shown as JSON template |
+| Sketch                         | Host             | Notes                                               |
+| ------------------------------ | ---------------- | --------------------------------------------------- |
+| `55ndeep-openai-codex-hook.sh` | OpenAI Codex CLI | Codex writes files, then shells out to this hook    |
+| `55ndeep-opencode-hook.sh`     | OpenCode         | Node-based CLI; config shown as YAML template       |
+| `55ndeep-claude-code-hook.sh`  | Claude Code      | Anthropic's CLI; hook config shown as JSON template |
 
 ## Common contract
 
@@ -29,16 +29,16 @@ All three sketches share the same invariants:
 
 ## Required arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `--workspace` | yes | Project root to verify |
-| `--task-id` | yes | Correlation ID |
-| `--task-desc` | yes | What the task asked for |
-| `--outcome` | yes | `pass`, `fail`, or `escalate` — provided by the host |
-| `--memory` | yes | Path to memory store file |
-| `--language` | no | Defaults to `typescript` |
-| `--model` | no | Worker model name |
-| `--elapsed-ms` | no | Wall-clock time, defaults to `0` |
+| Argument       | Required | Description                                          |
+| -------------- | -------- | ---------------------------------------------------- |
+| `--workspace`  | yes      | Project root to verify                               |
+| `--task-id`    | yes      | Correlation ID                                       |
+| `--task-desc`  | yes      | What the task asked for                              |
+| `--outcome`    | yes      | `pass`, `fail`, or `escalate` — provided by the host |
+| `--memory`     | yes      | Path to memory store file                            |
+| `--language`   | no       | Defaults to `typescript`                             |
+| `--model`      | no       | Worker model name                                    |
+| `--elapsed-ms` | no       | Wall-clock time, defaults to `0`                     |
 
 ## Requirements
 

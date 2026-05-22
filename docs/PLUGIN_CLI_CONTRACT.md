@@ -6,13 +6,13 @@ The `55ndeep` CLI binary is a **shell adapter and reference runner**, not the pr
 
 ## General rules
 
-| Rule | Detail |
-|------|--------|
-| **stdout is machine-readable** | All commands emit JSON unless `--pretty` is specified (`doctor` only). Hosts parse stdout, never read stderr for data. |
-| **stderr is human-readable** | Error messages, diagnostic text, and warnings go to stderr. |
-| **Exit code 0 = data produced** | The command wrote valid output to stdout. Verifier fail/warn is still exit 0 because the `ReducedStatePacket` is the product. |
+| Rule                                   | Detail                                                                                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **stdout is machine-readable**         | All commands emit JSON unless `--pretty` is specified (`doctor` only). Hosts parse stdout, never read stderr for data.                                    |
+| **stderr is human-readable**           | Error messages, diagnostic text, and warnings go to stderr.                                                                                               |
+| **Exit code 0 = data produced**        | The command wrote valid output to stdout. Verifier fail/warn is still exit 0 because the `ReducedStatePacket` is the product.                             |
 | **Exit code 1 = catastrophic failure** | The command could not produce its primary output. Examples: missing required args, file read failure, plugin initialization failure, memory store errors. |
-| **No model calls** | None of these commands invoke an LLM. They are deterministic. |
+| **No model calls**                     | None of these commands invoke an LLM. They are deterministic.                                                                                             |
 
 ### Host validator authority
 
@@ -42,7 +42,11 @@ Probe local verification tools and report capabilities.
   "bandit": { "available": false, "source": "external" },
   "secdev": { "available": true, "source": "internal" },
   "gitnexus": { "available": true, "source": "internal" },
-  "graphify": { "available": true, "source": "internal", "note": "TS/JS graph support; advisory on other languages" },
+  "graphify": {
+    "available": true,
+    "source": "internal",
+    "note": "TS/JS graph support; advisory on other languages"
+  },
   "languages": ["typescript"]
 }
 ```
@@ -63,12 +67,12 @@ Run deterministic verification on a workspace directory and emit a `ReducedState
 55ndeep verify-workspace --workspace /path/to/project [--file a.ts b.ts] [--language typescript] [--task-id id]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--workspace` | yes | Path to the project root |
-| `--file` | no | Specific files to verify (repeatable) |
-| `--language` | no | Language hint (defaults to `typescript`) |
-| `--task-id` | no | Task identifier for event correlation |
+| Flag          | Required | Description                              |
+| ------------- | -------- | ---------------------------------------- |
+| `--workspace` | yes      | Path to the project root                 |
+| `--file`      | no       | Specific files to verify (repeatable)    |
+| `--language`  | no       | Language hint (defaults to `typescript`) |
+| `--task-id`   | no       | Task identifier for event correlation    |
 
 **Output**: Compact JSON `ReducedStatePacket` to stdout.
 
@@ -86,10 +90,10 @@ Build a correction prompt from a `ReducedStatePacket` JSON file.
 55ndeep prompt --packet result.json [--language typescript]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--packet` | yes | Path to a `ReducedStatePacket` JSON file |
-| `--language` | no | Language for tool name resolution |
+| Flag         | Required | Description                              |
+| ------------ | -------- | ---------------------------------------- |
+| `--packet`   | yes      | Path to a `ReducedStatePacket` JSON file |
+| `--language` | no       | Language for tool name resolution        |
 
 **Output**: Plain text correction prompt to stdout.
 
@@ -116,17 +120,17 @@ Record a task observation to a memory store file.
   [--tokens 1200]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--memory` | yes | Path to the memory store file |
-| `--task-id` | yes | Task identifier |
-| `--description` | yes | Task description |
-| `--language` | yes | Task language |
-| `--mode` | yes | Delegation mode (`hard-prompt`, `ts-contract`, `artifact`) |
-| `--model` | yes | Worker model used |
-| `--outcome` | yes | Result: `pass`, `fail`, or `escalate` |
-| `--duration-ms` | yes | Wall-clock time in milliseconds (non-negative integer) |
-| `--tokens` | no | Token cost (non-negative integer) |
+| Flag            | Required | Description                                                |
+| --------------- | -------- | ---------------------------------------------------------- |
+| `--memory`      | yes      | Path to the memory store file                              |
+| `--task-id`     | yes      | Task identifier                                            |
+| `--description` | yes      | Task description                                           |
+| `--language`    | yes      | Task language                                              |
+| `--mode`        | yes      | Delegation mode (`hard-prompt`, `ts-contract`, `artifact`) |
+| `--model`       | yes      | Worker model used                                          |
+| `--outcome`     | yes      | Result: `pass`, `fail`, or `escalate`                      |
+| `--duration-ms` | yes      | Wall-clock time in milliseconds (non-negative integer)     |
+| `--tokens`      | no       | Token cost (non-negative integer)                          |
 
 **Output**: Compact JSON to stdout:
 
@@ -146,11 +150,11 @@ Recall routing bias from past observations.
 55ndeep recall --memory /path/to/mem.json --description "fix auth bug" [--model gpt-4]
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--memory` | yes | Path to the memory store file |
-| `--description` | yes | Task description to match |
-| `--model` | no | Worker model to filter by |
+| Flag            | Required | Description                   |
+| --------------- | -------- | ----------------------------- |
+| `--memory`      | yes      | Path to the memory store file |
+| `--description` | yes      | Task description to match     |
+| `--model`       | no       | Worker model to filter by     |
 
 **Output**: Compact JSON to stdout:
 
@@ -178,12 +182,12 @@ Break a complex task into smaller, independently verifiable subtasks using a ded
 55ndeep decompose "Build a REST API with auth and rate limiting" --execute
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `<description>` | yes | Task description to decompose |
-| `--json` | no | Output structured JSON instead of human-readable summary |
-| `--execute` | no | Execute the decomposed subtasks in dependency order after decomposition |
-| `--provider` | no | Provider key from config (overrides `decomposeProvider` in model config) |
+| Flag            | Required | Description                                                              |
+| --------------- | -------- | ------------------------------------------------------------------------ |
+| `<description>` | yes      | Task description to decompose                                            |
+| `--json`        | no       | Output structured JSON instead of human-readable summary                 |
+| `--execute`     | no       | Execute the decomposed subtasks in dependency order after decomposition  |
+| `--provider`    | no       | Provider key from config (overrides `decomposeProvider` in model config) |
 
 **Output (human-readable)**:
 
@@ -242,8 +246,26 @@ Estimated tokens: ~2500
 {
   "rootTask": "Build a REST API with auth and rate limiting",
   "results": [
-    { "nodeId": "setup-ts", "ok": true, "description": "Initialize TypeScript project...", "language": "typescript", "durationMs": 3421, "tokensUsed": 450, "verdict": "pass", "files": ["package.json", "tsconfig.json", "src/index.ts"] },
-    { "nodeId": "auth-module", "ok": true, "description": "Implement JWT authentication...", "language": "typescript", "durationMs": 5234, "tokensUsed": 780, "verdict": "pass", "files": ["src/auth.ts", "src/middleware/auth.ts"] }
+    {
+      "nodeId": "setup-ts",
+      "ok": true,
+      "description": "Initialize TypeScript project...",
+      "language": "typescript",
+      "durationMs": 3421,
+      "tokensUsed": 450,
+      "verdict": "pass",
+      "files": ["package.json", "tsconfig.json", "src/index.ts"]
+    },
+    {
+      "nodeId": "auth-module",
+      "ok": true,
+      "description": "Implement JWT authentication...",
+      "language": "typescript",
+      "durationMs": 5234,
+      "tokensUsed": 780,
+      "verdict": "pass",
+      "files": ["src/auth.ts", "src/middleware/auth.ts"]
+    }
   ],
   "totalSubtasks": 5,
   "succeededCount": 5,
@@ -266,10 +288,10 @@ Recall a previously stored task decomposition from memory.
 55ndeep recall-decomposition "<task-id-or-description>" --json
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `<task-id-or-description>` | yes | Task ID or description substring to search for |
-| `--json` | no | JSON output |
+| Flag                       | Required | Description                                    |
+| -------------------------- | -------- | ---------------------------------------------- |
+| `<task-id-or-description>` | yes      | Task ID or description substring to search for |
+| `--json`                   | no       | JSON output                                    |
 
 **Output (human-readable)**:
 
@@ -358,12 +380,12 @@ fi
 
 `observe --outcome` records whether the **task** succeeded, not whether the **verifier** passed. These are different signals:
 
-| Scenario | `verify-workspace` overall | Host task result | Correct `--outcome` |
-|----------|---------------------------|-------------------|---------------------|
-| Code passes all checks and task tests pass | `pass` | pass | `pass` |
-| Verifier reports lint/type errors but task tests pass | `fail` | pass | `pass` |
-| Verifier passes but task tests fail | `pass` | fail | `fail` |
-| Validator missing or infrastructure error | any | unknown | `escalate` |
+| Scenario                                              | `verify-workspace` overall | Host task result | Correct `--outcome` |
+| ----------------------------------------------------- | -------------------------- | ---------------- | ------------------- |
+| Code passes all checks and task tests pass            | `pass`                     | pass             | `pass`              |
+| Verifier reports lint/type errors but task tests pass | `fail`                     | pass             | `pass`              |
+| Verifier passes but task tests fail                   | `pass`                     | fail             | `fail`              |
+| Validator missing or infrastructure error             | any                        | unknown          | `escalate`          |
 
 **The host must provide `--outcome` from its own task validator or judgment, never from `ReducedStatePacket.verification.overall` or `finalAction`.**
 

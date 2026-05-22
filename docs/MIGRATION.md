@@ -9,24 +9,27 @@
 
 ### v1 Routes
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/healthz` | GET | Liveness check |
-| `/v1/readyz` | GET | Readiness check |
-| `/v1/metrics` | GET | Prometheus text-format metrics |
-| `/v1/metrics/json` | GET | JSON metrics (legacy format) |
+| Endpoint           | Method | Description                    |
+| ------------------ | ------ | ------------------------------ |
+| `/v1/healthz`      | GET    | Liveness check                 |
+| `/v1/readyz`       | GET    | Readiness check                |
+| `/v1/metrics`      | GET    | Prometheus text-format metrics |
+| `/v1/metrics/json` | GET    | JSON metrics (legacy format)   |
 
 ### v0 → v1 Migration
 
 **Health checks (v0 → v1):**
+
 - `GET /healthz` → `GET /v1/healthz` (identical response format)
 - `GET /readyz` → `GET /v1/readyz` (identical response format)
 
 **Metrics (v0 → v1):**
+
 - `GET /metrics` (JSON) → `GET /v1/metrics/json`
 - NEW: `GET /v1/metrics` (Prometheus text format)
 
 **Breaking changes in v1:**
+
 - Security headers added on all responses (CSP, X-Frame-Options, etc.)
 - W3C `traceparent`/`traceresponse` headers propagated
 - Auth is now Bearer-token only (no API key query param)

@@ -40,35 +40,35 @@ All required Python verifier tools (ruff, pyright) and advisory tools (bandit) w
 
 ## Result Matrix
 
-| Worker | Task | finalAction | finalVerdict | sourceOfTruth | verifierOverall | taskValidation.status | taskOutcome | taskPass | Tokens | Files |
-|--------|------|-------------|-------------|--------------|-----------------|----------------------|-------------|----------|--------|-------|
-| rnj-1:8b-cloud | csv-to-parquet | escalate | — | — | fail | skipped | escalate | false | 1,883 | 1 |
-| gpt-oss:120b-cloud | csv-to-parquet | escalate | — | — | fail | skipped | escalate | false | 4,116 | 1 |
-| glm-5.1:cloud | csv-to-parquet | escalate | — | — | fail | skipped | escalate | false | 3,867 | 1 |
-| deepseek-v4-flash:cloud | csv-to-parquet | escalate | — | — | fail | skipped | escalate | false | 4,413 | 1 |
-| rnj-1:8b-cloud | broken-python | escalate | — | — | fail | skipped | escalate | false | 1,391 | 1 |
-| gpt-oss:120b-cloud | broken-python | escalate | — | — | fail | skipped | escalate | false | 3,246 | 1 |
-| glm-5.1:cloud | broken-python | escalate | — | — | fail | skipped | escalate | false | 2,887 | 1 |
-| deepseek-v4-flash:cloud | broken-python | escalate | — | — | fail | skipped | escalate | false | 3,858 | 1 |
-| rnj-1:8b-cloud | simple-web-scraper | escalate | — | — | fail | skipped | escalate | false | 2,525 | 2 |
-| gpt-oss:120b-cloud | simple-web-scraper | escalate | — | — | fail | skipped | escalate | false | 4,795 | 3 |
-| glm-5.1:cloud | simple-web-scraper | escalate | — | — | fail | skipped | escalate | false | 9,606 | 1 |
-| deepseek-v4-flash:cloud | simple-web-scraper | escalate | — | — | fail | skipped | escalate | false | 4,363 | 1 |
-| rnj-1:8b-cloud | form-filling | escalate | — | — | fail | skipped | escalate | false | 1,576 | 1 |
-| gpt-oss:120b-cloud | form-filling | escalate | — | — | fail | skipped | escalate | false | 3,098 | 1 |
-| glm-5.1:cloud | form-filling | escalate | — | — | fail | skipped | escalate | false | 6,042 | 1 |
-| deepseek-v4-flash:cloud | form-filling | escalate | — | — | fail | skipped | escalate | false | 4,105 | 1 |
+| Worker                  | Task               | finalAction | finalVerdict | sourceOfTruth | verifierOverall | taskValidation.status | taskOutcome | taskPass | Tokens | Files |
+| ----------------------- | ------------------ | ----------- | ------------ | ------------- | --------------- | --------------------- | ----------- | -------- | ------ | ----- |
+| rnj-1:8b-cloud          | csv-to-parquet     | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 1,883  | 1     |
+| gpt-oss:120b-cloud      | csv-to-parquet     | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 4,116  | 1     |
+| glm-5.1:cloud           | csv-to-parquet     | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 3,867  | 1     |
+| deepseek-v4-flash:cloud | csv-to-parquet     | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 4,413  | 1     |
+| rnj-1:8b-cloud          | broken-python      | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 1,391  | 1     |
+| gpt-oss:120b-cloud      | broken-python      | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 3,246  | 1     |
+| glm-5.1:cloud           | broken-python      | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 2,887  | 1     |
+| deepseek-v4-flash:cloud | broken-python      | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 3,858  | 1     |
+| rnj-1:8b-cloud          | simple-web-scraper | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 2,525  | 2     |
+| gpt-oss:120b-cloud      | simple-web-scraper | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 4,795  | 3     |
+| glm-5.1:cloud           | simple-web-scraper | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 9,606  | 1     |
+| deepseek-v4-flash:cloud | simple-web-scraper | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 4,363  | 1     |
+| rnj-1:8b-cloud          | form-filling       | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 1,576  | 1     |
+| gpt-oss:120b-cloud      | form-filling       | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 3,098  | 1     |
+| glm-5.1:cloud           | form-filling       | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 6,042  | 1     |
+| deepseek-v4-flash:cloud | form-filling       | escalate    | —            | —             | fail            | skipped               | escalate    | false    | 4,105  | 1     |
 
 All 16 cells have `taskValidation.status: "skipped"` with `validator: "missing-validator"` and reason `"task has no docker-compose/run-tests/tests trio"`.
 
 ## Per-Worker Summary
 
-| Worker | Task Passes | Worker Tokens | Tokens/Pass | Files |
-|--------|------------|--------------|-------------|-------|
-| rnj-1:8b-cloud | 0/4 | 7,375 | n/a | 5 |
-| gpt-oss:120b-cloud | 0/4 | 15,255 | n/a | 6 |
-| glm-5.1:cloud | 0/4 | 22,402 | n/a | 4 |
-| deepseek-v4-flash:cloud | 0/4 | 16,739 | n/a | 4 |
+| Worker                  | Task Passes | Worker Tokens | Tokens/Pass | Files |
+| ----------------------- | ----------- | ------------- | ----------- | ----- |
+| rnj-1:8b-cloud          | 0/4         | 7,375         | n/a         | 5     |
+| gpt-oss:120b-cloud      | 0/4         | 15,255        | n/a         | 6     |
+| glm-5.1:cloud           | 0/4         | 22,402        | n/a         | 4     |
+| deepseek-v4-flash:cloud | 0/4         | 16,739        | n/a         | 4     |
 
 **Total**: 0 task passes out of 16 cells. 61,771 worker tokens spent.
 
@@ -82,6 +82,7 @@ Every cell in this run is classified as **validator_infra_fail**:
 - This is not a model-quality failure — it is a validator infrastructure gap
 
 No cells are classified as:
+
 - `candidate_fail` (no task validator ran)
 - `cloud_timeout_or_empty` (all models produced tokens)
 - `verifier_missing_or_skipped` (verifiers ran, but all returned fail)

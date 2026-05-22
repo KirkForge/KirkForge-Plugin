@@ -59,7 +59,18 @@ export type ValidatedConfig = z.infer<typeof NDeepConfigSchema>;
 // ── Provider config schemas ──────────────────────────────────────────────
 
 export const ProviderConfigSchema = z.object({
-  type: z.enum(["openai", "anthropic", "google", "deepseek", "xai", "groq", "mistral", "cohere", "ollama", "openrouter"]),
+  type: z.enum([
+    "openai",
+    "anthropic",
+    "google",
+    "deepseek",
+    "xai",
+    "groq",
+    "mistral",
+    "cohere",
+    "ollama",
+    "openrouter",
+  ]),
   apiKey: z.string().optional(),
   baseUrl: z.string().url().optional(),
   defaultModel: z.string().min(1),
@@ -76,14 +87,18 @@ export const ProvidersMapSchema = z.record(z.string().min(1), ProviderConfigSche
 export const AppConfigSchema = z.object({
   config: NDeepConfigSchema,
   providers: ProvidersMapSchema.optional(),
-  api: z.object({
-    port: z.number().int().min(1).max(65535).default(8080),
-    host: z.string().default("0.0.0.0"),
-    apiKeys: z.array(z.string().min(16)).optional().default([]),
-  }).optional(),
-  health: z.object({
-    port: z.number().int().min(1).max(65535).default(9090),
-  }).optional(),
+  api: z
+    .object({
+      port: z.number().int().min(1).max(65535).default(8080),
+      host: z.string().default("0.0.0.0"),
+      apiKeys: z.array(z.string().min(16)).optional().default([]),
+    })
+    .optional(),
+  health: z
+    .object({
+      port: z.number().int().min(1).max(65535).default(9090),
+    })
+    .optional(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -97,7 +112,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 export function validateConfig(raw: unknown): Result<AppConfig, NDeepError> {
   const parsed = AppConfigSchema.safeParse(raw);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => ({
+    const issues = parsed.error.issues.map((i) => ({
       path: i.path.join("."),
       message: i.message,
       code: i.code,
@@ -114,12 +129,14 @@ export function validateConfig(raw: unknown): Result<AppConfig, NDeepError> {
 export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, NDeepError> {
   const parsed = AppConfigSchema.partial().safeParse(raw);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => ({
+    const issues = parsed.error.issues.map((i) => ({
       path: i.path.join("."),
       message: i.message,
       code: i.code,
     }));
-    return err(new NDeepError("VALIDATION_ERROR", "Partial configuration validation failed", { issues }));
+    return err(
+      new NDeepError("VALIDATION_ERROR", "Partial configuration validation failed", { issues }),
+    );
   }
   return ok(parsed.data);
 }
@@ -127,10 +144,12 @@ export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, 
 /**
  * Validate a single provider configuration entry.
  */
-export function validateProvider(raw: unknown): Result<z.infer<typeof ProviderConfigSchema>, NDeepError> {
+export function validateProvider(
+  raw: unknown,
+): Result<z.infer<typeof ProviderConfigSchema>, NDeepError> {
   const parsed = ProviderConfigSchema.safeParse(raw);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => ({
+    const issues = parsed.error.issues.map((i) => ({
       path: i.path.join("."),
       message: i.message,
       code: i.code,

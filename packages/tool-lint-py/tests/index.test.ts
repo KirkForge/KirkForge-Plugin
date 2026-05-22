@@ -31,7 +31,7 @@ describe("tool-lint-py", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.status).toBe("fail");
-    expect(result.value.details.some(d => d.rule === "no-bare-except")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-bare-except")).toBe(true);
   });
 
   it("detects mutable defaults", async () => {
@@ -40,7 +40,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-mutable-defaults")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-mutable-defaults")).toBe(true);
   });
 
   it("detects print statements", async () => {
@@ -49,7 +49,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-print")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-print")).toBe(true);
   });
 
   it("detects wildcard import", async () => {
@@ -58,7 +58,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-wildcard-import")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-wildcard-import")).toBe(true);
   });
 
   it("detects eval/exec", async () => {
@@ -68,16 +68,18 @@ describe("tool-lint-py", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.status).toBe("fail");
-    expect(result.value.details.some(d => d.rule === "no-eval-exec")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-eval-exec")).toBe(true);
   });
 
   it("detects subprocess shell=True", async () => {
-    const dir = await setup({ "src/bad.py": "import subprocess\nsubprocess.run('ls', shell=True)\n" });
+    const dir = await setup({
+      "src/bad.py": "import subprocess\nsubprocess.run('ls', shell=True)\n",
+    });
     const engine = createPyLintEngine({ cwd: dir });
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-subprocess-shell")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-subprocess-shell")).toBe(true);
   });
 
   it("detects pickle usage", async () => {
@@ -86,7 +88,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-pickle")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-pickle")).toBe(true);
   });
 
   it("detects yaml.load (unsafe)", async () => {
@@ -95,7 +97,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-yaml-load")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-yaml-load")).toBe(true);
   });
 
   it("detects hardcoded password", async () => {
@@ -104,7 +106,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-hardcoded-password")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-hardcoded-password")).toBe(true);
   });
 
   it("detects API token", async () => {
@@ -113,7 +115,7 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-hardcoded-token")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-hardcoded-token")).toBe(true);
   });
 
   it("detects range(len()) anti-pattern", async () => {
@@ -122,11 +124,13 @@ describe("tool-lint-py", () => {
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.details.some(d => d.rule === "no-range-len")).toBe(true);
+    expect(result.value.details.some((d) => d.rule === "no-range-len")).toBe(true);
   });
 
   it("passes clean code", async () => {
-    const dir = await setup({ "src/good.py": "\"\"\"Add two integers.\"\"\"\ndef add(a: int, b: int) -> int:\n    return a + b\n" });
+    const dir = await setup({
+      "src/good.py": '"""Add two integers."""\ndef add(a: int, b: int) -> int:\n    return a + b\n',
+    });
     const engine = createPyLintEngine({ cwd: dir });
     const result = await engine.emit("test");
     expect(result.ok).toBe(true);

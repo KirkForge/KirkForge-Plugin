@@ -41,7 +41,8 @@ export function initTelemetry(config: TelemetryConfig): void {
     _tracer = trace.getTracer(config.serviceName, config.serviceVersion ?? "1.0.0");
     _enabled = true;
 
-    const otlpEndpoint = config.otlpEndpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
+    const otlpEndpoint =
+      config.otlpEndpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
 
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.serviceName,
@@ -59,9 +60,7 @@ export function initTelemetry(config: TelemetryConfig): void {
       exportIntervalMillis: 15000,
     });
 
-    const instrumentations = config.autoInstrument !== false
-      ? [getNodeAutoInstrumentations()]
-      : [];
+    const instrumentations = config.autoInstrument !== false ? [getNodeAutoInstrumentations()] : [];
 
     _sdk = new NodeSDK({
       resource,
@@ -71,9 +70,13 @@ export function initTelemetry(config: TelemetryConfig): void {
     });
 
     _sdk.start();
-    config.logger?.info(`[telemetry] OpenTelemetry SDK started, exporting traces+metrics to ${otlpEndpoint}`);
+    config.logger?.info(
+      `[telemetry] OpenTelemetry SDK started, exporting traces+metrics to ${otlpEndpoint}`,
+    );
   } catch (e) {
-    config.logger?.warn(`[telemetry] OpenTelemetry init failed: ${e instanceof Error ? e.message : String(e)} — tracing disabled`);
+    config.logger?.warn(
+      `[telemetry] OpenTelemetry init failed: ${e instanceof Error ? e.message : String(e)} — tracing disabled`,
+    );
     _enabled = false;
     _tracer = null;
     _sdk = null;
@@ -142,11 +145,7 @@ export async function withSpan<T>(
 /**
  * Synchronous version of withSpan.
  */
-export function withSpanSync<T>(
-  name: string,
-  fn: (span: Span) => T,
-  opts?: SpanOptions,
-): T {
+export function withSpanSync<T>(name: string, fn: (span: Span) => T, opts?: SpanOptions): T {
   if (!_enabled) return fn({} as Span);
 
   const tracer = getTracer();
@@ -255,14 +254,13 @@ export function taskStarted(): void {
   _activeTasks?.add(1);
 }
 
-
 /** Record circuit breaker state transition for metrics. */
 export function recordCircuitBreakerState(key: string, transition: string): void {
   if (!_enabled) return;
   try {
-    const meter = metrics.getMeter('55ndeep', '1.0.0');
-    const cbCounter = meter.createCounter('55ndeep.circuit_breaker.transitions', {
-      description: 'Circuit breaker state transitions',
+    const meter = metrics.getMeter("55ndeep", "1.0.0");
+    const cbCounter = meter.createCounter("55ndeep.circuit_breaker.transitions", {
+      description: "Circuit breaker state transitions",
     });
     cbCounter.add(1, { provider: key, transition });
   } catch {}

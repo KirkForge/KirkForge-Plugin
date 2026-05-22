@@ -1,14 +1,4 @@
-export {
-  ok,
-  err,
-  isOk,
-  isErr,
-  map,
-  mapErr,
-  unwrap,
-  unwrapOrElse,
-  expect,
-} from "./result.js";
+export { ok, err, isOk, isErr, map, mapErr, unwrap, unwrapOrElse, expect } from "./result.js";
 export type { Result } from "./result.js";
 
 export type {

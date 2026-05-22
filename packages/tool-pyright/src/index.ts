@@ -23,12 +23,17 @@ type ExecResult = { stdout: string; stderr: string };
 
 function runTool(cmd: string, args: string[], cwd: string): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { cwd, timeout: 60000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      const out = stdout?.toString?.() ?? "";
-      const errOut = stderr?.toString?.() ?? "";
-      if (err && !out && !errOut) reject(err);
-      else resolve({ stdout: out, stderr: errOut });
-    });
+    execFile(
+      cmd,
+      args,
+      { cwd, timeout: 60000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const out = stdout?.toString?.() ?? "";
+        const errOut = stderr?.toString?.() ?? "";
+        if (err && !out && !errOut) reject(err);
+        else resolve({ stdout: out, stderr: errOut });
+      },
+    );
   });
 }
 
@@ -42,9 +47,9 @@ function sanitizeFilePath(cwd: string, f: string): string | null {
 async function discoverPythonFiles(cwd: string, files?: string[]): Promise<string[]> {
   if (files && files.length > 0) {
     return files
-      .map(f => sanitizeFilePath(cwd, f))
+      .map((f) => sanitizeFilePath(cwd, f))
       .filter((f): f is string => f !== null)
-      .filter(f => f.endsWith(".py"));
+      .filter((f) => f.endsWith(".py"));
   }
   return walkFiles(cwd, (entry) => entry.endsWith(".py"));
 }
@@ -55,7 +60,9 @@ function errorMessage(e: unknown): string {
 
 function isMissingTool(e: unknown, cmd: string): boolean {
   const msg = errorMessage(e);
-  return /\b(ENOENT|not found|spawn\b.*\bENOENT)\b/i.test(msg) || msg.includes(`spawn ${cmd} ENOENT`);
+  return (
+    /\b(ENOENT|not found|spawn\b.*\bENOENT)\b/i.test(msg) || msg.includes(`spawn ${cmd} ENOENT`)
+  );
 }
 
 export class PyrightEmitter {
@@ -81,12 +88,26 @@ export class PyrightEmitter {
     }
 
     try {
-      const { stdout, stderr } = await runTool(this.opts.command ?? "pyright", ["--outputjson", ...targets], cwd);
-      let parsed: { summary?: { errorCount?: number }; diagnostics?: Array<{ file?: { path?: string }; range?: { start?: { line?: number } }; code?: string; message?: string }> };
+      const { stdout, stderr } = await runTool(
+        this.opts.command ?? "pyright",
+        ["--outputjson", ...targets],
+        cwd,
+      );
+      let parsed: {
+        summary?: { errorCount?: number };
+        diagnostics?: Array<{
+          file?: { path?: string };
+          range?: { start?: { line?: number } };
+          code?: string;
+          message?: string;
+        }>;
+      };
       try {
         parsed = stdout.trim() ? JSON.parse(stdout) : {};
       } catch {
-        throw new Error((stderr || stdout || "pyright returned unparseable output").trim().slice(0, 500));
+        throw new Error(
+          (stderr || stdout || "pyright returned unparseable output").trim().slice(0, 500),
+        );
       }
 
       const errors = parsed.summary?.errorCount ?? 0;
@@ -103,7 +124,12 @@ export class PyrightEmitter {
         sequence: 0,
         streamId: taskId,
         taskId,
-        value: { status: errors > 0 ? "fail" : "pass", errors, durationMs: report.durationMs, details },
+        value: {
+          status: errors > 0 ? "fail" : "pass",
+          errors,
+          durationMs: report.durationMs,
+          details,
+        },
         timestamp: new Date().toISOString(),
       });
       return ok(report);
@@ -122,14 +148,25 @@ export class PyrightEmitter {
         });
         return ok(report);
       }
-      const report: PythonTypesReport = { taskId, errors: 1, durationMs: Date.now() - start, details: [{ file: "<pyright>", line: 0, code: "VERIFIER_ERROR", message }] };
+      const report: PythonTypesReport = {
+        taskId,
+        errors: 1,
+        durationMs: Date.now() - start,
+        details: [{ file: "<pyright>", line: 0, code: "VERIFIER_ERROR", message }],
+      };
       await eventBus?.emit({
         kind: "verify.types",
         schemaVersion: "v3",
         sequence: 0,
         streamId: taskId,
         taskId,
-        value: { status: "error", error: message, errors: 1, durationMs: report.durationMs, details: report.details },
+        value: {
+          status: "error",
+          error: message,
+          errors: 1,
+          durationMs: report.durationMs,
+          details: report.details,
+        },
         timestamp: new Date().toISOString(),
       });
       return ok(report);

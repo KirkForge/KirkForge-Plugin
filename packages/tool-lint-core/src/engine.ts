@@ -4,12 +4,10 @@ import { ok, err } from "@55ndeep/core-types";
 import type { Result } from "@55ndeep/core-types";
 import type { EventBus } from "@55ndeep/core-events";
 import { walkFiles } from "@55ndeep/core-logging";
-import type { LintRule, LintFinding, LintResult } from "./rules.js";
+import type { LintRule, LintFinding } from "./rules.js";
 import { RuleRegistry } from "./rules.js";
 
-const SCANNABLE_EXTS = new Set([
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
-]);
+const SCANNABLE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
 const MAX_LINES = 200;
 
 export interface LintEngineOptions {
@@ -64,7 +62,9 @@ export class LintEngine {
       };
 
       const allFiles: string[] = this.files
-        ? this.files.filter(f => this.extensions.has(f.slice(f.lastIndexOf(".")))).map(f => relative(this.cwd, resolve(this.cwd, f)))
+        ? this.files
+            .filter((f) => this.extensions.has(f.slice(f.lastIndexOf("."))))
+            .map((f) => relative(this.cwd, resolve(this.cwd, f)))
         : await walkFiles(this.cwd, includeFilter);
 
       for (const relPath of allFiles) {
@@ -118,8 +118,10 @@ export class LintEngine {
         }
       }
 
-      const errorFindings = findings.filter(f => f.severity === "critical" || f.severity === "high" || f.severity === "med");
-      const warningFindings = findings.filter(f => f.severity === "low" || f.severity === "info");
+      const errorFindings = findings.filter(
+        (f) => f.severity === "critical" || f.severity === "high" || f.severity === "med",
+      );
+      const warningFindings = findings.filter((f) => f.severity === "low" || f.severity === "info");
 
       const report: LintReport = {
         source: taskId,
@@ -128,7 +130,7 @@ export class LintEngine {
         warnings: warningFindings.length,
         filesScanned: allFiles.length,
         durationMs: Date.now() - startedAt,
-        details: [...errorFindings, ...warningFindings].map(f => ({
+        details: [...errorFindings, ...warningFindings].map((f) => ({
           file: f.file,
           line: f.line,
           rule: f.rule,
@@ -155,9 +157,9 @@ export class LintEngine {
       });
 
       // Emit verify.security from safety-category findings
-      const safetyFindings = findings.filter(f => f.category === "safety");
-      const secCritical = safetyFindings.filter(f => f.severity === "critical").length;
-      const secHigh = safetyFindings.filter(f => f.severity === "high").length;
+      const safetyFindings = findings.filter((f) => f.category === "safety");
+      const secCritical = safetyFindings.filter((f) => f.severity === "critical").length;
+      const secHigh = safetyFindings.filter((f) => f.severity === "high").length;
       const secStatus = secCritical > 0 || secHigh > 0 ? "fail" : "pass";
 
       await this.eventBus?.emit({
@@ -173,7 +175,7 @@ export class LintEngine {
           high: secHigh,
           filesScanned: allFiles.length,
           durationMs: report.durationMs,
-          details: safetyFindings.map(f => ({
+          details: safetyFindings.map((f) => ({
             file: f.file,
             line: f.line,
             rule: f.rule,
@@ -187,14 +189,30 @@ export class LintEngine {
       return ok(report);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const report: LintReport = { source: taskId, status: "error", errors: 1, warnings: 0, filesScanned: 0, durationMs: Date.now() - startedAt, details: [{ file: "<lint-engine>", line: 0, rule: "verifier-error", message }] };
+      const report: LintReport = {
+        source: taskId,
+        status: "error",
+        errors: 1,
+        warnings: 0,
+        filesScanned: 0,
+        durationMs: Date.now() - startedAt,
+        details: [{ file: "<lint-engine>", line: 0, rule: "verifier-error", message }],
+      };
       await this.eventBus?.emit({
         kind: "verify.lint",
         schemaVersion: "v3",
         sequence: Date.now(),
         streamId: taskId,
         taskId,
-        value: { status: "error", error: message, errors: 1, warnings: 0, filesScanned: 0, durationMs: report.durationMs, details: report.details },
+        value: {
+          status: "error",
+          error: message,
+          errors: 1,
+          warnings: 0,
+          filesScanned: 0,
+          durationMs: report.durationMs,
+          details: report.details,
+        },
         timestamp: new Date().toISOString(),
       });
       await this.eventBus?.emit({
@@ -203,7 +221,16 @@ export class LintEngine {
         sequence: Date.now(),
         streamId: taskId,
         taskId,
-        value: { status: "error", error: message, findings: 1, critical: 1, high: 0, filesScanned: 0, durationMs: report.durationMs, details: [] },
+        value: {
+          status: "error",
+          error: message,
+          findings: 1,
+          critical: 1,
+          high: 0,
+          filesScanned: 0,
+          durationMs: report.durationMs,
+          details: [],
+        },
         timestamp: new Date().toISOString(),
       });
       return err(new Error(`55ndeep-lint: ${message}`));

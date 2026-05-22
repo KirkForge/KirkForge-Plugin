@@ -19,14 +19,16 @@ describe("Agent", () => {
 
   it("throws on network failure", async () => {
     const agent = new Agent("test-agent", stubProvider());
-    await expect(agent.execute({
-      description: "build a server",
-      variables: {
-        language: "typescript",
-        defaultFile: "output.ts",
-        languageHint: "Emit TypeScript.",
-        checkCommand: "",
-      },
-    })).rejects.toThrow();
+    await expect(
+      agent.execute({
+        description: "build a server",
+        variables: {
+          language: "typescript",
+          defaultFile: "output.ts",
+          languageHint: "Emit TypeScript.",
+          checkCommand: "",
+        },
+      }),
+    ).rejects.toThrow();
   });
 });

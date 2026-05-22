@@ -34,12 +34,12 @@ Important caveat: this benchmark runner still performs **post-hoc TBench validat
 
 ## Summary
 
-| Worker | Passes | Fails | Null/Skipped | Worker Tokens | Tokens/Pass | Files | Duration |
-|--------|-------:|------:|-------------:|--------------:|------------:|------:|---------:|
-| `rnj-1:8b-cloud` | 3 | 17 | 0 | 62,102 | 20,701 | 26 | 14 min |
-| `gpt-oss:120b-cloud` | 2 | 18 | 0 | 120,760 | 60,380 | 28 | 27 min |
-| `glm-5.1:cloud` | 5 | 15 | 0 | 130,592 | 26,118 | 32 | 83 min |
-| `deepseek-v4-flash:cloud` | 4 | 16 | 0 | 131,483 | 32,871 | 20 | 91 min |
+| Worker                    | Passes | Fails | Null/Skipped | Worker Tokens | Tokens/Pass | Files | Duration |
+| ------------------------- | -----: | ----: | -----------: | ------------: | ----------: | ----: | -------: |
+| `rnj-1:8b-cloud`          |      3 |    17 |            0 |        62,102 |      20,701 |    26 |   14 min |
+| `gpt-oss:120b-cloud`      |      2 |    18 |            0 |       120,760 |      60,380 |    28 |   27 min |
+| `glm-5.1:cloud`           |      5 |    15 |            0 |       130,592 |      26,118 |    32 |   83 min |
+| `deepseek-v4-flash:cloud` |      4 |    16 |            0 |       131,483 |      32,871 |    20 |   91 min |
 
 Aggregate:
 
@@ -57,28 +57,28 @@ Aggregate:
 
 `PASS` means the archived TBench task validator passed. It does not mean the internal verifier accepted the run.
 
-| Task | RNJ 8B | GPT-OSS 120B | GLM 5.1 | DeepSeek V4 Flash |
-|------|--------|--------------|---------|-------------------|
-| `hello-world` | PASS | PASS | PASS | PASS |
-| `csv-to-parquet` | PASS | PASS | PASS | PASS |
-| `broken-python` | fail | fail | PASS | fail |
-| `fibonacci-server` | fail | fail | fail | fail |
-| `heterogeneous-dates` | fail | fail | PASS | PASS |
-| `analyze-access-logs` | fail | fail | fail | fail |
-| `bank-trans-filter` | fail | fail | fail | fail |
-| `fix-pandas-version` | fail | fail | fail | fail |
-| `filter-js-from-html` | fail | fail | fail | fail |
-| `break-filter-js-from-html` | fail | fail | fail | fail |
-| `count-dataset-tokens` | fail | fail | fail | fail |
-| `deterministic-tarball` | fail | fail | fail | fail |
-| `extract-safely` | fail | fail | fail | fail |
-| `financial-document-processor` | fail | fail | fail | fail |
-| `form-filling` | fail | fail | fail | fail |
-| `fix-code-vulnerability` | fail | fail | fail | fail |
-| `fix-git` | fail | fail | fail | fail |
-| `git-leak-recovery` | fail | fail | fail | fail |
-| `html-finance-verify` | fail | fail | fail | fail |
-| `simple-web-scraper` | PASS | fail | PASS | PASS |
+| Task                           | RNJ 8B | GPT-OSS 120B | GLM 5.1 | DeepSeek V4 Flash |
+| ------------------------------ | ------ | ------------ | ------- | ----------------- |
+| `hello-world`                  | PASS   | PASS         | PASS    | PASS              |
+| `csv-to-parquet`               | PASS   | PASS         | PASS    | PASS              |
+| `broken-python`                | fail   | fail         | PASS    | fail              |
+| `fibonacci-server`             | fail   | fail         | fail    | fail              |
+| `heterogeneous-dates`          | fail   | fail         | PASS    | PASS              |
+| `analyze-access-logs`          | fail   | fail         | fail    | fail              |
+| `bank-trans-filter`            | fail   | fail         | fail    | fail              |
+| `fix-pandas-version`           | fail   | fail         | fail    | fail              |
+| `filter-js-from-html`          | fail   | fail         | fail    | fail              |
+| `break-filter-js-from-html`    | fail   | fail         | fail    | fail              |
+| `count-dataset-tokens`         | fail   | fail         | fail    | fail              |
+| `deterministic-tarball`        | fail   | fail         | fail    | fail              |
+| `extract-safely`               | fail   | fail         | fail    | fail              |
+| `financial-document-processor` | fail   | fail         | fail    | fail              |
+| `form-filling`                 | fail   | fail         | fail    | fail              |
+| `fix-code-vulnerability`       | fail   | fail         | fail    | fail              |
+| `fix-git`                      | fail   | fail         | fail    | fail              |
+| `git-leak-recovery`            | fail   | fail         | fail    | fail              |
+| `html-finance-verify`          | fail   | fail         | fail    | fail              |
+| `simple-web-scraper`           | PASS   | fail         | PASS    | PASS              |
 
 ## What This Says
 
@@ -108,18 +108,18 @@ It does **not** prove small models beat frontier models. It shows that constrain
 
 Some rows hit cloud timeout behavior:
 
-| Worker | Task | Symptom |
-|--------|------|---------|
-| `glm-5.1:cloud` | `filter-js-from-html` | request timed out after 120000ms |
-| `glm-5.1:cloud` | `count-dataset-tokens` | request timed out after 120000ms |
-| `glm-5.1:cloud` | `deterministic-tarball` | request timed out after 120000ms |
-| `glm-5.1:cloud` | `financial-document-processor` | request timed out after 120000ms |
-| `glm-5.1:cloud` | `form-filling` | request timed out after 120000ms |
-| `glm-5.1:cloud` | `fix-code-vulnerability` | request timed out after 120000ms |
-| `deepseek-v4-flash:cloud` | `break-filter-js-from-html` | request timed out after 120000ms |
-| `deepseek-v4-flash:cloud` | `count-dataset-tokens` | request timed out after 120000ms |
-| `deepseek-v4-flash:cloud` | `form-filling` | request timed out after 120000ms |
-| `deepseek-v4-flash:cloud` | `fix-code-vulnerability` | request timed out after 120000ms |
+| Worker                    | Task                           | Symptom                          |
+| ------------------------- | ------------------------------ | -------------------------------- |
+| `glm-5.1:cloud`           | `filter-js-from-html`          | request timed out after 120000ms |
+| `glm-5.1:cloud`           | `count-dataset-tokens`         | request timed out after 120000ms |
+| `glm-5.1:cloud`           | `deterministic-tarball`        | request timed out after 120000ms |
+| `glm-5.1:cloud`           | `financial-document-processor` | request timed out after 120000ms |
+| `glm-5.1:cloud`           | `form-filling`                 | request timed out after 120000ms |
+| `glm-5.1:cloud`           | `fix-code-vulnerability`       | request timed out after 120000ms |
+| `deepseek-v4-flash:cloud` | `break-filter-js-from-html`    | request timed out after 120000ms |
+| `deepseek-v4-flash:cloud` | `count-dataset-tokens`         | request timed out after 120000ms |
+| `deepseek-v4-flash:cloud` | `form-filling`                 | request timed out after 120000ms |
+| `deepseek-v4-flash:cloud` | `fix-code-vulnerability`       | request timed out after 120000ms |
 
 The report still contains validator results for those cells, but the internal `finalAction` / `verifierOverall` fields are `unknown` for several timeout rows. Treat these as cloud-reliability noise when comparing workers.
 

@@ -1,4 +1,4 @@
-import type { TaskValidationResult, TaskOutcome, TaskValidationStatus } from "./task-validator.js";
+import type { TaskValidationResult, TaskOutcome } from "./task-validator.js";
 import { taskOutcomeFromValidation } from "./task-validator.js";
 
 export interface BenchValidation {
@@ -30,11 +30,19 @@ export function normalizeTaskValidation(validation: BenchValidation): TaskValida
       validator: validation.kind,
       reason: firstLine(validation.output) || "task tests failed",
       durationMs: undefined,
-      details: validation.exitCode !== null ? { exitCode: validation.exitCode, output: validation.output } : undefined,
+      details:
+        validation.exitCode !== null
+          ? { exitCode: validation.exitCode, output: validation.output }
+          : undefined,
     };
   }
 
-  if (validation.kind === "skipped" || validation.kind === "missing-validator" || validation.kind === "missing-local-validator" || validation.kind === "docker-unavailable") {
+  if (
+    validation.kind === "skipped" ||
+    validation.kind === "missing-validator" ||
+    validation.kind === "missing-local-validator" ||
+    validation.kind === "docker-unavailable"
+  ) {
     return {
       status: "skipped",
       validator: validation.kind,
@@ -45,12 +53,19 @@ export function normalizeTaskValidation(validation: BenchValidation): TaskValida
   return {
     status: "error",
     validator: validation.kind,
-    reason: firstLine(validation.output) || `validation produced no result (kind=${validation.kind})`,
-    details: validation.exitCode !== null ? { exitCode: validation.exitCode, output: validation.output } : undefined,
+    reason:
+      firstLine(validation.output) || `validation produced no result (kind=${validation.kind})`,
+    details:
+      validation.exitCode !== null
+        ? { exitCode: validation.exitCode, output: validation.output }
+        : undefined,
   };
 }
 
-export function makeBenchmarkRow(verifierOverall: string, validation: BenchValidation): BenchmarkRow {
+export function makeBenchmarkRow(
+  verifierOverall: string,
+  validation: BenchValidation,
+): BenchmarkRow {
   const taskValidation = normalizeTaskValidation(validation);
   return {
     verifierOverall,

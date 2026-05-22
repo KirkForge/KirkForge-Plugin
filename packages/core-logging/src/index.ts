@@ -27,7 +27,9 @@ export interface LogTransport {
 
 class ConsoleTransport implements LogTransport {
   private _stream: "stdout" | "stderr";
-  constructor(stream: "stdout" | "stderr" = "stdout") { this._stream = stream; }
+  constructor(stream: "stdout" | "stderr" = "stdout") {
+    this._stream = stream;
+  }
   write(entry: LogEntry): void {
     const line = scrubSecrets(JSON.stringify(entry));
     if (this._stream === "stderr" || entry.level === "error") process.stderr.write(line + "\n");
@@ -38,7 +40,9 @@ class ConsoleTransport implements LogTransport {
 
 class HumanConsoleTransport implements LogTransport {
   private _stream: "stdout" | "stderr";
-  constructor(stream: "stdout" | "stderr" = "stdout") { this._stream = stream; }
+  constructor(stream: "stdout" | "stderr" = "stdout") {
+    this._stream = stream;
+  }
   write(entry: LogEntry): void {
     const ts = entry.timestamp.slice(11, 23);
     const msg = scrubSecrets(entry.message);
@@ -67,7 +71,7 @@ export class Logger {
     const stream = options.stream ?? "stdout";
     this._transports = [];
     this._transports.push(
-      format === "human" ? new HumanConsoleTransport(stream) : new ConsoleTransport(stream)
+      format === "human" ? new HumanConsoleTransport(stream) : new ConsoleTransport(stream),
     );
   }
 
@@ -119,8 +123,8 @@ export class Logger {
   child(context: Record<string, unknown>): Logger {
     // Create a child logger that merges the context into every log entry.
     // Uses a wrapper transport instead of subclassing.
-    const parent = this;
-    const childTransports: LogTransport[] = this._transports.map(t => ({
+
+    const childTransports: LogTransport[] = this._transports.map((t) => ({
       write(entry: LogEntry): void {
         t.write({ ...entry, context: { ...context, ...entry.context } });
       },
@@ -131,9 +135,11 @@ export class Logger {
     // Override transports with enriched wrappers
     (child as any)._transports = childTransports;
     // Keep level in sync with parent
-    Object.defineProperty(child, '_level', {
-      get: () => parent._level,
-      set: (v: LogLevel) => { parent._level = v; },
+    Object.defineProperty(child, "_level", {
+      get: () => this._level,
+      set: (v: LogLevel) => {
+        this._level = v;
+      },
     });
     return child;
   }
@@ -155,6 +161,7 @@ export function createLogger(options?: LoggerOptions): Logger {
  */
 export function getTraceContext(): { traceId: string; spanId: string } | null {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { trace } = require("@opentelemetry/api") as typeof import("@opentelemetry/api");
     const span = trace.getActiveSpan();
     if (!span) return null;
@@ -178,25 +185,23 @@ export function getTraceContext(): { traceId: string; spanId: string } | null {
  * ```
  */
 export function withTraceContext(logger: Logger): Logger {
-  const enrichedTransports: LogTransport[] = (logger as any)._transports.map(
-    (t: LogTransport) => ({
-      write(entry: LogEntry): void {
-        const tc = getTraceContext();
-        const enriched: LogEntry = tc
-          ? { ...entry, context: { ...entry.context, ...tc } }
-          : entry;
-        t.write(enriched);
-      },
-      flush: t.flush?.bind(t),
-      close: t.close?.bind(t),
-    }),
-  );
+  const enrichedTransports: LogTransport[] = (logger as any)._transports.map((t: LogTransport) => ({
+    write(entry: LogEntry): void {
+      const tc = getTraceContext();
+      const enriched: LogEntry = tc ? { ...entry, context: { ...entry.context, ...tc } } : entry;
+      t.write(enriched);
+    },
+    flush: t.flush?.bind(t),
+    close: t.close?.bind(t),
+  }));
 
   const enriched = new Logger({ level: logger.level, format: "json" });
   (enriched as any)._transports = enrichedTransports;
   Object.defineProperty(enriched, "_level", {
     get: () => logger.level,
-    set: (v: LogLevel) => { logger.level = v; },
+    set: (v: LogLevel) => {
+      logger.level = v;
+    },
   });
   return enriched;
 }

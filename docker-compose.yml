@@ -11,7 +11,7 @@ services:
     container_name: 55ndeep
     restart: unless-stopped
     ports:
-      - "9090:9090"   # health endpoint
+      - "9090:9090" # health endpoint
     environment:
       - NODE_ENV=production
       - HEALTH_PORT=9090
@@ -40,8 +40,8 @@ services:
     volumes:
       - ./otel-collector-config.yml:/etc/otel-collector-config.yml:ro
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
     networks:
       - 55ndeep-net
     profiles:

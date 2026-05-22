@@ -4,10 +4,10 @@ Two machines. Same repos. No drift. No lost work.
 
 ## Machine Roles
 
-| Machine | Role | Path |
-|---------|------|------|
+| Machine                         | Role                          | Path                            |
+| ------------------------------- | ----------------------------- | ------------------------------- |
 | **This machine** (kirk-688526g) | Development + local benchmark | `/home/kirk/Madlab/Clean-Live/` |
-| **.225 machine** | Codex-driven development | `~/Madlab/` (or equivalent) |
+| **.225 machine**                | Codex-driven development      | `~/Madlab/` (or equivalent)     |
 
 ## The Golden Rule
 
@@ -64,6 +64,7 @@ git config --global user.email "your@real.email"
 **Never use "KirkForge" as the author name.** That's an org, not a person.
 
 Commit format:
+
 ```
 type(scope): what changed
 

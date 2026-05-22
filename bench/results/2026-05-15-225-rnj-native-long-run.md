@@ -20,44 +20,44 @@ The important point is not "RNJ is bad." The important point is that the plugin 
 
 ## Summary
 
-| Metric | Value |
-|---|---:|
-| Completed cells | 18 |
-| Task pass | 1 |
-| Task fail | 17 |
-| Task skipped/error | 0 |
-| CLI accept | 1 |
-| Verifier pass | 0 |
-| Verifier fail/warn | 18 |
-| Worker tokens | 48,744 |
-| Tokens/pass | 48,744 |
-| Files created | 17 |
-| Duration | ~104 min |
+| Metric             |    Value |
+| ------------------ | -------: |
+| Completed cells    |       18 |
+| Task pass          |        1 |
+| Task fail          |       17 |
+| Task skipped/error |        0 |
+| CLI accept         |        1 |
+| Verifier pass      |        0 |
+| Verifier fail/warn |       18 |
+| Worker tokens      |   48,744 |
+| Tokens/pass        |   48,744 |
+| Files created      |       17 |
+| Duration           | ~104 min |
 
 The only passing task was `heterogeneous-dates`.
 
 ## Result Table
 
-| Task | taskPass | finalVerdict | finalAction | Language | Files | Tokens | Notes |
-|---|---:|---|---|---|---|---:|---|
-| `hello-world` | false | fail | escalate | typescript | `output.ts` | 1,508 | Task expected `hello.txt`; worker emitted the wrong artifact shape. |
-| `csv-to-parquet` | false | fail | escalate | python | `solution.py` | 1,810 | Validator failed inside pandas/import path. |
-| `broken-python` | false | fail | escalate | python | `solution.py` | 2,341 | Test suite failed. |
-| `heterogeneous-dates` | true | pass | accept | python | `solution.py` | 477 | Only passing cell. |
-| `analyze-access-logs` | false | fail | escalate | typescript | `output.ts` | 3,288 | Misrouted/emitted TS-shaped artifact for a data task. |
-| `bank-trans-filter` | false | fail | escalate | python | `solution.py` | 2,720 | Expected output file missing or mismatched. |
-| `fix-pandas-version` | false | fail | escalate | python | `requirements.txt`, `solution.py` | 2,215 | Pandas import/runtime failure. |
-| `filter-js-from-html` | false | fail | escalate | python | none | 2,379 | No candidate files emitted. |
-| `break-filter-js-from-html` | false | fail | escalate | python | none | 1,810 | No candidate files emitted. |
-| `count-dataset-tokens` | false | fail | escalate | typescript | `output.ts` | 2,727 | Misrouted/emitted TS-shaped artifact. |
-| `deterministic-tarball` | false | fail | escalate | typescript | `app/release.sh`, `solution.sh` | 4,630 | Shell artifacts emitted, but validator failed. |
-| `extract-safely` | false | fail | escalate | typescript | none | 2,409 | No candidate files emitted. |
-| `financial-document-processor` | false | fail | escalate | python | `solution.py` | 4,906 | Pandas/import path failure. |
-| `form-filling` | false | fail | escalate | python | `form_filler.py` | 4,002 | Script failed validator checks. |
-| `fix-code-vulnerability` | false | fail | escalate | python | `app/bottle.py` | 3,651 | Validator assertion failure. |
-| `fix-git` | false | fail | escalate | typescript | `output.ts`, `solution.py` | 2,501 | Mixed artifact shape; validator failed. |
-| `git-leak-recovery` | false | fail | escalate | typescript | `output.ts` | 3,502 | Misrouted/emitted TS-shaped artifact. |
-| `html-finance-verify` | false | fail | escalate | typescript | none | 1,868 | No candidate files emitted. |
+| Task                           | taskPass | finalVerdict | finalAction | Language   | Files                             | Tokens | Notes                                                               |
+| ------------------------------ | -------: | ------------ | ----------- | ---------- | --------------------------------- | -----: | ------------------------------------------------------------------- |
+| `hello-world`                  |    false | fail         | escalate    | typescript | `output.ts`                       |  1,508 | Task expected `hello.txt`; worker emitted the wrong artifact shape. |
+| `csv-to-parquet`               |    false | fail         | escalate    | python     | `solution.py`                     |  1,810 | Validator failed inside pandas/import path.                         |
+| `broken-python`                |    false | fail         | escalate    | python     | `solution.py`                     |  2,341 | Test suite failed.                                                  |
+| `heterogeneous-dates`          |     true | pass         | accept      | python     | `solution.py`                     |    477 | Only passing cell.                                                  |
+| `analyze-access-logs`          |    false | fail         | escalate    | typescript | `output.ts`                       |  3,288 | Misrouted/emitted TS-shaped artifact for a data task.               |
+| `bank-trans-filter`            |    false | fail         | escalate    | python     | `solution.py`                     |  2,720 | Expected output file missing or mismatched.                         |
+| `fix-pandas-version`           |    false | fail         | escalate    | python     | `requirements.txt`, `solution.py` |  2,215 | Pandas import/runtime failure.                                      |
+| `filter-js-from-html`          |    false | fail         | escalate    | python     | none                              |  2,379 | No candidate files emitted.                                         |
+| `break-filter-js-from-html`    |    false | fail         | escalate    | python     | none                              |  1,810 | No candidate files emitted.                                         |
+| `count-dataset-tokens`         |    false | fail         | escalate    | typescript | `output.ts`                       |  2,727 | Misrouted/emitted TS-shaped artifact.                               |
+| `deterministic-tarball`        |    false | fail         | escalate    | typescript | `app/release.sh`, `solution.sh`   |  4,630 | Shell artifacts emitted, but validator failed.                      |
+| `extract-safely`               |    false | fail         | escalate    | typescript | none                              |  2,409 | No candidate files emitted.                                         |
+| `financial-document-processor` |    false | fail         | escalate    | python     | `solution.py`                     |  4,906 | Pandas/import path failure.                                         |
+| `form-filling`                 |    false | fail         | escalate    | python     | `form_filler.py`                  |  4,002 | Script failed validator checks.                                     |
+| `fix-code-vulnerability`       |    false | fail         | escalate    | python     | `app/bottle.py`                   |  3,651 | Validator assertion failure.                                        |
+| `fix-git`                      |    false | fail         | escalate    | typescript | `output.ts`, `solution.py`        |  2,501 | Mixed artifact shape; validator failed.                             |
+| `git-leak-recovery`            |    false | fail         | escalate    | typescript | `output.ts`                       |  3,502 | Misrouted/emitted TS-shaped artifact.                               |
+| `html-finance-verify`          |    false | fail         | escalate    | typescript | none                              |  1,868 | No candidate files emitted.                                         |
 
 ## What Changed Compared With Earlier Evidence
 
@@ -81,12 +81,12 @@ Without those fields, a 1/18 run looks like "the model failed." With those field
 
 The failures cluster into four useful buckets:
 
-| Bucket | Examples | Interpretation |
-|---|---|---|
-| Wrong artifact shape | `hello-world`, `analyze-access-logs`, `count-dataset-tokens`, `git-leak-recovery` | Task/profile detection or prompt schema is not forcing the expected output path strongly enough. |
-| No candidate files | `filter-js-from-html`, `break-filter-js-from-html`, `extract-safely`, `html-finance-verify` | Worker output was not usable as artifacts under the emission contract. |
-| Runtime/dependency failures | `csv-to-parquet`, `fix-pandas-version`, `financial-document-processor` | Candidate artifacts existed, but task environment/runtime checks failed. |
-| Real test assertion failures | `bank-trans-filter`, `form-filling`, `fix-code-vulnerability`, `fix-git` | Validator ran and rejected the candidate behavior. |
+| Bucket                       | Examples                                                                                    | Interpretation                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Wrong artifact shape         | `hello-world`, `analyze-access-logs`, `count-dataset-tokens`, `git-leak-recovery`           | Task/profile detection or prompt schema is not forcing the expected output path strongly enough. |
+| No candidate files           | `filter-js-from-html`, `break-filter-js-from-html`, `extract-safely`, `html-finance-verify` | Worker output was not usable as artifacts under the emission contract.                           |
+| Runtime/dependency failures  | `csv-to-parquet`, `fix-pandas-version`, `financial-document-processor`                      | Candidate artifacts existed, but task environment/runtime checks failed.                         |
+| Real test assertion failures | `bank-trans-filter`, `form-filling`, `fix-code-vulnerability`, `fix-git`                    | Validator ran and rejected the candidate behavior.                                               |
 
 ## Current Read
 

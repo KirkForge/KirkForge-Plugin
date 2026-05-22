@@ -16,10 +16,10 @@ Do not run dependency installs or benchmark work from the clean repo. The sandbo
 
 ## Repository Roles
 
-| Repo | Path | Role |
-|------|------|------|
-| Publish repo | `/path/to/publish-repo` | Clean source, docs, tracked scripts |
-| Sandbox | `/path/to/runtime-sandbox` | Active benchmark/runtime copy |
+| Repo         | Path                       | Role                                |
+| ------------ | -------------------------- | ----------------------------------- |
+| Publish repo | `/path/to/publish-repo`    | Clean source, docs, tracked scripts |
+| Sandbox      | `/path/to/runtime-sandbox` | Active benchmark/runtime copy       |
 
 - Source of truth: the **publish repo**.
 - Raw benchmark JSON and logs live in `/tmp/bench-sandbox/` or the sandbox `bench/` directory, never in the publish repo.
@@ -41,6 +41,7 @@ taskOutcome === "pass"
 The `taskOutcome` field is derived from `taskValidation.status` via `taskOutcomeFromValidation()` (from `@55ndeep/correction-core`). It is distinct from `verifierOverall` (from `ReducedStatePacket.verification.overall`) and from `finalAction` (the harness's accept/escalate decision). The `taskPass` compatibility field is `taskValidation.status === "pass"`, not `finalAction === "accept"` or `verifierOverall === "pass"`.
 
 Each benchmark result now includes:
+
 - `verifierOverall`: the orchestrator's overall verdict (`pass`, `warn`, `fail`, `unknown`, or `none` for solo runs)
 - `taskValidation`: `{ status, validator, reason?, details? }` from `normalizeTaskValidation()`
 - `taskOutcome`: `"pass"`, `"fail"`, or `"escalate"` mapped from `taskValidation.status`

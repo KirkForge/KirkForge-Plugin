@@ -12,7 +12,7 @@ describe("Logger", () => {
     const logger = new Logger({ level: "info", format: "json" });
     logger.info("test message");
     expect(stdoutWrite).toHaveBeenCalled();
-    const written = stdoutWrite.mock.calls.map(c => c[0]).join("");
+    const written = stdoutWrite.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(written.trim());
     expect(parsed.message).toBe("test message");
     expect(parsed.level).toBe("info");
@@ -26,7 +26,7 @@ describe("Logger", () => {
     const logger = new Logger({ level: "info", format: "json", stream: "stderr" });
     logger.info("test message");
     expect(stderrWrite).toHaveBeenCalled();
-    const written = stderrWrite.mock.calls.map(c => c[0]).join("");
+    const written = stderrWrite.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(written.trim());
     expect(parsed.message).toBe("test message");
     expect(parsed.level).toBe("info");
@@ -41,7 +41,7 @@ describe("Logger", () => {
     const logger = new Logger({ level: "info", format: "json", stream: "stdout" });
     logger.error("error message");
     expect(stderrWrite).toHaveBeenCalled();
-    const written = stderrWrite.mock.calls.map(c => c[0]).join("");
+    const written = stderrWrite.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(written.trim());
     expect(parsed.message).toBe("error message");
     expect(parsed.level).toBe("error");
@@ -71,7 +71,7 @@ describe("Logger", () => {
     const logger = new Logger({ level: "info", format: "human", stream: "stderr" });
     logger.info("human test");
     expect(stderrWrite).toHaveBeenCalled();
-    const written = stderrWrite.mock.calls.map(c => c[0]).join("");
+    const written = stderrWrite.mock.calls.map((c) => c[0]).join("");
     expect(written).toContain("INFO");
     expect(written).toContain("human test");
     expect(stdoutWrite).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe("Logger", () => {
     const child = logger.child({});
     child.info("child message");
     expect(stderrWrite).toHaveBeenCalled();
-    const written = stderrWrite.mock.calls.map(c => c[0]).join("");
+    const written = stderrWrite.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(written.trim());
     expect(parsed.message).toBe("child message");
     expect(stdoutWrite).not.toHaveBeenCalled();

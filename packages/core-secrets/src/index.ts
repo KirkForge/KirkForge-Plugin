@@ -102,11 +102,12 @@ export class VaultSecretsProvider implements SecretsProvider {
   }
 
   async get(key: string): Promise<string | null> {
-    const fullPath = this.config.prefix
-      ? `${this.config.prefix}/${key}`
-      : key;
+    const fullPath = this.config.prefix ? `${this.config.prefix}/${key}` : key;
     // KV v2: encode each path segment separately, preserving / as path separators
-    const encodedPath = fullPath.split("/").map(s => encodeURIComponent(s)).join("/");
+    const encodedPath = fullPath
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
     const url = `${this.config.address}/v1/${this.config.mount}/data/${encodedPath}`;
 
     try {
@@ -115,7 +116,7 @@ export class VaultSecretsProvider implements SecretsProvider {
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return null;
-      const body = await res.json() as {
+      const body = (await res.json()) as {
         data?: { data?: Record<string, string> };
       };
       const secretData = body?.data?.data;
@@ -167,7 +168,11 @@ export interface SigV4SignOptions {
 
 export function awsSigV4Sign(opts: SigV4SignOptions): { headers: Record<string, string> } {
   const now = opts.now ?? new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "").slice(0, 15) + "Z";
+  const amzDate =
+    now
+      .toISOString()
+      .replace(/[:-]|\.\d{3}/g, "")
+      .slice(0, 15) + "Z";
   const dateStamp = amzDate.slice(0, 8);
 
   const canonicalUri = opts.canonicalUri ?? "/";
@@ -189,7 +194,7 @@ export function awsSigV4Sign(opts: SigV4SignOptions): { headers: Record<string, 
   }
   canonicalHeaders.sort();
   const canonicalHeadersStr = canonicalHeaders.join("\n") + "\n";
-  const signedHeaders = canonicalHeaders.map(h => h.split(":")[0]!).join(";");
+  const signedHeaders = canonicalHeaders.map((h) => h.split(":")[0]!).join(";");
 
   const canonicalRequest = [
     opts.method,
@@ -202,12 +207,9 @@ export function awsSigV4Sign(opts: SigV4SignOptions): { headers: Record<string, 
 
   const algorithm = "AWS4-HMAC-SHA256";
   const credentialScope = `${dateStamp}/${opts.region}/${opts.service}/aws4_request`;
-  const stringToSign = [
-    algorithm,
-    amzDate,
-    credentialScope,
-    sha256Hex(canonicalRequest),
-  ].join("\n");
+  const stringToSign = [algorithm, amzDate, credentialScope, sha256Hex(canonicalRequest)].join(
+    "\n",
+  );
 
   const kDate = hmacSha256("AWS4" + opts.secretAccessKey, dateStamp);
   const kRegion = hmacSha256(kDate, opts.region);
@@ -219,9 +221,9 @@ export function awsSigV4Sign(opts: SigV4SignOptions): { headers: Record<string, 
 
   const headers: Record<string, string> = {
     "Content-Type": contentType,
-    "Host": opts.host,
+    Host: opts.host,
     "X-Amz-Date": amzDate,
-    "Authorization": authorization,
+    Authorization: authorization,
   };
   if (target) {
     headers["X-Amz-Target"] = target;
@@ -291,7 +293,7 @@ export class AwsSecretsProvider implements SecretsProvider {
       });
 
       if (!res.ok) return null;
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         SecretString?: string;
         SecretBinary?: string;
       };
@@ -410,7 +412,7 @@ export class GcpSecretsProvider implements SecretsProvider {
       });
 
       if (!res.ok) return null;
-      return await res.json() as { access_token: string; expires_in: number };
+      return (await res.json()) as { access_token: string; expires_in: number };
     } catch {
       return null;
     }
@@ -427,7 +429,7 @@ export class GcpSecretsProvider implements SecretsProvider {
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       };
 
       const res = await fetch(url, {
@@ -436,7 +438,7 @@ export class GcpSecretsProvider implements SecretsProvider {
       });
 
       if (!res.ok) return null;
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         payload?: { data?: string };
       };
 
@@ -463,39 +465,43 @@ export class GcpSecretsProvider implements SecretsProvider {
  * 3. GCP (if GCP_PROJECT_ID set)
  * 4. Env vars (always last as fallback)
  */
-export function createSecretsManager(
-  env?: Record<string, string | undefined>,
-): SecretsManager {
+export function createSecretsManager(env?: Record<string, string | undefined>): SecretsManager {
   const e = env ?? (process.env as Record<string, string | undefined>);
   const providers: SecretsProvider[] = [];
 
   // Vault
   if (e.VAULT_ADDR && e.VAULT_TOKEN) {
-    providers.push(new VaultSecretsProvider({
-      address: e.VAULT_ADDR,
-      token: e.VAULT_TOKEN,
-      mount: e.VAULT_MOUNT,
-      prefix: e.VAULT_SECRET_PREFIX,
-    }));
+    providers.push(
+      new VaultSecretsProvider({
+        address: e.VAULT_ADDR,
+        token: e.VAULT_TOKEN,
+        mount: e.VAULT_MOUNT,
+        prefix: e.VAULT_SECRET_PREFIX,
+      }),
+    );
   }
 
   // AWS — only activate when both region and credentials are present
   if (e.AWS_REGION && e.AWS_ACCESS_KEY_ID && e.AWS_SECRET_ACCESS_KEY) {
-    providers.push(new AwsSecretsProvider({
-      region: e.AWS_REGION,
-      accessKeyId: e.AWS_ACCESS_KEY_ID,
-      secretAccessKey: e.AWS_SECRET_ACCESS_KEY,
-      sessionToken: e.AWS_SESSION_TOKEN,
-    }));
+    providers.push(
+      new AwsSecretsProvider({
+        region: e.AWS_REGION,
+        accessKeyId: e.AWS_ACCESS_KEY_ID,
+        secretAccessKey: e.AWS_SECRET_ACCESS_KEY,
+        sessionToken: e.AWS_SESSION_TOKEN,
+      }),
+    );
   }
 
   // GCP — only activate when project and credentials (token or key file) are present
   if (e.GCP_PROJECT_ID && (e.GCP_ACCESS_TOKEN || e.GOOGLE_APPLICATION_CREDENTIALS)) {
-    providers.push(new GcpSecretsProvider({
-      projectId: e.GCP_PROJECT_ID,
-      accessToken: e.GCP_ACCESS_TOKEN,
-      credentialsFile: e.GOOGLE_APPLICATION_CREDENTIALS,
-    }));
+    providers.push(
+      new GcpSecretsProvider({
+        projectId: e.GCP_PROJECT_ID,
+        accessToken: e.GCP_ACCESS_TOKEN,
+        credentialsFile: e.GOOGLE_APPLICATION_CREDENTIALS,
+      }),
+    );
   }
 
   // Env vars (always last)

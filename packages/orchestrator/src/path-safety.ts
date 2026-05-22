@@ -1,5 +1,16 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync as writeFileSyncRaw, renameSync, existsSync, readFileSync, lstatSync, readlinkSync, openSync, fsyncSync, closeSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync as writeFileSyncRaw,
+  renameSync,
+  existsSync,
+  readFileSync,
+  lstatSync,
+  readlinkSync,
+  openSync,
+  fsyncSync,
+  closeSync,
+} from "node:fs";
 import { basename, dirname, resolve, relative, isAbsolute, sep } from "node:path";
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -30,7 +41,14 @@ export function sha256OfRaw(buf: Buffer): string {
  */
 export function isInsideCwd(fullPath: string, cwd: string): boolean {
   const rel = relative(cwd, fullPath);
-  if (rel === "" || rel === ".." || rel.startsWith(".." + sep) || rel.startsWith("../") || isAbsolute(rel)) return false;
+  if (
+    rel === "" ||
+    rel === ".." ||
+    rel.startsWith(".." + sep) ||
+    rel.startsWith("../") ||
+    isAbsolute(rel)
+  )
+    return false;
   return true;
 }
 
@@ -47,7 +65,14 @@ export function safeRelativePath(
   if (!userPath || userPath.trim().length === 0) return null;
   const resolved = resolve(cwd, userPath);
   const rel = relative(cwd, resolved);
-  if (rel === "" || rel === ".." || rel.startsWith(".." + sep) || rel.startsWith("../") || isAbsolute(rel)) return null;
+  if (
+    rel === "" ||
+    rel === ".." ||
+    rel.startsWith(".." + sep) ||
+    rel.startsWith("../") ||
+    isAbsolute(rel)
+  )
+    return null;
 
   // Walk segments — reject hidden entries at any depth
   if (!opts?.allowHidden) {
@@ -150,10 +175,7 @@ export interface TaskProfileLike {
  * Return a rejection reason string if `art` should be blocked,
  * or `null` if the artifact is allowed by policy.
  */
-export function disallowedArtifact(
-  art: ArtifactRecord,
-  profile?: TaskProfileLike,
-): string | null {
+export function disallowedArtifact(art: ArtifactRecord, profile?: TaskProfileLike): string | null {
   // Absolute paths are never safe for artifact writes
   if (isAbsolutePath(art.filePath)) {
     return `absolute path "${art.filePath}" is not allowed`;
@@ -299,11 +321,7 @@ export function writeArtifacts(
     // 9. Write policy — denyPaths
     if (profile?.writePolicy?.denyPaths) {
       const relPath = relative(cwd, fullPath);
-      if (
-        profile.writePolicy.denyPaths.some(
-          (d) => relPath === d || relPath.startsWith(d + "/"),
-        )
-      ) {
+      if (profile.writePolicy.denyPaths.some((d) => relPath === d || relPath.startsWith(d + "/"))) {
         results.push({
           filePath: art.filePath,
           bytes: 0,
@@ -333,11 +351,19 @@ export function writeArtifacts(
     // 10. Atomic write
     try {
       mkdirSync(dirname(fullPath), { recursive: true });
-      const tmpPath =
-        fullPath + ".tmp." + Date.now() + "." + randomBytes(4).toString("hex");
+      const tmpPath = fullPath + ".tmp." + Date.now() + "." + randomBytes(4).toString("hex");
       writeFileSyncRaw(tmpPath, art.content, "utf-8");
       // fsync for durability (important for daemon/bot)
-      try { const fd = openSync(tmpPath, "r"); try { fsyncSync(fd); } finally { closeSync(fd); } } catch { /* best-effort */ }
+      try {
+        const fd = openSync(tmpPath, "r");
+        try {
+          fsyncSync(fd);
+        } finally {
+          closeSync(fd);
+        }
+      } catch {
+        /* best-effort */
+      }
       renameSync(tmpPath, fullPath);
       results.push({
         filePath: relative(cwd, fullPath),

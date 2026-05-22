@@ -1,11 +1,13 @@
 # Runbook: Circuit Breaker Trip
 
 ## Symptom
+
 - Worker model calls fail repeatedly
 - Logs show `CircuitBreaker OPEN` or `half-open → open` transitions
 - Orchestrator returns errors after repeated timeouts
 
 ## Diagnosis
+
 1. Check provider API status:
    - OpenAI: https://status.openai.com
    - Anthropic: https://status.anthropic.com
@@ -19,6 +21,7 @@
    ```
 
 ## Resolution
+
 1. If provider is down: wait for recovery. Circuit breaker auto-resets after cooldown (default 30s).
 2. If API key expired: rotate key via Vault/AWS Secrets Manager, update the secret:
    ```bash
@@ -28,6 +31,7 @@
 3. If rate-limited: reduce `orchestrator.maxConcurrent` in Helm values.
 
 ## Prevention
+
 - Set up provider status monitoring alerts
 - Configure API key rotation automation
 - Use multiple provider fallbacks (OpenAI + Anthropic + Ollama)

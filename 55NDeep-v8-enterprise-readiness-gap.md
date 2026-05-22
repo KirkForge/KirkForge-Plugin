@@ -1,6 +1,6 @@
 # 55NDeep v8 — Enterprise Readiness Gap Analysis
 
-> **Purpose:** Be explicit about what is *missing* (or only partially implemented) for enterprise adoption.
+> **Purpose:** Be explicit about what is _missing_ (or only partially implemented) for enterprise adoption.
 >
 > 55NDeep is currently a strong **developer-preview** with solid CI/build hygiene, deterministic verification, and good deployment primitives (Docker/Helm/health/OTel). Enterprise readiness is mostly about **governance + isolation + auditability + operational guarantees**.
 
@@ -19,10 +19,10 @@ These are necessary but not sufficient.
 
 Think of enterprise adoption as passing four gates:
 
-1) **Identity & access control** — Who can do what?
-2) **Isolation & safety** — Can one tenant/user/task harm another or the platform?
-3) **Auditability & compliance** — Can you prove what happened and retain evidence?
-4) **Operational guarantees** — Can you run this reliably at scale with clear SLOs?
+1. **Identity & access control** — Who can do what?
+2. **Isolation & safety** — Can one tenant/user/task harm another or the platform?
+3. **Auditability & compliance** — Can you prove what happened and retain evidence?
+4. **Operational guarantees** — Can you run this reliably at scale with clear SLOs?
 
 ---
 
@@ -39,6 +39,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** Enterprises need centralized identity + least privilege.
 
 **Minimum viable path:**
+
 - OIDC bearer token validation for HTTP endpoints.
 - Role/permission mapping (groups → roles).
 - RBAC enforcement at command and tool invocation boundaries.
@@ -54,6 +55,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** Cross-tenant data leakage is a hard “no.”
 
 **Minimum viable path:**
+
 - Strong tenant ID propagation through every request / run.
 - Tenant-scoped storage namespaces (paths, DB rows, encryption keys).
 - Per-tenant quotas and rate limiting.
@@ -69,6 +71,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** Policy is how security teams approve agent systems.
 
 **Minimum viable path:**
+
 - Policy file / policy service with:
   - tool allowlists
   - workspace path allowlists
@@ -86,6 +89,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** Running untrusted code (even from internal devs) requires containment.
 
 **Minimum viable path:**
+
 - Optional sandbox runner abstraction.
 - Containerized execution with a locked-down runtime profile.
 - Network off by default; explicit allow rules.
@@ -103,6 +107,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** You need to answer “who did what, when, and why” months later.
 
 **Minimum viable path:**
+
 - Structured audit events with:
   - actor/tenant IDs
   - request IDs / trace IDs
@@ -121,6 +126,7 @@ Think of enterprise adoption as passing four gates:
 **Why it blocks enterprise:** HA + durability + operational confidence.
 
 **Minimum viable path:**
+
 - Make SQLite the default for daemon mode.
 - Add migrations + backup/restore docs.
 - Add integrity checks and repair tools.
@@ -136,6 +142,7 @@ Think of enterprise adoption as passing four gates:
   - audit trails for secret access
 
 **Minimum viable path:**
+
 - Document supported secret backends.
 - Add key rotation support (KMS-managed keys).
 - Add “secrets accessed” audit events.
@@ -148,6 +155,7 @@ Think of enterprise adoption as passing four gates:
 - No data classification policy for memory and logs.
 
 **Minimum viable path:**
+
 - Minimal governance docs:
   - data classification
   - incident response
@@ -165,6 +173,7 @@ Think of enterprise adoption as passing four gates:
   - no load testing methodology/results
 
 **Minimum viable path:**
+
 - Define SLOs for core endpoints.
 - Provide runbooks + dashboards.
 - Add load testing + regression gates.
@@ -173,35 +182,39 @@ Think of enterprise adoption as passing four gates:
 
 ## Risk register (top enterprise blockers)
 
-| Risk | Severity | Likelihood | Notes |
-|---|---:|---:|---|
-| Cross-tenant data leakage | Critical | Medium | Needs end-to-end tenant isolation proof |
-| No RBAC/SSO | Critical | High | Required by most orgs |
-| No policy engine | Critical | High | Needed for security review |
-| No sandboxing for any execution | High | Medium | Blocks safe expansion of capabilities |
-| No immutable audit trail | High | Medium | Compliance / forensics gap |
-| Non-default durable store | Medium | Medium | HA and reliability concerns |
+| Risk                            | Severity | Likelihood | Notes                                   |
+| ------------------------------- | -------: | ---------: | --------------------------------------- |
+| Cross-tenant data leakage       | Critical |     Medium | Needs end-to-end tenant isolation proof |
+| No RBAC/SSO                     | Critical |       High | Required by most orgs                   |
+| No policy engine                | Critical |       High | Needed for security review              |
+| No sandboxing for any execution |     High |     Medium | Blocks safe expansion of capabilities   |
+| No immutable audit trail        |     High |     Medium | Compliance / forensics gap              |
+| Non-default durable store       |   Medium |     Medium | HA and reliability concerns             |
 
 ---
 
 ## Suggested roadmap (pragmatic)
 
 **Phase A (2–4 weeks):** Governance basics
+
 - OIDC auth for HTTP endpoints
 - Simple RBAC model
 - Tenant scoping everywhere (IDs, storage namespaces)
 
 **Phase B (4–8 weeks):** Policy + audit
+
 - Policy engine v1 (tool/model allowlists)
 - Append-only audit log + retention
 - SIEM export adapter (basic)
 
 **Phase C (8–12 weeks):** Isolation + ops
+
 - Durable default store + migrations
 - Quotas/rate limiting per tenant
 - Runbooks + SLOs + load test harness
 
 **Phase D (later):** Sandbox execution
+
 - Container sandbox runner (locked-down)
 
 ---

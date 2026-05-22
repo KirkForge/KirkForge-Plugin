@@ -50,7 +50,8 @@ export interface TruthOutput {
  * This is the single entry point for verdict computation.
  */
 export function computeFinalVerdict(input: TruthInput): TruthOutput {
-  const { taskValidation, hasValidator, finalAction, packet, profile, actualMode, protocolBroken } = input;
+  const { taskValidation, hasValidator, finalAction, packet, profile, actualMode, protocolBroken } =
+    input;
 
   // Determine the effective source of truth
   const effectiveSourceOfTruth: SourceOfTruth = hasValidator ? "task-validator" : "verifier";
@@ -60,7 +61,8 @@ export function computeFinalVerdict(input: TruthInput): TruthOutput {
     return {
       finalVerdict: "fail",
       sourceOfTruth: effectiveSourceOfTruth,
-      reason: "protocol integrity broken (unterminated markers or truncated model output) — all artifact writes blocked",
+      reason:
+        "protocol integrity broken (unterminated markers or truncated model output) — all artifact writes blocked",
     };
   }
 
@@ -88,7 +90,8 @@ export function computeFinalVerdict(input: TruthInput): TruthOutput {
       return {
         finalVerdict: "unknown",
         sourceOfTruth: "verifier",
-        reason: "schema-contract validates structured output but does not persist files — pass cannot confirm code emission",
+        reason:
+          "schema-contract validates structured output but does not persist files — pass cannot confirm code emission",
       };
     }
     return {
@@ -121,7 +124,8 @@ export function finalVerdictFromVerifier(
   packet?: ReducedStatePacket,
 ): FinalVerdict {
   if (finalAction === "accept" && packet?.verification.overall === "pass") return "pass";
-  if (finalAction === "escalate" && (!packet || packet.verification.overall !== "fail")) return "unknown";
+  if (finalAction === "escalate" && (!packet || packet.verification.overall !== "fail"))
+    return "unknown";
   return "fail";
 }
 

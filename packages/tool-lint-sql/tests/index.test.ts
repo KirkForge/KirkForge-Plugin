@@ -9,7 +9,7 @@ const BASE = resolve(tmpdir(), "55ndeep-lint-sql-" + Date.now());
 let n = 0;
 
 async function s(files: Record<string, string>) {
-  const d = join(BASE, "t" + (++n));
+  const d = join(BASE, "t" + ++n);
   await mkdir(d, { recursive: true });
   for (const [name, content] of Object.entries(files)) {
     const fp = join(d, name);
@@ -19,7 +19,9 @@ async function s(files: Record<string, string>) {
   return d;
 }
 
-afterAll(async () => { await rm(BASE, { recursive: true, force: true }); });
+afterAll(async () => {
+  await rm(BASE, { recursive: true, force: true });
+});
 
 describe("tool-lint-sql", () => {
   it("detects SELECT * as inefficient", async () => {
@@ -28,7 +30,7 @@ describe("tool-lint-sql", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-select-star")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-select-star")).toBe(true);
   });
 
   it("detects DROP TABLE as critical", async () => {
@@ -38,7 +40,7 @@ describe("tool-lint-sql", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
     expect(r.value.status).toBe("fail");
-    expect(r.value.details.some(x => x.rule === "no-drop-table")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-drop-table")).toBe(true);
   });
 
   it("detects DELETE without WHERE", async () => {
@@ -47,7 +49,7 @@ describe("tool-lint-sql", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-unsafe-delete")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-unsafe-delete")).toBe(true);
   });
 
   it("detects TRUNCATE as critical", async () => {
@@ -56,7 +58,7 @@ describe("tool-lint-sql", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-truncate")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-truncate")).toBe(true);
   });
 
   it("detects implicit join syntax", async () => {
@@ -66,7 +68,7 @@ describe("tool-lint-sql", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-implicit-join")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-implicit-join")).toBe(true);
   });
 
   it("detects SQL injection via string concatenation", async () => {
@@ -76,11 +78,13 @@ describe("tool-lint-sql", () => {
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error();
-    expect(r.value.details.some(x => x.rule === "no-dynamic-injection")).toBe(true);
+    expect(r.value.details.some((x) => x.rule === "no-dynamic-injection")).toBe(true);
   });
 
   it("passes clean SQL", async () => {
-    const d = await s({ "good.sql": "SELECT id, name, email FROM users WHERE active = 1 ORDER BY name;\n" });
+    const d = await s({
+      "good.sql": "SELECT id, name, email FROM users WHERE active = 1 ORDER BY name;\n",
+    });
     const engine = createSqlLintEngine({ cwd: d });
     const r = await engine.emit("t");
     expect(r.ok).toBe(true);

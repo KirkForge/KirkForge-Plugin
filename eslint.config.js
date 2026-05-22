@@ -1,7 +1,8 @@
 import tsParser from "@typescript-eslint/parser";
+import tseslint from "typescript-eslint";
 import globals from "globals";
 
-export default [
+export default tseslint.config(
   {
     ignores: [
       "**/node_modules/**",
@@ -13,6 +14,7 @@ export default [
       "package-lock.json",
     ],
   },
+  ...tseslint.configs.recommended,
   {
     files: ["packages/**/*.ts", "apps/**/*.ts", "bench/**/*.mjs"],
     languageOptions: {
@@ -30,6 +32,15 @@ export default [
       "no-undef": "off",
       "no-empty": "off",
       "no-console": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
-];
+);

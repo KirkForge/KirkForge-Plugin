@@ -90,16 +90,92 @@ function tokenize(text: string): string[] {
 }
 
 const STOP_WORDS = new Set([
-  "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-  "have", "has", "had", "do", "does", "did", "will", "would", "could",
-  "should", "may", "might", "can", "shall", "to", "of", "in", "for",
-  "on", "with", "at", "by", "from", "as", "into", "through", "during",
-  "before", "after", "above", "below", "between", "out", "off", "over",
-  "under", "again", "further", "then", "once", "here", "there", "when",
-  "where", "why", "how", "all", "both", "each", "few", "more", "most",
-  "other", "some", "such", "no", "nor", "not", "only", "own", "same",
-  "so", "than", "too", "very", "just", "about", "and", "but", "or",
-  "it", "its", "this", "that", "these", "those",
+  "the",
+  "a",
+  "an",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "shall",
+  "to",
+  "of",
+  "in",
+  "for",
+  "on",
+  "with",
+  "at",
+  "by",
+  "from",
+  "as",
+  "into",
+  "through",
+  "during",
+  "before",
+  "after",
+  "above",
+  "below",
+  "between",
+  "out",
+  "off",
+  "over",
+  "under",
+  "again",
+  "further",
+  "then",
+  "once",
+  "here",
+  "there",
+  "when",
+  "where",
+  "why",
+  "how",
+  "all",
+  "both",
+  "each",
+  "few",
+  "more",
+  "most",
+  "other",
+  "some",
+  "such",
+  "no",
+  "nor",
+  "not",
+  "only",
+  "own",
+  "same",
+  "so",
+  "than",
+  "too",
+  "very",
+  "just",
+  "about",
+  "and",
+  "but",
+  "or",
+  "it",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
 ]);
 
 // ── TF-IDF vectorizer ──────────────────────────────────────────────────────
@@ -229,13 +305,16 @@ export interface NlpResult {
  * Classify a task description using TF-IDF + cosine similarity against
  * archetype centroids. Returns the best mode with confidence score.
  */
-export function classifyNlp(description: string, classifierMemory?: ClassifierMemory | null): NlpResult {
+export function classifyNlp(
+  description: string,
+  classifierMemory?: ClassifierMemory | null,
+): NlpResult {
   const model = getModel(classifierMemory);
   const tokens = tokenize(description);
   const vec = vectorize(tokens, model.vocabulary, model.idf);
 
   const scores: Record<DelegationMode, number> = {
-    "artifact": 0,
+    artifact: 0,
     "schema-contract": 0,
     "hard-prompt": 0,
     "task-decompose": 0,
@@ -266,10 +345,14 @@ export function classifyNlp(description: string, classifierMemory?: ClassifierMe
  * Hybrid classifier: uses regex for clear cases, falls back to NLP
  * for ambiguous inputs. Returns mode + confidence.
  */
-export function classifyHybrid(description: string, classifierMemory?: ClassifierMemory | null): { mode: DelegationMode; confidence: number } {
+export function classifyHybrid(
+  description: string,
+  classifierMemory?: ClassifierMemory | null,
+): { mode: DelegationMode; confidence: number } {
   // Quick regex check — if strongly artifact, use it
   const lower = description.toLowerCase();
-  const strongArtifact = /\b(?:generate|create|write|build|make)\s+(?:a\s+)?(?:\w+\s+)?(?:file|component|module|service|class|server|app|script)\b/i;
+  const strongArtifact =
+    /\b(?:generate|create|write|build|make)\s+(?:a\s+)?(?:\w+\s+)?(?:file|component|module|service|class|server|app|script)\b/i;
   const strongAudit = /\b(?:audit|assess|evaluate|validate|verify)\b/i;
   const strongFix = /\b(?:fix|repair|refactor|debug|patch)\b/i;
 

@@ -9,11 +9,21 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
   // AWS-style keys
   { pattern: /\b(AKIA[0-9A-Z]{16})\b/g, replacement: "AKIA***REDACTED***" },
   // Generic key=value secrets
-  { pattern: /(api_key|apikey|api-key|secret|password|token)\s*[:=]\s*[^\s,}"]+/gi, replacement: "$1=***REDACTED***" },
+  {
+    pattern: /(api_key|apikey|api-key|secret|password|token)\s*[:=]\s*[^\s,}"]+/gi,
+    replacement: "$1=***REDACTED***",
+  },
   // JWT tokens
-  { pattern: /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/g, replacement: "***JWT-REDACTED***" },
+  {
+    pattern: /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/g,
+    replacement: "***JWT-REDACTED***",
+  },
   // Private key headers
-  { pattern: /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/g, replacement: "***PRIVATE-KEY-REDACTED***" },
+  {
+    pattern:
+      /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/g,
+    replacement: "***PRIVATE-KEY-REDACTED***",
+  },
 ];
 
 /**

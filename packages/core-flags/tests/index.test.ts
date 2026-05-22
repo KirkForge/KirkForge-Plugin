@@ -65,8 +65,8 @@ describe("core-flags", () => {
 
   it("getFlagsByStage filters correctly", () => {
     const ga = getFlagsByStage("ga");
-    expect(ga.every(f => f.stage === "ga")).toBe(true);
+    expect(ga.every((f) => f.stage === "ga")).toBe(true);
     const beta = getFlagsByStage("beta");
-    expect(beta.every(f => f.stage === "beta")).toBe(true);
+    expect(beta.every((f) => f.stage === "beta")).toBe(true);
   });
 });

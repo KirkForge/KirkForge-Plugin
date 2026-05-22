@@ -45,7 +45,7 @@ export function extractWrittenFiles(result: DelegationResult): string[] {
     if (sig.kind === "files.written" || sig.kind === "artifact.emitted") {
       const v = sig.value as { files?: Array<string | { path: string }>; filesWritten?: number };
       if (Array.isArray(v.files)) {
-        return v.files.map(f => typeof f === "string" ? f : f.path).filter(Boolean);
+        return v.files.map((f) => (typeof f === "string" ? f : f.path)).filter(Boolean);
       }
     }
   }

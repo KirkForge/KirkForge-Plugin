@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ModelClient } from "../src/model-client.js";
 import { ModelClientError } from "../src/model-client-error.js";
-import type { ChatMessage } from "../src/types.js";
 
 function makeClient(overrides: Record<string, unknown> = {}) {
   return new ModelClient({

@@ -1,14 +1,22 @@
 import type { Result } from "@55ndeep/core-types";
 import { ok, err } from "@55ndeep/core-types";
 import { EventBus } from "@55ndeep/core-events";
-import { StateReducer, createVerificationEmitters, detectTaskProfile, profileForLanguage } from "@55ndeep/orchestrator";
+import {
+  StateReducer,
+  createVerificationEmitters,
+  detectTaskProfile,
+  profileForLanguage,
+} from "@55ndeep/orchestrator";
 import type { ReducedStatePacket, TaskLanguage, VerifierPolicy } from "@55ndeep/correction-core";
-import { buildCorrectionPrompt as correctionBuildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
-import type { MemoryStore, RoutingBias, TaskObservationInput as PalaceTaskObservationInput } from "@55ndeep/memory-palace";
+import { buildCorrectionPrompt as correctionBuildCorrectionPrompt } from "@55ndeep/correction-core";
+import type {
+  MemoryStore,
+  RoutingBias,
+  TaskObservationInput as PalaceTaskObservationInput,
+} from "@55ndeep/memory-palace";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { safeRelativePath } from "@55ndeep/orchestrator/path-safety.js";
 
 const execFileAsync = promisify(execFile);
@@ -73,7 +81,18 @@ export interface PluginCoreConfig {
 function normalizeLanguage(language?: string): TaskLanguage {
   if (!language) return "typescript";
   const normalized = language.toLowerCase();
-  const valid = ["typescript", "javascript", "python", "shell", "cpp", "c", "rust", "go", "sql", "text"];
+  const valid = [
+    "typescript",
+    "javascript",
+    "python",
+    "shell",
+    "cpp",
+    "c",
+    "rust",
+    "go",
+    "sql",
+    "text",
+  ];
   if (valid.includes(normalized)) {
     return normalized as TaskLanguage;
   }
@@ -81,7 +100,10 @@ function normalizeLanguage(language?: string): TaskLanguage {
   throw new Error(`Unknown language: "${language}". Valid: ${valid.join(", ")}`);
 }
 
-export function buildCorrectionPrompt(packet: ReducedStatePacket, context?: CorrectionContext): string {
+export function buildCorrectionPrompt(
+  packet: ReducedStatePacket,
+  context?: CorrectionContext,
+): string {
   let language: TaskLanguage | undefined;
   try {
     language = normalizeLanguage(context?.language);
@@ -95,7 +117,9 @@ function defaultTaskId(): string {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export async function verifyWorkspace(input: VerifyWorkspaceInput): Promise<Result<ReducedStatePacket, Error>> {
+export async function verifyWorkspace(
+  input: VerifyWorkspaceInput,
+): Promise<Result<ReducedStatePacket, Error>> {
   const cwd = input.workspace;
   if (!existsSync(cwd)) {
     return err(new Error(`Workspace directory does not exist: ${cwd}`));
@@ -108,7 +132,11 @@ export async function verifyWorkspace(input: VerifyWorkspaceInput): Promise<Resu
       ? profileForLanguage(normalizeLanguage(input.language))
       : detectTaskProfile(input.description ?? "verify workspace");
   } catch (e) {
-    return err(new Error(`Unsupported language: ${input.language}. ${e instanceof Error ? e.message : String(e)}`));
+    return err(
+      new Error(
+        `Unsupported language: ${input.language}. ${e instanceof Error ? e.message : String(e)}`,
+      ),
+    );
   }
   const effectiveLanguage = profile.language;
   const policy: VerifierPolicy = profile.verifierPolicy;
@@ -116,10 +144,14 @@ export async function verifyWorkspace(input: VerifyWorkspaceInput): Promise<Resu
   if (input.files) {
     const originalCount = input.files.length;
     const sanitized = input.files
-      .map(f => safeRelativePath(cwd, f))
+      .map((f) => safeRelativePath(cwd, f))
       .filter((f): f is string => f !== null);
     if (sanitized.length < originalCount) {
-      return err(new Error(`verifyWorkspace: ${originalCount - sanitized.length} file(s) rejected by path safety check (outside workspace or unsafe)`));
+      return err(
+        new Error(
+          `verifyWorkspace: ${originalCount - sanitized.length} file(s) rejected by path safety check (outside workspace or unsafe)`,
+        ),
+      );
     }
     input = { ...input, files: sanitized };
   }
@@ -147,15 +179,20 @@ export async function verifyWorkspace(input: VerifyWorkspaceInput): Promise<Resu
   }
 }
 
-export async function recordObservation(observation: TaskObservation, memoryStore?: MemoryStore): Promise<Result<void, Error>> {
+export async function recordObservation(
+  observation: TaskObservation,
+  memoryStore?: MemoryStore,
+): Promise<Result<void, Error>> {
   if (!memoryStore) {
-    return err(new Error("recordObservation requires a MemoryStore instance. Pass one via PluginCoreConfig.memoryStore."));
+    return err(
+      new Error(
+        "recordObservation requires a MemoryStore instance. Pass one via PluginCoreConfig.memoryStore.",
+      ),
+    );
   }
 
-  const palaceOutcome: "pass" | "fail" | "error" = 
-    observation.outcome === "pass" ? "pass" :
-    observation.outcome === "fail" ? "fail" :
-    "error";
+  const palaceOutcome: "pass" | "fail" | "error" =
+    observation.outcome === "pass" ? "pass" : observation.outcome === "fail" ? "fail" : "error";
 
   const palaceInput: PalaceTaskObservationInput = {
     taskId: observation.taskId,
@@ -179,7 +216,11 @@ export async function recallRoutingBias(
   memoryStore?: MemoryStore,
 ): Promise<Result<RoutingBias | null, Error>> {
   if (!memoryStore) {
-    return err(new Error("recallRoutingBias requires a MemoryStore instance. Pass one via PluginCoreConfig.memoryStore."));
+    return err(
+      new Error(
+        "recallRoutingBias requires a MemoryStore instance. Pass one via PluginCoreConfig.memoryStore.",
+      ),
+    );
   }
 
   const result = await memoryStore.recall(taskDescription, workerModel);
@@ -213,17 +254,38 @@ export async function doctor(): Promise<ToolCapabilityReport> {
     probeTool("git", ["--version"]),
   ]);
 
-  const secdev: ToolCapability = { available: true, source: "internal", note: "Regex-based security scanner (not a substitute for shellcheck/pylint/bandit on non-JS/TS). Advisory for C/C++/Go/Rust/SQL." };
-  const gitnexus: ToolCapability = { available: git.available, source: "internal", note: git.available ? "Uses git for change tracking" : "git not found — change tracking unavailable without git repo" };
-  const graphify: ToolCapability = { available: true, source: "internal", note: "Static import graph for TS/JS only; advisory/absent for other languages" };
+  const secdev: ToolCapability = {
+    available: true,
+    source: "internal",
+    note: "Regex-based security scanner (not a substitute for shellcheck/pylint/bandit on non-JS/TS). Advisory for C/C++/Go/Rust/SQL.",
+  };
+  const gitnexus: ToolCapability = {
+    available: git.available,
+    source: "internal",
+    note: git.available
+      ? "Uses git for change tracking"
+      : "git not found — change tracking unavailable without git repo",
+  };
+  const graphify: ToolCapability = {
+    available: true,
+    source: "internal",
+    note: "Static import graph for TS/JS only; advisory/absent for other languages",
+  };
 
   const hasTsTool = eslint.available || tsc.available;
   const hasPyTool = ruff.available || pyright.available;
-  const hasGit = git.available;
+  const _hasGit = git.available;
   const languages: string[] = [];
   if (hasTsTool) languages.push("typescript", "javascript");
   if (hasPyTool) languages.push("python");
-  languages.push("shell (advisory only)", "cpp (validator required)", "c (validator required)", "rust (validator required)", "go (validator required)", "sql (validator required)");
+  languages.push(
+    "shell (advisory only)",
+    "cpp (validator required)",
+    "c (validator required)",
+    "rust (validator required)",
+    "go (validator required)",
+    "sql (validator required)",
+  );
   if (languages.length === 0) languages.push("unknown");
 
   return { eslint, tsc, ruff, pyright, bandit, secdev, gitnexus, graphify, languages };
@@ -234,8 +296,10 @@ export function createPluginCore(config?: PluginCoreConfig) {
   return {
     verifyWorkspace,
     buildCorrectionPrompt,
-    recordObservation: (observation: TaskObservation) => recordObservation(observation, memoryStore),
-    recallRoutingBias: (taskDescription: string, workerModel?: string) => recallRoutingBias(taskDescription, workerModel, memoryStore),
+    recordObservation: (observation: TaskObservation) =>
+      recordObservation(observation, memoryStore),
+    recallRoutingBias: (taskDescription: string, workerModel?: string) =>
+      recallRoutingBias(taskDescription, workerModel, memoryStore),
     doctor,
   };
 }

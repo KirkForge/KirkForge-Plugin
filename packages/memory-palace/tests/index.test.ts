@@ -7,15 +7,39 @@ import { join } from "node:path";
 describe("MemoryStore", () => {
   it("writes and reads objects", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
-    await store.adapter.write({ id: "test-1", kind: "task-observation", taskId: "t1", timestamp: "now", description: "build a thing", properties: { mode: "hard-prompt", score: 25 }, tags: ["task"] });
+    await store.adapter.write({
+      id: "test-1",
+      kind: "task-observation",
+      taskId: "t1",
+      timestamp: "now",
+      description: "build a thing",
+      properties: { mode: "hard-prompt", score: 25 },
+      tags: ["task"],
+    });
     const read = await store.adapter.read("test-1");
     expect(read.ok && read.value?.id).toBe("test-1");
   });
 
   it("queries by kind", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
-    await store.adapter.write({ id: "a", kind: "task-observation", taskId: "t1", timestamp: "now", description: "x", properties: {}, tags: [] });
-    await store.adapter.write({ id: "b", kind: "benchmark.run", taskId: "t2", timestamp: "now", description: "y", properties: {}, tags: [] });
+    await store.adapter.write({
+      id: "a",
+      kind: "task-observation",
+      taskId: "t1",
+      timestamp: "now",
+      description: "x",
+      properties: {},
+      tags: [],
+    });
+    await store.adapter.write({
+      id: "b",
+      kind: "benchmark.run",
+      taskId: "t2",
+      timestamp: "now",
+      description: "y",
+      properties: {},
+      tags: [],
+    });
     const result = await store.adapter.query({ kind: "task-observation" });
     expect(result.ok && result.value).toHaveLength(1);
   });
@@ -23,16 +47,31 @@ describe("MemoryStore", () => {
   it("recall returns recommendations with confidence", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
     await store.writeTaskObservation({
-      taskId: "t1", description: "build a component", language: "typescript",
-      mode: "schema-contract", model: "gpt-4", tokens: 500, durationMs: 100,
+      taskId: "t1",
+      description: "build a component",
+      language: "typescript",
+      mode: "schema-contract",
+      model: "gpt-4",
+      tokens: 500,
+      durationMs: 100,
     });
     await store.writeTaskObservation({
-      taskId: "t2", description: "build a component", language: "typescript",
-      mode: "schema-contract", model: "gpt-4", tokens: 480, durationMs: 90,
+      taskId: "t2",
+      description: "build a component",
+      language: "typescript",
+      mode: "schema-contract",
+      model: "gpt-4",
+      tokens: 480,
+      durationMs: 90,
     });
     await store.writeTaskObservation({
-      taskId: "t3", description: "build a component", language: "typescript",
-      mode: "hard-prompt", model: "gpt-4", tokens: 800, durationMs: 200,
+      taskId: "t3",
+      description: "build a component",
+      language: "typescript",
+      mode: "hard-prompt",
+      model: "gpt-4",
+      tokens: 800,
+      durationMs: 200,
     });
     const rec = await store.recall("build a component");
     expect(rec.ok).toBe(true);
@@ -75,7 +114,15 @@ describe("MemoryStore", () => {
 
   it("stats returns count", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
-    await store.adapter.write({ id: "s1", kind: "task-observation", taskId: "t1", timestamp: "now", description: "x", properties: {}, tags: [] });
+    await store.adapter.write({
+      id: "s1",
+      kind: "task-observation",
+      taskId: "t1",
+      timestamp: "now",
+      description: "x",
+      properties: {},
+      tags: [],
+    });
     const stats = await store.adapter.stats();
     expect(stats.ok && stats.value.totalObjects).toBe(1);
   });
@@ -86,8 +133,14 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t1", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      taskPass: true, tokens: 100, durationMs: 1000,
+      taskId: "t1",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      taskPass: true,
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("pass");
@@ -97,8 +150,14 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t2", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      taskPass: false, tokens: 100, durationMs: 1000,
+      taskId: "t2",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      taskPass: false,
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("fail");
@@ -108,8 +167,15 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t3", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      finalAction: "accept", verifierOverall: "pass", tokens: 100, durationMs: 1000,
+      taskId: "t3",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      finalAction: "accept",
+      verifierOverall: "pass",
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("error");
@@ -119,8 +185,15 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t4", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      finalAction: "escalate", verifierOverall: "fail", tokens: 100, durationMs: 1000,
+      taskId: "t4",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      finalAction: "escalate",
+      verifierOverall: "fail",
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("error");
@@ -130,8 +203,15 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t5", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      taskPass: false, outcome: "pass", tokens: 100, durationMs: 1000,
+      taskId: "t5",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      taskPass: false,
+      outcome: "pass",
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("pass");
@@ -141,8 +221,15 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t6", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      taskPass: true, outcome: "fail", tokens: 100, durationMs: 1000,
+      taskId: "t6",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      taskPass: true,
+      outcome: "fail",
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.outcome).toBe("fail");
@@ -152,8 +239,15 @@ describe("inferOutcome (writeTaskObservation)", () => {
     const adapter = new InMemoryAdapter();
     const store = new MemoryStore(adapter);
     await store.writeTaskObservation({
-      taskId: "t7", description: "test", language: "typescript", mode: "artifact", model: "gpt-4",
-      finalAction: "accept", verifierOverall: "pass", tokens: 100, durationMs: 1000,
+      taskId: "t7",
+      description: "test",
+      language: "typescript",
+      mode: "artifact",
+      model: "gpt-4",
+      finalAction: "accept",
+      verifierOverall: "pass",
+      tokens: 100,
+      durationMs: 1000,
     });
     const obs = await adapter.query({ kind: "task-observation", limit: 1 });
     expect(obs.ok && obs.value[0]!.properties.reason).toBe("task outcome unknown");
@@ -166,7 +260,15 @@ describe("FileAdapter", () => {
     const filePath = join(dir, "memory.json");
     try {
       const a1 = new FileAdapter(filePath);
-      await a1.write({ id: "p1", kind: "task-observation", taskId: "t1", timestamp: "now", description: "build a thing", properties: { score: 25 }, tags: [] });
+      await a1.write({
+        id: "p1",
+        kind: "task-observation",
+        taskId: "t1",
+        timestamp: "now",
+        description: "build a thing",
+        properties: { score: 25 },
+        tags: [],
+      });
       await (a1 as any).flush();
 
       const a2 = new FileAdapter(filePath);
@@ -191,7 +293,15 @@ describe("FileAdapter corruption safety", () => {
     try {
       writeFileSync(filePath, "NOT VALID JSON {{{{");
       const adapter = new FileAdapter(filePath);
-      const result = await adapter.write({ id: "x", kind: "test", taskId: "t1", timestamp: "now", description: "test", properties: {}, tags: [] });
+      const result = await adapter.write({
+        id: "x",
+        kind: "test",
+        taskId: "t1",
+        timestamp: "now",
+        description: "test",
+        properties: {},
+        tags: [],
+      });
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.message).toContain("corrupted");
@@ -210,7 +320,15 @@ describe("FileAdapter corruption safety", () => {
     try {
       writeFileSync(filePath, '{"key": "value"}');
       const adapter = new FileAdapter(filePath);
-      const result = await adapter.write({ id: "x", kind: "test", taskId: "t1", timestamp: "now", description: "test", properties: {}, tags: [] });
+      const result = await adapter.write({
+        id: "x",
+        kind: "test",
+        taskId: "t1",
+        timestamp: "now",
+        description: "test",
+        properties: {},
+        tags: [],
+      });
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.message).toContain("corrupted");
@@ -225,7 +343,15 @@ describe("FileAdapter corruption safety", () => {
     const filePath = join(dir, "memory.json");
     try {
       const adapter = new FileAdapter(filePath);
-      const obj = { id: "w1", kind: "task-observation", taskId: "t1", timestamp: "2025-01-01T00:00:00.000Z", description: "build a thing", properties: { mode: "artifact", score: 42 }, tags: ["task"] };
+      const obj = {
+        id: "w1",
+        kind: "task-observation",
+        taskId: "t1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        description: "build a thing",
+        properties: { mode: "artifact", score: 42 },
+        tags: ["task"],
+      };
       await adapter.write(obj);
       await adapter.persist();
       const raw = readFileSync(filePath, "utf-8");
@@ -241,10 +367,34 @@ describe("FileAdapter corruption safety", () => {
 
   it("recall limit prefers newest records", async () => {
     const adapter = new InMemoryAdapter();
-    const store = new MemoryStore(adapter);
-    await adapter.write({ id: "old", kind: "task-observation", taskId: "t1", timestamp: "2024-01-01T00:00:00.000Z", description: "old task", properties: { mode: "hard-prompt" }, tags: ["task-observation"] });
-    await adapter.write({ id: "mid", kind: "task-observation", taskId: "t2", timestamp: "2024-06-15T00:00:00.000Z", description: "mid task", properties: { mode: "artifact" }, tags: ["task-observation"] });
-    await adapter.write({ id: "new", kind: "task-observation", taskId: "t3", timestamp: "2025-01-01T00:00:00.000Z", description: "new task", properties: { mode: "schema-contract" }, tags: ["task-observation"] });
+    const _store = new MemoryStore(adapter);
+    await adapter.write({
+      id: "old",
+      kind: "task-observation",
+      taskId: "t1",
+      timestamp: "2024-01-01T00:00:00.000Z",
+      description: "old task",
+      properties: { mode: "hard-prompt" },
+      tags: ["task-observation"],
+    });
+    await adapter.write({
+      id: "mid",
+      kind: "task-observation",
+      taskId: "t2",
+      timestamp: "2024-06-15T00:00:00.000Z",
+      description: "mid task",
+      properties: { mode: "artifact" },
+      tags: ["task-observation"],
+    });
+    await adapter.write({
+      id: "new",
+      kind: "task-observation",
+      taskId: "t3",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      description: "new task",
+      properties: { mode: "schema-contract" },
+      tags: ["task-observation"],
+    });
     const result = await adapter.query({ kind: "task-observation", limit: 2 });
     expect(result.ok).toBe(true);
     expect(result.value).toHaveLength(2);
@@ -259,7 +409,17 @@ describe("FileAdapter corruption safety", () => {
       const adapter = new FileAdapter(filePath);
       const writes = [];
       for (let i = 0; i < 5; i++) {
-        writes.push(adapter.write({ id: `c${i}`, kind: "task-observation", taskId: `t${i}`, timestamp: `2025-01-0${i + 1}T00:00:00.000Z`, description: `concurrent ${i}`, properties: { index: i }, tags: [] }));
+        writes.push(
+          adapter.write({
+            id: `c${i}`,
+            kind: "task-observation",
+            taskId: `t${i}`,
+            timestamp: `2025-01-0${i + 1}T00:00:00.000Z`,
+            description: `concurrent ${i}`,
+            properties: { index: i },
+            tags: [],
+          }),
+        );
       }
       await Promise.all(writes);
       await adapter.persist();
@@ -276,8 +436,24 @@ describe("MemoryStore decomposition", () => {
   it("writes and recalls a decomposition by taskId", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
     const tasks = [
-      { id: "setup", description: "Init project", language: "typescript", dependsOn: [] as string[], estimatedComplexity: "simple" as const, outputFiles: ["package.json"], verificationHint: "npm test" },
-      { id: "build", description: "Build app", language: "typescript", dependsOn: ["setup"], estimatedComplexity: "moderate" as const, outputFiles: ["src/app.ts"], verificationHint: "tsc passes" },
+      {
+        id: "setup",
+        description: "Init project",
+        language: "typescript",
+        dependsOn: [] as string[],
+        estimatedComplexity: "simple" as const,
+        outputFiles: ["package.json"],
+        verificationHint: "npm test",
+      },
+      {
+        id: "build",
+        description: "Build app",
+        language: "typescript",
+        dependsOn: ["setup"],
+        estimatedComplexity: "moderate" as const,
+        outputFiles: ["src/app.ts"],
+        verificationHint: "tsc passes",
+      },
     ];
     await store.writeDecomposition("task-123", "Build a full-stack app", tasks, "typescript");
 

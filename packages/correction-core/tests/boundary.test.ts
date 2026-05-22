@@ -64,8 +64,12 @@ describe("correction-core package boundary", () => {
     const files = collectSourceFiles(join(PKG, "src"));
     for (const file of files) {
       const content = readFileSync(file, "utf-8");
-      expect(content, `${file} requires @55ndeep/plugin`).not.toContain('require("@55ndeep/plugin")');
-      expect(content, `${file} requires @55ndeep/orchestrator`).not.toContain('require("@55ndeep/orchestrator")');
+      expect(content, `${file} requires @55ndeep/plugin`).not.toContain(
+        'require("@55ndeep/plugin")',
+      );
+      expect(content, `${file} requires @55ndeep/orchestrator`).not.toContain(
+        'require("@55ndeep/orchestrator")',
+      );
     }
   });
 

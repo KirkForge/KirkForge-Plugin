@@ -1,7 +1,9 @@
 # 55NDeep — State Snapshot
+
 ## 2026-05-20 (v8.4, all 3 lint phases complete + decompose/execute engine)
 
 ### Build & Test
+
 - `tsc --build`: **clean** (0 errors)
 - ESLint: **clean** (0 errors, 0 warnings, --max-warnings 0)
 - `tsc --noEmit`: **clean**
@@ -10,6 +12,7 @@
 - 29 packages, all importable at runtime
 
 ### Paths
+
 - Repo: `55NDeep-plugin`
 - Published: `https://github.com/KirkForge/55NDeep-plugin`
 - Bug audit: included in repo history
@@ -19,10 +22,12 @@
 ## v8 — Transactional memory, protocol hardening, deployment hygiene
 
 ### Memory correctness
+
 - **SqliteAdapter**: `writeRunAndEmissions()` with `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` — run + emissions are atomic for SQLite-backed stores.
 - **FileAdapter**: Cross-process lock added around `flush()`. Note: concurrent processes that both load stale in-memory state before flushing can still lose each other's writes (read-modify-write across processes is not fully atomic). Sufficient for single-process daemon use; concurrent CLI automation should use SqliteAdapter.
 
 ### Protocol tightening
+
 - **JSONL base64**: Validated against canonical regex before decoding.
 - **JSONL unknown types**: Unrecognized `type` fields trigger `strictTermination = false`.
 - **JSONL non-JSONL chatter**: Non-empty lines that don't start with `{` now break strict mode.
@@ -30,12 +35,14 @@
 - **writeArtifacts()**: Policy checks (overwrite, denyPaths) run before reading `beforeHash`. Read failures produce structured blocked results.
 
 ### Profile & config accuracy
+
 - **Shell profile**: `checkCommand` corrected to `"bash -n"` (matches `structuredCheck`; ShellCheck is not part of the built-in check).
 - **Vault KV v2**: Path segments encoded individually, preserving `/` separators.
 - **ConfigService.getPath()**: Uses `relative()` for cross-platform workspace containment.
 - **ModelClient circuit breaker**: Disambiguates same-type providers (OpenAI vs OpenRouter vs Ollama) by including baseUrl host.
 
 ### Deployment
+
 - **Dockerfile**: Added `core-secrets` and `core-tenancy` manifest COPY entries. CMD is `serve` — container runs as daemon.
 - **docker-compose**: `command: ["serve"]` — container stays alive.
 - **Helm**: `configmap.yaml` added; `deployment.yaml` checksum annotation resolves correctly.
@@ -44,10 +51,10 @@
 
 ---
 
-
 ## v8.3 — Task decomposition, execution engine, enterprise hardening (2026-05-20)
 
 ### Decomposition & execution
+
 - **`decompose` CLI**: Breaks complex tasks into dependency-ordered subtrees using a dedicated planning model. Outputs topologically sorted nodes with complexity estimates and token projections.
 - **`--execute` flag**: Chains decompose → execute in one command. Prints per-subtask ✓/✗ status, tokens, duration, and output files.
 - **`recall-decomposition` CLI**: Recalls stored decompositions for inspection.
@@ -56,6 +63,7 @@
 - **Per-subtask timeout**: 5-minute hard limit via `Promise.race`.
 
 ### Enterprise hardening
+
 - **Defensive topological re-sort**: Execution engine re-sorts stored tasks, catching corrupted or hand-edited memory stores. Cycle detection surfaces invalid dependency graphs.
 - **Zod validation at parse time**: `_parseDecomposition` validates against `DECOMPOSE_TEMPLATE.responseSchema` (same schema the model sees). Manual coercion fallback for rough model output.
 - **Safe packet access**: Replaced `result.value.packet!` with optional chaining — no non-null assertions in delegate result handling.
@@ -66,11 +74,13 @@
 ## v5–v7 — Infrastructure wiring & 25+ bug fixes
 
 ### Infrastructure now wired
+
 - **Secrets** — Chained: Vault → AWS (SigV4-signed, pure Node.js crypto) → GCP (JWT) → env. API keys resolved through secrets chain before model config is built.
 - **Telemetry** — OpenTelemetry SDK activates when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Traces/metrics exported via OTLP.
 - **SLO** — Burn-rate report surfaced in `health` CLI command and `/metrics` endpoint.
 
 ### Major bug fixes
+
 - Empty-emission produces actionable correction prompt
 - validator-contract tests use production truth-model (error → unknown)
 - walkFiles deduplicated into shared `@55ndeep/core-logging`
@@ -105,13 +115,15 @@
 ---
 
 ## Deployment
-| Method | Command |
-|--------|---------|
-| Docker | `docker build -t 55ndeep . && docker run -p 9090:9090 55ndeep` |
-| Docker Compose | `docker-compose up -d` |
-| Kubernetes | `helm install 55ndeep ./deploy/helm/55ndeep` |
+
+| Method         | Command                                                        |
+| -------------- | -------------------------------------------------------------- |
+| Docker         | `docker build -t 55ndeep . && docker run -p 9090:9090 55ndeep` |
+| Docker Compose | `docker-compose up -d`                                         |
+| Kubernetes     | `helm install 55ndeep ./deploy/helm/55ndeep`                   |
 
 ## Health
+
 - CLI: `55ndeep health` — status, event bus stats, memory, SLO burn-rate report
 - Daemon: `GET /healthz` · `GET /readyz` · `GET /metrics` (JSON stats; for Prometheus use the OTel OTLP pipeline)
 - Auth: `Authorization: Bearer <HEALTH_API_KEY>`
@@ -123,6 +135,7 @@
 All bugs from the v8 consolidation audit are now fixed. Bug consolidation details are tracked in the repository changelog.
 
 **Remaining hardening notes (non-blocking, future work):**
+
 - Validator baseline copies the working directory via `_ensureBaselineSnapshot()`. Clean external snapshot + emission overlay would be architecturally ideal.
 - FileAdapter remains best-effort single-process — use SqliteAdapter for multi-process durability.
 - `/metrics` endpoint returns JSON (not Prometheus scrape format) — documented; use OTel OTLP pipeline for Prometheus.
@@ -134,8 +147,9 @@ All bugs from the v8 consolidation audit are now fixed. Bug consolidation detail
 ## Stats
 
 ## Stats
+
 - Packages: 29 (24 core + 1 app)
-- Test files: 36 
+- Test files: 36
 - Runtime dependencies: 11 packages
 - Total install: ~420 packages
 - Production code: ~8,500 lines

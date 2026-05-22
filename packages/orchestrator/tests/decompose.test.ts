@@ -8,12 +8,21 @@ import type { TaskNode, EstimatedComplexity } from "@55ndeep/core-types";
 function makeOrchestrator() {
   // Lightweight partial mock — we only need the private parser methods
   class MockOrchestrator {
-    _parseDecomposition(raw: string): { ok: boolean; value?: { rootTask: string; tasks: TaskNode[]; totalEstimatedTokens: number; rationale: string }; error?: Error } {
+    _parseDecomposition(raw: string): {
+      ok: boolean;
+      value?: {
+        rootTask: string;
+        tasks: TaskNode[];
+        totalEstimatedTokens: number;
+        rationale: string;
+      };
+      error?: Error;
+    } {
       // Re-implement the logic inline for testability
       let jsonStr = raw.trim();
       const codeBlock = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
       if (codeBlock) jsonStr = codeBlock[1]!.trim();
-      const bracketPair = jsonStr.indexOf('[{');
+      const bracketPair = jsonStr.indexOf("[{");
       if (bracketPair > 0) jsonStr = jsonStr.slice(bracketPair);
       else {
         const braceStart = jsonStr.indexOf("[");
@@ -29,13 +38,18 @@ function makeOrchestrator() {
       let tasks: unknown[];
       try {
         const parsed = JSON.parse(jsonStr);
-        if (!Array.isArray(parsed)) return { ok: false, error: new Error("Decomposition output must be a JSON array") };
+        if (!Array.isArray(parsed))
+          return { ok: false, error: new Error("Decomposition output must be a JSON array") };
         tasks = parsed;
       } catch (e) {
-        return { ok: false, error: new Error("Failed to parse decomposition JSON: " + (e as Error).message) };
+        return {
+          ok: false,
+          error: new Error("Failed to parse decomposition JSON: " + (e as Error).message),
+        };
       }
 
-      if (tasks.length === 0) return { ok: false, error: new Error("Decomposition produced zero subtasks") };
+      if (tasks.length === 0)
+        return { ok: false, error: new Error("Decomposition produced zero subtasks") };
 
       const validComplexities = new Set(["trivial", "simple", "moderate", "complex"]);
       const nodes: TaskNode[] = [];
@@ -48,7 +62,11 @@ function makeOrchestrator() {
         ids.add(id);
 
         const complexity = String(t.estimatedComplexity ?? "moderate");
-        if (!validComplexities.has(complexity)) return { ok: false, error: new Error(`Invalid complexity "${complexity}" in task ${id}`) };
+        if (!validComplexities.has(complexity))
+          return {
+            ok: false,
+            error: new Error(`Invalid complexity "${complexity}" in task ${id}`),
+          };
 
         nodes.push({
           id,
@@ -56,19 +74,30 @@ function makeOrchestrator() {
           language: String(t.language ?? "text"),
           dependsOn: Array.isArray(t.dependsOn) ? (t.dependsOn as unknown[]).map(String) : [],
           estimatedComplexity: complexity as EstimatedComplexity,
-          outputFiles: Array.isArray(t.outputFiles) ? (t.outputFiles as unknown[]).map(String).slice(0, 20) : [],
+          outputFiles: Array.isArray(t.outputFiles)
+            ? (t.outputFiles as unknown[]).map(String).slice(0, 20)
+            : [],
           verificationHint: String(t.verificationHint ?? "").slice(0, 200),
         });
       }
 
       for (const node of nodes) {
-        if (node.dependsOn.includes(node.id)) return { ok: false, error: new Error(`Task ${node.id} cannot depend on itself`) };
+        if (node.dependsOn.includes(node.id))
+          return { ok: false, error: new Error(`Task ${node.id} cannot depend on itself`) };
         for (const dep of node.dependsOn) {
-          if (!ids.has(dep)) return { ok: false, error: new Error(`Task ${node.id} depends on unknown task: ${dep}`) };
+          if (!ids.has(dep))
+            return {
+              ok: false,
+              error: new Error(`Task ${node.id} depends on unknown task: ${dep}`),
+            };
         }
       }
 
-      if (nodes.length > 24) return { ok: false, error: new Error(`Decomposition produced ${nodes.length} subtasks; maximum is 24`) };
+      if (nodes.length > 24)
+        return {
+          ok: false,
+          error: new Error(`Decomposition produced ${nodes.length} subtasks; maximum is 24`),
+        };
       const sorted = this._topologicalSort(nodes);
       if ("error" in sorted && !sorted.ok) return { ok: false, error: sorted.error };
 
@@ -81,7 +110,7 @@ function makeOrchestrator() {
           rootTask: "",
           tasks: s,
           totalEstimatedTokens: tokenEstimate,
-          rationale: `Decomposed into ${s.length} subtasks (${s.filter(n => n.dependsOn.length > 0).length} with dependencies)`,
+          rationale: `Decomposed into ${s.length} subtasks (${s.filter((n) => n.dependsOn.length > 0).length} with dependencies)`,
         },
       };
     }
@@ -119,7 +148,8 @@ function makeOrchestrator() {
         }
       }
 
-      if (sorted.length !== nodes.length) return { ok: false, error: new Error("Cycle detected in task dependencies") };
+      if (sorted.length !== nodes.length)
+        return { ok: false, error: new Error("Cycle detected in task dependencies") };
       return { ok: true, value: sorted };
     }
   }
@@ -133,8 +163,24 @@ describe("_parseDecomposition", () => {
 
   it("parses a valid task array", () => {
     const json = JSON.stringify([
-      { id: "setup-project", description: "Initialize the project", language: "typescript", dependsOn: [], estimatedComplexity: "simple", outputFiles: ["package.json"], verificationHint: "npm test passes" },
-      { id: "add-auth", description: "Add authentication", language: "typescript", dependsOn: ["setup-project"], estimatedComplexity: "moderate", outputFiles: ["src/auth.ts"], verificationHint: "login endpoint works" },
+      {
+        id: "setup-project",
+        description: "Initialize the project",
+        language: "typescript",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: ["package.json"],
+        verificationHint: "npm test passes",
+      },
+      {
+        id: "add-auth",
+        description: "Add authentication",
+        language: "typescript",
+        dependsOn: ["setup-project"],
+        estimatedComplexity: "moderate",
+        outputFiles: ["src/auth.ts"],
+        verificationHint: "login endpoint works",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(true);
@@ -164,7 +210,15 @@ describe("_parseDecomposition", () => {
 
   it("handles JSON inside markdown fences", () => {
     const json = JSON.stringify([
-      { id: "task-1", description: "Do something", language: "python", dependsOn: [], estimatedComplexity: "trivial", outputFiles: [], verificationHint: "" },
+      {
+        id: "task-1",
+        description: "Do something",
+        language: "python",
+        dependsOn: [],
+        estimatedComplexity: "trivial",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition("```json\n" + json + "\n```");
     expect(result.ok).toBe(true);
@@ -174,7 +228,15 @@ describe("_parseDecomposition", () => {
 
   it("handles JSON with surrounding prose", () => {
     const json = JSON.stringify([
-      { id: "x", description: "y", language: "shell", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "x",
+        description: "y",
+        language: "shell",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition("Here is the breakdown:\n" + json + "\nThat's all.");
     expect(result.ok).toBe(true);
@@ -184,8 +246,24 @@ describe("_parseDecomposition", () => {
 
   it("rejects duplicate task ids", () => {
     const json = JSON.stringify([
-      { id: "dup", description: "First", language: "typescript", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "dup", description: "Second", language: "typescript", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "dup",
+        description: "First",
+        language: "typescript",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "dup",
+        description: "Second",
+        language: "typescript",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(false);
@@ -194,7 +272,15 @@ describe("_parseDecomposition", () => {
 
   it("rejects unknown dependency references", () => {
     const json = JSON.stringify([
-      { id: "a", description: "Task A", language: "typescript", dependsOn: ["nonexistent"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "a",
+        description: "Task A",
+        language: "typescript",
+        dependsOn: ["nonexistent"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(false);
@@ -203,7 +289,15 @@ describe("_parseDecomposition", () => {
 
   it("rejects self-dependency", () => {
     const json = JSON.stringify([
-      { id: "setup", description: "Setup", language: "typescript", dependsOn: ["setup"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "setup",
+        description: "Setup",
+        language: "typescript",
+        dependsOn: ["setup"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(false);
@@ -212,7 +306,15 @@ describe("_parseDecomposition", () => {
 
   it("rejects invalid complexity values", () => {
     const json = JSON.stringify([
-      { id: "a", description: "x", language: "rust", dependsOn: [], estimatedComplexity: "impossible", outputFiles: [], verificationHint: "" },
+      {
+        id: "a",
+        description: "x",
+        language: "rust",
+        dependsOn: [],
+        estimatedComplexity: "impossible",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(false);
@@ -255,31 +357,87 @@ describe("_topologicalSort", () => {
 
   it("preserves independent tasks in input order", () => {
     const nodes: TaskNode[] = [
-      { id: "b", description: "", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "a", description: "", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "b",
+        description: "",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "a",
+        description: "",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value!.map(n => n.id)).toEqual(["b", "a"]);
+    expect(result.value!.map((n) => n.id)).toEqual(["b", "a"]);
   });
 
   it("orders dependencies correctly", () => {
     const nodes: TaskNode[] = [
-      { id: "c", description: "", language: "text", dependsOn: ["b"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "a", description: "", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "b", description: "", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "c",
+        description: "",
+        language: "text",
+        dependsOn: ["b"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "a",
+        description: "",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "b",
+        description: "",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value!.map(n => n.id)).toEqual(["a", "b", "c"]);
+    expect(result.value!.map((n) => n.id)).toEqual(["a", "b", "c"]);
   });
 
   it("detects cycles", () => {
     const nodes: TaskNode[] = [
-      { id: "a", description: "", language: "text", dependsOn: ["b"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "b", description: "", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "a",
+        description: "",
+        language: "text",
+        dependsOn: ["b"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "b",
+        description: "",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(false);
@@ -288,16 +446,56 @@ describe("_topologicalSort", () => {
 
   it("handles a 5-node diamond dependency graph", () => {
     const nodes: TaskNode[] = [
-      { id: "setup", description: "", language: "typescript", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "backend", description: "", language: "typescript", dependsOn: ["setup"], estimatedComplexity: "moderate", outputFiles: [], verificationHint: "" },
-      { id: "frontend", description: "", language: "typescript", dependsOn: ["setup"], estimatedComplexity: "moderate", outputFiles: [], verificationHint: "" },
-      { id: "integration", description: "", language: "typescript", dependsOn: ["backend", "frontend"], estimatedComplexity: "complex", outputFiles: [], verificationHint: "" },
-      { id: "deploy", description: "", language: "shell", dependsOn: ["integration"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "setup",
+        description: "",
+        language: "typescript",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "backend",
+        description: "",
+        language: "typescript",
+        dependsOn: ["setup"],
+        estimatedComplexity: "moderate",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "frontend",
+        description: "",
+        language: "typescript",
+        dependsOn: ["setup"],
+        estimatedComplexity: "moderate",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "integration",
+        description: "",
+        language: "typescript",
+        dependsOn: ["backend", "frontend"],
+        estimatedComplexity: "complex",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "deploy",
+        description: "",
+        language: "shell",
+        dependsOn: ["integration"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    const ids = result.value!.map(n => n.id);
+    const ids = result.value!.map((n) => n.id);
     expect(ids.indexOf("setup")).toBe(0);
     expect(ids.indexOf("backend")).toBeLessThan(ids.indexOf("integration"));
     expect(ids.indexOf("frontend")).toBeLessThan(ids.indexOf("integration"));
@@ -310,7 +508,10 @@ describe("decomposeProvider config", () => {
     // This is a structural test — we verify the field exists in the config
     // and that the constructor stores it correctly.
     // The actual routing is tested in integration with a live model.
-    const config: { decomposeProvider?: string; modelConfig: { defaultProvider: string; providers: Record<string, unknown> } } = {
+    const config: {
+      decomposeProvider?: string;
+      modelConfig: { defaultProvider: string; providers: Record<string, unknown> };
+    } = {
       modelConfig: { defaultProvider: "default-prov", providers: {} },
       decomposeProvider: "cheap-planner",
     };
@@ -330,15 +531,47 @@ describe("executeDecomposition", () => {
     // dependency order. The topological sort must recover the correct order.
     const orch = makeOrchestrator();
     const reverseOrder: import("@55ndeep/core-types").TaskNode[] = [
-      { id: "d", description: "D", language: "text", dependsOn: ["b", "c"], estimatedComplexity: "complex", outputFiles: [], verificationHint: "" },
-      { id: "c", description: "C", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "b", description: "B", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "a", description: "A", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "d",
+        description: "D",
+        language: "text",
+        dependsOn: ["b", "c"],
+        estimatedComplexity: "complex",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "c",
+        description: "C",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "b",
+        description: "B",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "a",
+        description: "A",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(reverseOrder);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    const ids = result.value!.map(n => n.id);
+    const ids = result.value!.map((n) => n.id);
     // a must come first (no dependencies)
     expect(ids[0]).toBe("a");
     // d must come last (depends on b and c)
@@ -348,8 +581,24 @@ describe("executeDecomposition", () => {
   it("detects cycles introduced by corrupted dependency data", () => {
     const orch = makeOrchestrator();
     const cycle: import("@55ndeep/core-types").TaskNode[] = [
-      { id: "a", description: "A", language: "text", dependsOn: ["b"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "b", description: "B", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "a",
+        description: "A",
+        language: "text",
+        dependsOn: ["b"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "b",
+        description: "B",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(cycle);
     expect(result.ok).toBe(false);
@@ -360,15 +609,47 @@ describe("executeDecomposition", () => {
     // Verify topological ordering is preserved
     const orch = makeOrchestrator();
     const nodes: import("@55ndeep/core-types").TaskNode[] = [
-      { id: "a", description: "A", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "b", description: "B", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "c", description: "C", language: "text", dependsOn: ["a"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
-      { id: "d", description: "D", language: "text", dependsOn: ["b", "c"], estimatedComplexity: "complex", outputFiles: [], verificationHint: "" },
+      {
+        id: "a",
+        description: "A",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "b",
+        description: "B",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "c",
+        description: "C",
+        language: "text",
+        dependsOn: ["a"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
+      {
+        id: "d",
+        description: "D",
+        language: "text",
+        dependsOn: ["b", "c"],
+        estimatedComplexity: "complex",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ];
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    const ids = result.value!.map(n => n.id);
+    const ids = result.value!.map((n) => n.id);
     // a must come before everything
     expect(ids.indexOf("a")).toBeLessThan(ids.indexOf("b"));
     expect(ids.indexOf("a")).toBeLessThan(ids.indexOf("c"));
@@ -383,7 +664,15 @@ describe("executeDecomposition", () => {
     // This is caught by _parseDecomposition, not topologicalSort, but execution engine
     // would see missing deps at runtime. We test the validation layer.
     const json = JSON.stringify([
-      { id: "b", description: "B", language: "text", dependsOn: ["nonexistent"], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "b",
+        description: "B",
+        language: "text",
+        dependsOn: ["nonexistent"],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(false);
@@ -404,7 +693,7 @@ describe("executeDecomposition", () => {
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value!.map(n => n.id)).toEqual(nodes.map(n => n.id));
+    expect(result.value!.map((n) => n.id)).toEqual(nodes.map((n) => n.id));
   });
 
   it("execution result types are well-formed", () => {
@@ -412,15 +701,17 @@ describe("executeDecomposition", () => {
     // have all required fields
     const mockResult: import("@55ndeep/orchestrator").DecompositionExecutionResult = {
       rootTask: "Build a CLI",
-      results: [{
-        nodeId: "setup",
-        ok: true,
-        description: "Init project",
-        language: "typescript",
-        durationMs: 100,
-        tokensUsed: 200,
-        verdict: "pass",
-      }],
+      results: [
+        {
+          nodeId: "setup",
+          ok: true,
+          description: "Init project",
+          language: "typescript",
+          durationMs: 100,
+          tokensUsed: 200,
+          verdict: "pass",
+        },
+      ],
       totalSubtasks: 1,
       succeededCount: 1,
       failedCount: 0,
@@ -433,7 +724,17 @@ describe("executeDecomposition", () => {
 
 describe("_parseDecomposition bracket heuristic fuzz", () => {
   const orch = makeOrchestrator();
-  const validTask = JSON.stringify([{ id: "x", description: "y", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" }]);
+  const validTask = JSON.stringify([
+    {
+      id: "x",
+      description: "y",
+      language: "text",
+      dependsOn: [],
+      estimatedComplexity: "simple",
+      outputFiles: [],
+      verificationHint: "",
+    },
+  ]);
 
   it("handles prose with brackets before JSON", () => {
     const input = "[note: this is important]\n" + validTask + "\n[end]";
@@ -445,7 +746,15 @@ describe("_parseDecomposition bracket heuristic fuzz", () => {
 
   it("handles nested brackets in description strings", () => {
     const json = JSON.stringify([
-      { id: "x", description: "Fix the [DEPRECATED] function", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: [], verificationHint: "" },
+      {
+        id: "x",
+        description: "Fix the [DEPRECATED] function",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: [],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(true);
@@ -454,7 +763,8 @@ describe("_parseDecomposition bracket heuristic fuzz", () => {
   });
 
   it("handles JSON wrapped in explanatory text with brackets", () => {
-    const input = "Here is the plan [see footnote]:\n" + validTask + "\nThat covers everything [done].";
+    const input =
+      "Here is the plan [see footnote]:\n" + validTask + "\nThat covers everything [done].";
     const result = orch._parseDecomposition(input);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -463,7 +773,15 @@ describe("_parseDecomposition bracket heuristic fuzz", () => {
 
   it("handles outputFiles with bracket-like paths", () => {
     const json = JSON.stringify([
-      { id: "x", description: "y", language: "text", dependsOn: [], estimatedComplexity: "simple", outputFiles: ["src/[id]/page.tsx"], verificationHint: "" },
+      {
+        id: "x",
+        description: "y",
+        language: "text",
+        dependsOn: [],
+        estimatedComplexity: "simple",
+        outputFiles: ["src/[id]/page.tsx"],
+        verificationHint: "",
+      },
     ]);
     const result = orch._parseDecomposition(json);
     expect(result.ok).toBe(true);

@@ -1,15 +1,19 @@
 # ADR 004: Memory as a weighted pass-rate routing engine
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-13
 
 ## Context
+
 Different models perform differently on different types of tasks. Running the orchestration loop generates outcome data (pass/fail, token counts, duration). This data should feed back into routing decisions so the orchestrator picks better providers and models over time.
 
 ## Decision
+
 Implement a lightweight empirical recommendation engine (`buildEmpiricalRecommendation` in `memory-palace`) that:
 
 1. **Fingerprints** tasks by tokenizing the description, detecting language, inferring task family, and FNV-1a hashing into a 64-dim vector

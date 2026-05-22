@@ -4,35 +4,50 @@ export const ToolSeveritySchema = z.enum(["info", "low", "medium", "high", "crit
 
 export const NDeepConfigSchema = z.object({
   workspace: z.string().default("."),
-  orchestrator: z.object({
-    maxConcurrentWorkers: z.number().int().positive().default(4),
-    retryAttempts: z.number().int().nonnegative().default(3),
-    retryDelayMs: z.number().int().positive().default(1000),
-  }).default({
-    maxConcurrentWorkers: 4,
-    retryAttempts: 3,
-    retryDelayMs: 1000,
-  }),
-  tools: z.object({
-    eslint: z.object({ enabled: z.boolean().default(true), configFile: z.string().optional() }).default({ enabled: true }),
-    secdev: z.object({ enabled: z.boolean().default(true) }).default({ enabled: true }),
-    gitnexus: z.object({ enabled: z.boolean().default(true) }).default({ enabled: true }),
-    graphify: z.object({ enabled: z.boolean().default(false), queryBudget: z.number().int().positive().optional() }).default({ enabled: false }),
-  }).default({
-    eslint: { enabled: true },
-    secdev: { enabled: true },
-    gitnexus: { enabled: true },
-    graphify: { enabled: false },
-  }),
-  logging: z.object({
-    level: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
-    format: z.enum(["json", "human"]).default("json"),
-    output: z.string().optional(),
-  }).default({ level: "info", format: "json" }),
-  memory: z.object({
-    path: z.string().default(".55ndeep/memory"),
-    retentionDays: z.number().int().positive().default(30),
-  }).default({ path: ".55ndeep/memory", retentionDays: 30 }),
+  orchestrator: z
+    .object({
+      maxConcurrentWorkers: z.number().int().positive().default(4),
+      retryAttempts: z.number().int().nonnegative().default(3),
+      retryDelayMs: z.number().int().positive().default(1000),
+    })
+    .default({
+      maxConcurrentWorkers: 4,
+      retryAttempts: 3,
+      retryDelayMs: 1000,
+    }),
+  tools: z
+    .object({
+      eslint: z
+        .object({ enabled: z.boolean().default(true), configFile: z.string().optional() })
+        .default({ enabled: true }),
+      secdev: z.object({ enabled: z.boolean().default(true) }).default({ enabled: true }),
+      gitnexus: z.object({ enabled: z.boolean().default(true) }).default({ enabled: true }),
+      graphify: z
+        .object({
+          enabled: z.boolean().default(false),
+          queryBudget: z.number().int().positive().optional(),
+        })
+        .default({ enabled: false }),
+    })
+    .default({
+      eslint: { enabled: true },
+      secdev: { enabled: true },
+      gitnexus: { enabled: true },
+      graphify: { enabled: false },
+    }),
+  logging: z
+    .object({
+      level: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
+      format: z.enum(["json", "human"]).default("json"),
+      output: z.string().optional(),
+    })
+    .default({ level: "info", format: "json" }),
+  memory: z
+    .object({
+      path: z.string().default(".55ndeep/memory"),
+      retentionDays: z.number().int().positive().default(30),
+    })
+    .default({ path: ".55ndeep/memory", retentionDays: 30 }),
 });
 
 export type NDeepConfig = z.infer<typeof NDeepConfigSchema>;
@@ -86,23 +101,29 @@ export const ReducedStatePacketSchema = z.object({
     overall: z.enum(["pass", "warn", "fail"]),
   }),
   artifactEnforcement: ArtifactEnforcementSchema.optional(),
-  emissions: z.object({
-    filesWritten: z.number(),
-    totalBytes: z.number(),
-    files: z.array(z.object({
-      path: z.string(),
-      sha256: z.string(),
-      bytes: z.number(),
-      beforeHash: z.string().nullable(),
-      existed: z.boolean(),
-    })),
-  }).optional(),
+  emissions: z
+    .object({
+      filesWritten: z.number(),
+      totalBytes: z.number(),
+      files: z.array(
+        z.object({
+          path: z.string(),
+          sha256: z.string(),
+          bytes: z.number(),
+          beforeHash: z.string().nullable(),
+          existed: z.boolean(),
+        }),
+      ),
+    })
+    .optional(),
   verifierPolicy: VerifierPolicyResultSchema.optional(),
-  contributingSignals: z.array(z.object({
-    kind: z.string(),
-    ts: z.string(),
-    source: z.string(),
-  })),
+  contributingSignals: z.array(
+    z.object({
+      kind: z.string(),
+      ts: z.string(),
+      source: z.string(),
+    }),
+  ),
 });
 
 export type ReducedStatePacket = z.infer<typeof ReducedStatePacketSchema>;

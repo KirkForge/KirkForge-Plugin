@@ -1,4 +1,4 @@
-import type { MemoryStore, MemoryObject, RoutingBias } from "@55ndeep/memory-palace";
+import type { MemoryStore } from "@55ndeep/memory-palace";
 
 // ---------------------------------------------------------------------------
 // SLO Definitions
@@ -40,16 +40,16 @@ export interface SloReport {
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_SLO_TARGETS: SloTarget[] = [
-  { name: "task_pass_rate", target: 0.95, windowMs: 7 * 24 * 3600 * 1000 },   // 95% over 7d
-  { name: "task_pass_rate", target: 0.99, windowMs: 30 * 24 * 3600 * 1000 },  // 99% over 30d
+  { name: "task_pass_rate", target: 0.95, windowMs: 7 * 24 * 3600 * 1000 }, // 95% over 7d
+  { name: "task_pass_rate", target: 0.99, windowMs: 30 * 24 * 3600 * 1000 }, // 99% over 30d
 ];
 
 // Evaluation windows for burn-rate alerting
 // "Google SRE workbook" style: error budget consumed over short & long windows
 const BURN_RATE_WINDOWS = [
-  { name: "1h",  ms: 1 * 3600 * 1000,   critical: 14.4, warning: 10 },
-  { name: "6h",  ms: 6 * 3600 * 1000,   critical: 6.0,  warning: 3 },
-  { name: "24h", ms: 24 * 3600 * 1000,  critical: 3.0,  warning: 1 },
+  { name: "1h", ms: 1 * 3600 * 1000, critical: 14.4, warning: 10 },
+  { name: "6h", ms: 6 * 3600 * 1000, critical: 6.0, warning: 3 },
+  { name: "24h", ms: 24 * 3600 * 1000, critical: 3.0, warning: 1 },
 ];
 
 const MIN_SAMPLES = 3; // require at least 3 observations before reporting
@@ -104,10 +104,10 @@ export class SloMonitor {
 
     let good = 0;
     let bad = 0;
-    let totalSeconds = 0;
+    let _totalSeconds = 0;
 
     for (const obs of observations) {
-      totalSeconds += (Number(obs.properties.durationMs ?? 0)) / 1000;
+      _totalSeconds += Number(obs.properties.durationMs ?? 0) / 1000;
       const outcome = obs.properties.outcome;
       if (outcome === "pass") {
         good++;
@@ -119,18 +119,20 @@ export class SloMonitor {
     const total = good + bad;
     const rate = total > 0 ? good / total : 1;
     const budgetRemaining = target.target - (1 - rate);
-    const budgetConsumed = target.target > 0 && 1 - target.target > 0
-      ? Math.min(1, (1 - rate) / (1 - target.target))
-      : 0;
+    const budgetConsumed =
+      target.target > 0 && 1 - target.target > 0
+        ? Math.min(1, (1 - rate) / (1 - target.target))
+        : 0;
 
     // Burn rate: how fast we're consuming error budget
     // burnRate = (bad / total) / (1 - target) * (targetWindowMs / windowMs)
-    const burnRate = (1 - target.target) > 0 && windowMs > 0
-      ? ((1 - rate) / (1 - target.target)) * (target.windowMs / windowMs)
-      : 0;
+    const burnRate =
+      1 - target.target > 0 && windowMs > 0
+        ? ((1 - rate) / (1 - target.target)) * (target.windowMs / windowMs)
+        : 0;
 
     let status: SloWindow["status"] = "ok";
-    const burnWindow = BURN_RATE_WINDOWS.find(w => w.ms === windowMs);
+    const burnWindow = BURN_RATE_WINDOWS.find((w) => w.ms === windowMs);
     if (burnWindow && burnRate >= burnWindow.critical) {
       status = "critical";
     } else if (burnWindow && burnRate >= burnWindow.warning) {

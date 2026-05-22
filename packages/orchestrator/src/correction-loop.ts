@@ -1,7 +1,10 @@
-import type { ReducedStatePacket, CorrectionConfig, CorrectionDecision, VerifierSlot } from "@55ndeep/correction-core";
+import type {
+  ReducedStatePacket,
+  CorrectionDecision,
+  VerifierSlot,
+} from "@55ndeep/correction-core";
 import { buildCorrectionPrompt } from "@55ndeep/correction-core";
 import type { TaskLanguage } from "@55ndeep/correction-core";
-import type { TaskInput } from "./types.js";
 
 export type { CorrectionConfig, CorrectionDecision } from "@55ndeep/correction-core";
 export { buildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
@@ -18,14 +21,35 @@ export function decideCorrection(
   taskPass?: boolean | null,
 ): CorrectionDecision {
   if (taskPass === true) {
-    return { action: "accept", rationale: "taskPass: true (external validator passed)", packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "accept",
+      rationale: "taskPass: true (external validator passed)",
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   if (taskPass === false) {
     if (correctionCount >= maxCorrections) {
-      return { action: "escalate", rationale: "taskPass: false (external validator failed); exceeded corrections", packet, correctionCount, workerTokens, sessionTokens };
+      return {
+        action: "escalate",
+        rationale: "taskPass: false (external validator failed); exceeded corrections",
+        packet,
+        correctionCount,
+        workerTokens,
+        sessionTokens,
+      };
     }
     if (maxCost && sessionCost >= maxCost) {
-      return { action: "escalate", rationale: `taskPass: false (external validator failed); session cost $${sessionCost.toFixed(4)} exceeds budget $${maxCost.toFixed(4)}`, packet, correctionCount, workerTokens, sessionTokens };
+      return {
+        action: "escalate",
+        rationale: `taskPass: false (external validator failed); session cost $${sessionCost.toFixed(4)} exceeds budget $${maxCost.toFixed(4)}`,
+        packet,
+        correctionCount,
+        workerTokens,
+        sessionTokens,
+      };
     }
     return {
       action: "correct",
@@ -45,7 +69,14 @@ export function decideCorrection(
         ? "advisory"
         : "absent";
   if (packet.verification.security.critical > 0 && securityPolicy === "required") {
-    return { action: "escalate", rationale: "critical security finding", packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "escalate",
+      rationale: "critical security finding",
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   const graphPolicy: "required" | "advisory" | "absent" = !packet.verifierPolicy
     ? "required"
@@ -55,16 +86,44 @@ export function decideCorrection(
         ? "advisory"
         : "absent";
   if (packet.graph.brokenEdges > 0 && graphPolicy === "required") {
-    return { action: "escalate", rationale: `${packet.graph.brokenEdges} broken import edges`, packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "escalate",
+      rationale: `${packet.graph.brokenEdges} broken import edges`,
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   if (correctionCount >= maxCorrections) {
-    return { action: "escalate", rationale: `exceeded ${maxCorrections} corrections`, packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "escalate",
+      rationale: `exceeded ${maxCorrections} corrections`,
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   if (maxCost && sessionCost >= maxCost) {
-    return { action: "escalate", rationale: `session cost $${sessionCost.toFixed(4)} exceeds budget $${maxCost.toFixed(4)}`, packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "escalate",
+      rationale: `session cost $${sessionCost.toFixed(4)} exceeds budget $${maxCost.toFixed(4)}`,
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   if (packet.verification.overall === "pass") {
-    return { action: "accept", rationale: "verification passed", packet, correctionCount, workerTokens, sessionTokens };
+    return {
+      action: "accept",
+      rationale: "verification passed",
+      packet,
+      correctionCount,
+      workerTokens,
+      sessionTokens,
+    };
   }
   return {
     action: "correct",

@@ -13,12 +13,22 @@ export async function walkFiles(
   async function visit(dir: string): Promise<void> {
     let entries: Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>;
     try {
-      entries = await readdir(dir, { withFileTypes: true }) as Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>;
+      entries = (await readdir(dir, { withFileTypes: true })) as Array<{
+        name: string;
+        isDirectory(): boolean;
+        isFile(): boolean;
+      }>;
     } catch {
       return;
     }
     for (const entry of entries) {
-      if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist" || entry.name === ".tsbuildinfo") continue;
+      if (
+        entry.name === "node_modules" ||
+        entry.name === ".git" ||
+        entry.name === "dist" ||
+        entry.name === ".tsbuildinfo"
+      )
+        continue;
       const full = resolve(dir, entry.name);
       const rel = relative(cwd, full);
       if (entry.isDirectory()) await visit(full);

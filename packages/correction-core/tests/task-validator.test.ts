@@ -1,14 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  taskOutcomeFromValidation,
-  isTaskPass,
-  makeSkippedValidation,
-} from "../src/index.js";
-import type {
-  TaskValidationStatus,
-  TaskOutcome,
-  TaskValidationResult,
-} from "../src/index.js";
+import { taskOutcomeFromValidation, isTaskPass, makeSkippedValidation } from "../src/index.js";
+import type { TaskValidationResult } from "../src/index.js";
 
 describe("taskOutcomeFromValidation()", () => {
   it("pass maps to pass", () => {

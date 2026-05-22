@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { ok, err, isOk, isErr, map, mapErr, unwrap, unwrapOrElse, expect as expectResult } from "../src/result.js";
+import {
+  ok,
+  err,
+  isOk,
+  isErr,
+  map,
+  mapErr,
+  unwrap,
+  unwrapOrElse,
+  expect as expectResult,
+} from "../src/result.js";
 
 describe("Result<T, E>", () => {
   it("ok creates success result", () => {
@@ -27,17 +37,17 @@ describe("Result<T, E>", () => {
   });
 
   it("map transforms success values", () => {
-    const r = map(ok(10), v => v * 2);
+    const r = map(ok(10), (v) => v * 2);
     expect(r).toEqual(ok(20));
   });
 
   it("map passes through errors", () => {
-    const r = map(err("nope"), v => (v as unknown as number) * 2);
+    const r = map(err("nope"), (v) => (v as unknown as number) * 2);
     expect(r).toEqual(err("nope"));
   });
 
   it("mapErr transforms errors", () => {
-    expect(mapErr(err("old"), e => `new: ${e}`)).toEqual(err("new: old"));
+    expect(mapErr(err("old"), (e) => `new: ${e}`)).toEqual(err("new: old"));
   });
 
   it("unwrap returns value or fallback", () => {
@@ -47,7 +57,7 @@ describe("Result<T, E>", () => {
 
   it("unwrapOrElse lazy fallback", () => {
     expect(unwrapOrElse(ok(5), () => 0)).toBe(5);
-    expect(unwrapOrElse(err("x"), e => e.length)).toBe(1);
+    expect(unwrapOrElse(err("x"), (e) => e.length)).toBe(1);
   });
 
   it("expect throws on error", () => {

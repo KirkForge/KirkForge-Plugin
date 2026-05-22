@@ -1,8 +1,8 @@
-import { ok, err } from "@55ndeep/core-types";
+import { ok } from "@55ndeep/core-types";
 import type { Result } from "@55ndeep/core-types";
 import type { EventBus } from "@55ndeep/core-events";
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 export interface TscReport {
@@ -13,7 +13,9 @@ export interface TscReport {
 }
 
 export class TscEmitter {
-  constructor(private opts: { cwd: string; eventBus?: EventBus; tsconfigPath?: string; files?: string[] }) {}
+  constructor(
+    private opts: { cwd: string; eventBus?: EventBus; tsconfigPath?: string; files?: string[] },
+  ) {}
 
   async emit(taskId: string): Promise<Result<TscReport, Error>> {
     const start = Date.now();
@@ -34,27 +36,56 @@ export class TscEmitter {
       return ok(report);
     }
 
-    const execAsync = (cmd: string, args: string[]) => new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-      execFile(cmd, args, { cwd, timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err && !stdout && !stderr) reject(err);
-        else resolve({ stdout: stdout?.toString?.() ?? "", stderr: stderr?.toString?.() ?? "" });
+    const execAsync = (cmd: string, args: string[]) =>
+      new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+        execFile(
+          cmd,
+          args,
+          { cwd, timeout: 30000, maxBuffer: 10 * 1024 * 1024 },
+          (err, stdout, stderr) => {
+            if (err && !stdout && !stderr) reject(err);
+            else
+              resolve({ stdout: stdout?.toString?.() ?? "", stderr: stderr?.toString?.() ?? "" });
+          },
+        );
       });
-    });
 
     try {
-      const { stdout, stderr } = await execAsync("npx", ["tsc", "--noEmit", "--project", tsconfigPath]);
+      const { stdout, stderr } = await execAsync("npx", [
+        "tsc",
+        "--noEmit",
+        "--project",
+        tsconfigPath,
+      ]);
       const output = stdout + stderr;
       const details: TscReport["details"] = [];
       for (const line of output.split("\n")) {
         const m = line.match(/(.+?)\((\d+),\d+\):\s*error\s+TS(\d+):\s*(.+)/);
-        if (m) { details.push({ file: m[1]!.replace(cwd, "").replace(/^\//, ""), line: parseInt(m[2]!), code: `TS${m[3]}`, message: m[4]! }); }
+        if (m) {
+          details.push({
+            file: m[1]!.replace(cwd, "").replace(/^\//, ""),
+            line: parseInt(m[2]!),
+            code: `TS${m[3]}`,
+            message: m[4]!,
+          });
+        }
       }
 
       const outputHadErrors = /\berror\s+TS\d+:/.test(output);
       if (outputHadErrors && details.length === 0) {
-        details.push({ file: "<tsc>", line: 0, code: "TS_UNKNOWN", message: output.trim().slice(0, 500) || "tsc failed with unparsed output" });
+        details.push({
+          file: "<tsc>",
+          line: 0,
+          code: "TS_UNKNOWN",
+          message: output.trim().slice(0, 500) || "tsc failed with unparsed output",
+        });
       }
-      const report: TscReport = { taskId, errors: details.length, durationMs: Date.now() - start, details };
+      const report: TscReport = {
+        taskId,
+        errors: details.length,
+        durationMs: Date.now() - start,
+        details,
+      };
       const status = details.length > 0 ? "fail" : "pass";
       await eventBus?.emit({
         kind: "verify.types",
@@ -81,14 +112,25 @@ export class TscEmitter {
         });
         return ok(report);
       }
-      const report: TscReport = { taskId, errors: 1, durationMs: Date.now() - start, details: [{ file: "<tsc>", line: 0, code: "VERIFIER_ERROR", message }] };
+      const report: TscReport = {
+        taskId,
+        errors: 1,
+        durationMs: Date.now() - start,
+        details: [{ file: "<tsc>", line: 0, code: "VERIFIER_ERROR", message }],
+      };
       await eventBus?.emit({
         kind: "verify.types",
         schemaVersion: "v3",
         sequence: 0,
         streamId: taskId,
         taskId,
-        value: { status: "error", error: message, errors: 1, durationMs: report.durationMs, details: report.details },
+        value: {
+          status: "error",
+          error: message,
+          errors: 1,
+          durationMs: report.durationMs,
+          details: report.details,
+        },
         timestamp: new Date().toISOString(),
       });
       return ok(report);

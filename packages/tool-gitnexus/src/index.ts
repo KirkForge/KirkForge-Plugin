@@ -10,16 +10,27 @@ const execFileAsync = promisify(execFile);
 
 async function git(args: string[], cwd: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", args, { cwd, timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await execFileAsync("git", args, {
+      cwd,
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
     return stdout.trim();
-  } catch { return ""; }
+  } catch {
+    return "";
+  }
 }
 
 async function gitRepoExists(cwd: string): Promise<boolean> {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--git-dir"], { cwd, timeout: 5000 });
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--git-dir"], {
+      cwd,
+      timeout: 5000,
+    });
     return stdout.trim().length > 0;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 async function countLines(filePath: string): Promise<number> {
@@ -29,7 +40,9 @@ async function countLines(filePath: string): Promise<number> {
     // Count newlines — last line without trailing newline still counts
     const lines = content.split("\n");
     return lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
-  } catch { return 0; }
+  } catch {
+    return 0;
+  }
 }
 
 export interface GitnexusReport {
@@ -60,14 +73,28 @@ export class GitnexusEmitter {
       for (const rel of paths) {
         insertions += await countLines(join(cwd, rel));
       }
-      const report: GitnexusReport = { taskId, filesChanged: paths.length, paths, insertions, deletions: 0, durationMs: Date.now() - start };
+      const report: GitnexusReport = {
+        taskId,
+        filesChanged: paths.length,
+        paths,
+        insertions,
+        deletions: 0,
+        durationMs: Date.now() - start,
+      };
       await eventBus?.emit({
         kind: "state.changes",
         schemaVersion: "v3",
         sequence: 0,
         streamId: taskId,
         taskId,
-        value: { filesChanged: paths.length, paths, insertions, deletions: 0, durationMs: report.durationMs, warning: "not a git repository — using artifact-written files as change source" },
+        value: {
+          filesChanged: paths.length,
+          paths,
+          insertions,
+          deletions: 0,
+          durationMs: report.durationMs,
+          warning: "not a git repository — using artifact-written files as change source",
+        },
         timestamp: new Date().toISOString(),
       });
       return ok(report);
@@ -87,12 +114,13 @@ export class GitnexusEmitter {
 
       // Merge writtenFiles so artifact-emitted files that aren't yet staged are included
       const writtenNotInGit = this.writtenFiles.filter(
-        (wf) => !trackedPaths.includes(wf) && !untrackedPaths.includes(wf)
+        (wf) => !trackedPaths.includes(wf) && !untrackedPaths.includes(wf),
       );
       const allPaths = [...new Set([...trackedPaths, ...untrackedPaths, ...writtenNotInGit])];
 
       // Git shortstat covers tracked changes only
-      let insertions = 0, deletions = 0;
+      let insertions = 0,
+        deletions = 0;
       const stat = await git(["diff", ref, "--shortstat"], cwd);
       const im = stat.match(/(\d+)\s+insertions/);
       const dm = stat.match(/(\d+)\s+deletions/);
@@ -108,7 +136,14 @@ export class GitnexusEmitter {
         insertions += await countLines(join(cwd, rel));
       }
 
-      const report: GitnexusReport = { taskId, filesChanged: allPaths.length, paths: allPaths, insertions, deletions, durationMs: Date.now() - start };
+      const report: GitnexusReport = {
+        taskId,
+        filesChanged: allPaths.length,
+        paths: allPaths,
+        insertions,
+        deletions,
+        durationMs: Date.now() - start,
+      };
 
       await eventBus?.emit({
         kind: "state.changes",
@@ -116,7 +151,13 @@ export class GitnexusEmitter {
         sequence: 0,
         streamId: taskId,
         taskId,
-        value: { filesChanged: allPaths.length, paths: allPaths, insertions, deletions, durationMs: report.durationMs },
+        value: {
+          filesChanged: allPaths.length,
+          paths: allPaths,
+          insertions,
+          deletions,
+          durationMs: report.durationMs,
+        },
         timestamp: new Date().toISOString(),
       });
 

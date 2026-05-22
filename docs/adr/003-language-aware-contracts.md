@@ -1,15 +1,19 @@
 # ADR 003: Language-aware emission contracts
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-13
 
 ## Context
+
 Early versions used a single hardcoded TypeScript-shaped contract template for all tasks. The `### FILE: path` / `### END` artifact format was universal. But the system supports 10 languages (TypeScript, JavaScript, Python, Shell, C++, C, Rust, Go, SQL, text). A TypeScript-flavored prompt template confuses Python workers — they see `output.ts`, TypeScript wrappers, JS-style imports, and produce wrong artifacts.
 
 ## Decision
+
 Each language gets its own native-feeling emission contract:
 
 1. **Artifact mode** — the `### FILE:` / `### END` markers remain universal, but the prompt's `{{languageHint}}`, `{{defaultFile}}`, and `{{checkCommand}}` variables are populated from the detected task profile

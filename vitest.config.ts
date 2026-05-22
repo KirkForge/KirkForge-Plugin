@@ -9,7 +9,12 @@ export default defineConfig({
     pool: "forks",
     maxWorkers: 4,
     sequence: { concurrent: true },
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "packages/**/tests/**/*.test.ts", "e2e/**/*.test.ts"],
+    include: [
+      "packages/**/*.test.ts",
+      "apps/**/*.test.ts",
+      "packages/**/tests/**/*.test.ts",
+      "e2e/**/*.test.ts",
+    ],
     coverage: {
       enabled: false,
       provider: "v8",
@@ -18,4 +23,3 @@ export default defineConfig({
     },
   },
 });
-

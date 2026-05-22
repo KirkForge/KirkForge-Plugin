@@ -16,11 +16,6 @@
       "path": "../core-secrets"
     }
   ],
-  "exclude": [
-    "dist",
-    "**/*.test.ts"
-  ],
-  "include": [
-    "src"
-  ]
+  "exclude": ["dist", "**/*.test.ts"],
+  "include": ["src"]
 }

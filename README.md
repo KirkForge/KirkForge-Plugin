@@ -4,6 +4,7 @@
 > 55NDeep is a developer-preview deterministic verification plugin for coding-agent workflows, with early routing memory and correction-loop support. It has enterprise-oriented architecture hooks, but is **not yet enterprise-grade**.
 >
 > **What this means:**
+>
 > - ✅ Core verification loop works. 537 tests, deterministic tooling, reproducible builds.
 > - ✅ CI, Docker, Helm, SBOM, OTEL, and health endpoints are configured and functional.
 > - ⚠️ Multi-tenancy, RBAC, SSO, policy engine, audit log, and sandboxed execution are architecture hooks — not production-hardened features.
@@ -18,11 +19,11 @@
 
 ## Framing: Brain, Brawn, Verifier
 
-| Role | Cost | What it does |
-|------|------|-------------|
-| **Brain** | Expensive | Orchestrates: plans, delegates, decides next action. The host CLI or orchestrator. |
-| **Brawn** | Cheap | Generates: writes code from prompts. A worker model. |
-| **Verifier** | Free | Inspects state: lint, types, security, diffs, imports. 55NDeep. Deterministic. No model calls. |
+| Role         | Cost      | What it does                                                                                   |
+| ------------ | --------- | ---------------------------------------------------------------------------------------------- |
+| **Brain**    | Expensive | Orchestrates: plans, delegates, decides next action. The host CLI or orchestrator.             |
+| **Brawn**    | Cheap     | Generates: writes code from prompts. A worker model.                                           |
+| **Verifier** | Free      | Inspects state: lint, types, security, diffs, imports. 55NDeep. Deterministic. No model calls. |
 
 55NDeep sits between Brawn and Brain. After a worker emits code, 55NDeep verifies the output with deterministic tools. If verification fails, it builds a compact correction prompt. The Brain decides whether to retry, switch models, or escalate. This is the core loop: **emit → verify → correct → repeat.**
 
@@ -41,7 +42,9 @@ The core invariant: **verifier pass ≠ task pass.** Verification checks code qu
 ## Operations & deployment
 
 ### CLI
+
 The `55ndeep` CLI provides a full suite of commands:
+
 - `delegate` — Task delegation with automatic mode routing (hard-prompt, schema-contract, artifact)
 - `run` — Task execution with correction loop (accept/correct/escalate), structured + shell validators
 - `verify-workspace` — Deterministic verification on a workspace → `ReducedStatePacket`
@@ -53,11 +56,13 @@ The `55ndeep` CLI provides a full suite of commands:
 - `tools` — List registered verification tools
 
 ### Observability
+
 - OpenTelemetry metrics: delegation counter, duration histogram, token counter, error counter, active tasks gauge
 - Structured JSON logging with trace context injection (traceId + spanId)
 - SLO monitoring with Google SRE workbook-style multi-window burn-rate alerting
 
 ### Deployment
+
 - Docker image with health checks
 - Helm chart with configmap, secrets, HPA, ingress, PVC, service account
 - Health server on port 9090: `/healthz`, `/readyz`, `/metrics`
@@ -139,31 +144,32 @@ if (packet.ok && packet.value.verification.overall !== "pass") {
 
 ## Verifier battery
 
-| Domain | JS/TS | Python | Source | What it catches |
-|---|---|---|---|---|
-| Lint | ESLint | Ruff | external | Syntax, unused vars, structural issues |
-| Types | tsc --noEmit | Pyright | external | Type errors |
-| Security | Secdev | Bandit | external / external | Secrets, eval(), shell injection, API keys |
-| Changes | GitNexus | GitNexus | internal | File diff stats, files written |
-| Graph | Graphify | skipped | internal | Broken imports, cycles |
+| Domain   | JS/TS        | Python   | Source              | What it catches                            |
+| -------- | ------------ | -------- | ------------------- | ------------------------------------------ |
+| Lint     | ESLint       | Ruff     | external            | Syntax, unused vars, structural issues     |
+| Types    | tsc --noEmit | Pyright  | external            | Type errors                                |
+| Security | Secdev       | Bandit   | external / external | Secrets, eval(), shell injection, API keys |
+| Changes  | GitNexus     | GitNexus | internal            | File diff stats, files written             |
+| Graph    | Graphify     | skipped  | internal            | Broken imports, cycles                     |
 
 All verifiers run locally. No LLM in the verification path. Fail-closed: missing signals default to failure, never pass.
 
 ## Language support matrix
 
-| Language | Emission schema | Required verifiers | Advisory verifiers | External tools | Internal tools | v1 status |
-|----------|----------------|--------------------|--------------------|----------------|----------------|-----------|
-| TypeScript | yes | lint, types, security | graph | eslint, tsc | secdev, gitnexus, graphify | First-class |
-| JavaScript | yes | lint, security | types, graph | eslint | secdev, gitnexus, graphify | First-class |
-| Python | yes | lint, types | security, graph | ruff, pyright, bandit | gitnexus, graphify advisory | First-class |
-| Shell | yes | security | lint, types, graph | none required | secdev, gitnexus | Partial |
-| C/C++ | yes | none required | lint, types, security, graph | none wired | gitnexus, secdev advisory | Experimental |
-| Rust | yes | none required | lint, types, security, graph | none wired | gitnexus, secdev advisory | Experimental |
-| Go | yes | none required | lint, types, security, graph | none wired | gitnexus, secdev advisory | Experimental |
-| SQL | yes | none required | lint, types, security, graph | none wired | gitnexus, secdev advisory | Experimental |
-| Text | yes | none required | lint, types, security, graph | none wired | gitnexus, secdev advisory | Experimental |
+| Language   | Emission schema | Required verifiers    | Advisory verifiers           | External tools        | Internal tools              | v1 status    |
+| ---------- | --------------- | --------------------- | ---------------------------- | --------------------- | --------------------------- | ------------ |
+| TypeScript | yes             | lint, types, security | graph                        | eslint, tsc           | secdev, gitnexus, graphify  | First-class  |
+| JavaScript | yes             | lint, security        | types, graph                 | eslint                | secdev, gitnexus, graphify  | First-class  |
+| Python     | yes             | lint, types           | security, graph              | ruff, pyright, bandit | gitnexus, graphify advisory | First-class  |
+| Shell      | yes             | security              | lint, types, graph           | none required         | secdev, gitnexus            | Partial      |
+| C/C++      | yes             | none required         | lint, types, security, graph | none wired            | gitnexus, secdev advisory   | Experimental |
+| Rust       | yes             | none required         | lint, types, security, graph | none wired            | gitnexus, secdev advisory   | Experimental |
+| Go         | yes             | none required         | lint, types, security, graph | none wired            | gitnexus, secdev advisory   | Experimental |
+| SQL        | yes             | none required         | lint, types, security, graph | none wired            | gitnexus, secdev advisory   | Experimental |
+| Text       | yes             | none required         | lint, types, security, graph | none wired            | gitnexus, secdev advisory   | Experimental |
 
 **What this means:**
+
 - **First-class** (TypeScript, JavaScript, Python): Required verifier slots run real tooling. Correction prompts reference concrete linters and type checkers. Host task validators remain authoritative for pass/fail.
 - **Partial** (Shell): Security is required but tool coverage is limited. Host validators should supplement verification.
 - **Experimental** (C/C++, Rust, Go, SQL, Text): Emission schemas route artifacts and prompt hints correctly, but no external linter/type-checker emitters are wired. Verification defaults to fail-closed on missing signals. Host task validators are essential; verifier pass should not be treated as task pass.
@@ -172,14 +178,14 @@ All verifiers run locally. No LLM in the verification path. Fail-closed: missing
 
 This is **v1.0.0-rc1**, not final v1. The plugin contract, verifier preflight, and native validator hook are implemented and tested. Native validator evidence now exists; broader model-quality evidence is still limited and mixed.
 
-| Capability | Status | Notes |
-|------------|--------|-------|
-| Plugin contract (verify, prompt, observe, recall, doctor, decompose) | ✅ Implemented | Shell adapter and Node library both working |
-| Task decomposition & dependency-graph execution | ✅ Implemented | `decompose`, `decompose --execute`, `recall-decomposition` |
-| Verifier preflight | ✅ Implemented | Detects missing Python tools before spending model tokens |
-| Native task validator hook | ✅ Implemented | `--validator` flag, `FinalVerdict`, `SourceOfTruth`, `taskPass` tri-state |
-| Benchmark model-quality evidence | 🟡 Limited | Native validator smoke passed; the longer `.225` RNJ run exposed a 1/18 negative result. Treat current reports as routing-memory evidence, not a leaderboard. |
-| Bundled local validator demo | 🟡 Optional | See `examples/validator-task/` for a minimal deterministic validator |
+| Capability                                                           | Status         | Notes                                                                                                                                                         |
+| -------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plugin contract (verify, prompt, observe, recall, doctor, decompose) | ✅ Implemented | Shell adapter and Node library both working                                                                                                                   |
+| Task decomposition & dependency-graph execution                      | ✅ Implemented | `decompose`, `decompose --execute`, `recall-decomposition`                                                                                                    |
+| Verifier preflight                                                   | ✅ Implemented | Detects missing Python tools before spending model tokens                                                                                                     |
+| Native task validator hook                                           | ✅ Implemented | `--validator` flag, `FinalVerdict`, `SourceOfTruth`, `taskPass` tri-state                                                                                     |
+| Benchmark model-quality evidence                                     | 🟡 Limited     | Native validator smoke passed; the longer `.225` RNJ run exposed a 1/18 negative result. Treat current reports as routing-memory evidence, not a leaderboard. |
+| Bundled local validator demo                                         | 🟡 Optional    | See `examples/validator-task/` for a minimal deterministic validator                                                                                          |
 
 **No broad model-comparison claims should be made from the current benchmark reports.** Some older runs are infrastructure audits with `taskValidation.status: "skipped"`. Newer native-validator runs provide real pass/fail signal, including negative evidence. Treat them as routing-memory evidence until the same task panel is rerun across multiple workers. See the [benchmark evidence index](bench/results/README.md) for labels.
 
@@ -188,6 +194,7 @@ This is **v1.0.0-rc1**, not final v1. The plugin contract, verifier preflight, a
 55NDeep v1 is a **deterministic verification, correction, and routing plugin** for existing coding CLIs. It is not a full autonomous agent.
 
 Key boundaries:
+
 - **Host task validators are authoritative.** `observe --outcome` must come from the host's own validator, never from `verification.overall` or `finalAction`.
 - **First-class language coverage is TypeScript and Python, with JavaScript supported through the TS/JS verifier path.** Other languages have emission schemas and partial verifier wiring, but external linter/type-checker availability varies.
 - **Memory is file-backed empirical routing** (JSON via `--memory`). Not SQL, not vector search. Suitable for single-user and small-team use.
@@ -250,13 +257,11 @@ bash scripts/ci.sh
 
 Runs `build`, `lint`, and `test` in sequence. Exits on first failure. Use this to verify the repo is green end-to-end. Secrets sweep (trufflehog) runs if installed.
 
-
 ## Requirements
 
 - Node.js >= 20
 - Git (for gitnexus diff tracking)
 - Optional: ESLint, TypeScript, ruff, pyright, bandit (for language-specific verification)
-
 
 ## Enterprise Readiness
 
@@ -265,17 +270,17 @@ For a detailed gap analysis, see the [enterprise readiness gap analysis](./55NDe
 
 **Current enterprise posture:**
 
-| Area | Status |
-|------|--------|
-| Reproducible build | ✅ `npm ci` → `npm run build` → `npm test` |
-| CI/CD | ✅ GitHub Actions (Node 20/22 matrix, audit, SBOM, trufflehog) |
-| Container | ✅ Multi-stage Dockerfile, non-root user, health check |
-| Orchestration | ✅ Helm chart with HPA, ingress, PVC, SA, securityContext |
-| Observability | ✅ OpenTelemetry (traces + metrics), Prometheus `/v1/metrics`, health endpoints |
-| Security | ⚠️ Path safety, circuit breaker, secrets chain. No RBAC, SSO, sandboxing. |
-| Multi-tenancy | ⚠️ Tenant package exists; isolation not enforced across all paths. |
-| Audit | ⚠️ Event log with HMAC integrity; no retention/export pipeline. |
-| Policy | ❌ No policy engine, no tool allowlists, no model governance. |
-| Admin | ❌ No UI, no central config, no fleet management. |
+| Area               | Status                                                                          |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Reproducible build | ✅ `npm ci` → `npm run build` → `npm test`                                      |
+| CI/CD              | ✅ GitHub Actions (Node 20/22 matrix, audit, SBOM, trufflehog)                  |
+| Container          | ✅ Multi-stage Dockerfile, non-root user, health check                          |
+| Orchestration      | ✅ Helm chart with HPA, ingress, PVC, SA, securityContext                       |
+| Observability      | ✅ OpenTelemetry (traces + metrics), Prometheus `/v1/metrics`, health endpoints |
+| Security           | ⚠️ Path safety, circuit breaker, secrets chain. No RBAC, SSO, sandboxing.       |
+| Multi-tenancy      | ⚠️ Tenant package exists; isolation not enforced across all paths.              |
+| Audit              | ⚠️ Event log with HMAC integrity; no retention/export pipeline.                 |
+| Policy             | ❌ No policy engine, no tool allowlists, no model governance.                   |
+| Admin              | ❌ No UI, no central config, no fleet management.                               |
 
 **Roadmap to enterprise v1:** Identity → RBAC → Policy engine → Audit pipeline → Durable memory → Sandboxed execution → Admin UI. Estimate: 3–6 months with 2–4 engineers.

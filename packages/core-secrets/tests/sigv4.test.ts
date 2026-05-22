@@ -21,24 +21,18 @@ const TEST_DATE = new Date("2015-08-30T12:36:00Z");
 
 describe("sha256Hex", () => {
   it("hashes empty string to known value", () => {
-    expect(sha256Hex("")).toBe(
-      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
+    expect(sha256Hex("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   });
 
   it("hashes known payload", () => {
     // AWS test suite: empty payload hash
-    const hash = sha256Hex(
-      "Action=ListUsers&Version=2010-05-08"
-    );
-    expect(hash).toBe(
-      "b6359072c78d70ebee1e81adcbab4f01bf2c23245fa365ef83fe8f1f955085e2"
-    );
+    const hash = sha256Hex("Action=ListUsers&Version=2010-05-08");
+    expect(hash).toBe("b6359072c78d70ebee1e81adcbab4f01bf2c23245fa365ef83fe8f1f955085e2");
   });
 
   it("hashes utf-8 payload correctly", () => {
     expect(sha256Hex("hello")).toBe(
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
     );
   });
 });
@@ -48,7 +42,7 @@ describe("hmacSha256", () => {
     // AWS doc: HMAC("AWS4" + secret, "20150830")
     const kDate = hmacSha256("AWS4" + TEST_SECRET_KEY, "20150830");
     expect(kDate.toString("hex")).toBe(
-      "0138c7a6cbd60aa727b2f653a522567439dfb9f3e72b21f9b25941a42f04a7cd"
+      "0138c7a6cbd60aa727b2f653a522567439dfb9f3e72b21f9b25941a42f04a7cd",
     );
   });
 
@@ -75,7 +69,7 @@ describe("hmacSha256", () => {
     const kService = hmacSha256(kRegion, TEST_SERVICE);
     const kSigning = hmacSha256(kService, "aws4_request");
     expect(kSigning.toString("hex")).toBe(
-      "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9"
+      "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9",
     );
   });
 });
@@ -95,12 +89,12 @@ describe("awsSigV4Sign", () => {
       now: TEST_DATE,
       canonicalQuery: "Action=ListUsers&Version=2010-05-08",
       contentType: "application/x-www-form-urlencoded; charset=utf-8",
-      target: "",  // IAM API doesn't use X-Amz-Target
+      target: "", // IAM API doesn't use X-Amz-Target
     });
 
     // Expected signature from AWS test suite
     expect(result.headers["Authorization"]).toBe(
-      "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+      "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7",
     );
     expect(result.headers["X-Amz-Date"]).toBe("20150830T123600Z");
     expect(result.headers["Host"]).toBe("iam.amazonaws.com");
@@ -125,8 +119,12 @@ describe("awsSigV4Sign", () => {
     expect(result.headers["Content-Type"]).toBe("application/x-amz-json-1.1");
     expect(result.headers["X-Amz-Target"]).toBe("secretsmanager.GetSecretValue");
     expect(result.headers["Authorization"]).toContain("AWS4-HMAC-SHA256");
-    expect(result.headers["Authorization"]).toContain("Credential=AKIDEXAMPLE/20150830/us-east-1/secretsmanager/aws4_request");
-    expect(result.headers["Authorization"]).toContain("SignedHeaders=content-type;host;x-amz-date;x-amz-target");
+    expect(result.headers["Authorization"]).toContain(
+      "Credential=AKIDEXAMPLE/20150830/us-east-1/secretsmanager/aws4_request",
+    );
+    expect(result.headers["Authorization"]).toContain(
+      "SignedHeaders=content-type;host;x-amz-date;x-amz-target",
+    );
     // Verify signature component is present (64 hex chars)
     const sigMatch = result.headers["Authorization"].match(/Signature=([a-f0-9]{64})/);
     expect(sigMatch).toBeTruthy();
@@ -146,7 +144,9 @@ describe("awsSigV4Sign", () => {
     });
 
     expect(result.headers["X-Amz-Security-Token"]).toBe("test-session-token");
-    expect(result.headers["Authorization"]).toContain("SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;x-amz-target");
+    expect(result.headers["Authorization"]).toContain(
+      "SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;x-amz-target",
+    );
   });
 
   it("uses current time when no now override is given", () => {

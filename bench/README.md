@@ -4,10 +4,10 @@
 
 There are two copies of this project:
 
-| Repo | Path | Role |
-|------|------|------|
-| **Publish repo** | `/path/to/publish-repo` | Clean source, docs, tracked scripts |
-| **Sandbox** | `/path/to/runtime-sandbox` | Active benchmark/runtime copy |
+| Repo             | Path                       | Role                                |
+| ---------------- | -------------------------- | ----------------------------------- |
+| **Publish repo** | `/path/to/publish-repo`    | Clean source, docs, tracked scripts |
+| **Sandbox**      | `/path/to/runtime-sandbox` | Active benchmark/runtime copy       |
 
 Do **not** run `npm ci`, `npm install`, benchmarks, or Docker commands from the publish repo. Use the sandbox for all runtime work.
 
@@ -38,12 +38,12 @@ See `REAL_TBENCH_GUIDE.md` for full configuration options.
 
 ## What It Measures
 
-| Metric | 55NDeep | OpenCode |
-|--------|---------|----------|
-| Worker tokens | Correction loop total | Single shot |
-| Corrections | Up to 3 retries | 0 |
-| Verification | eslint + tsc + secdev + graphify | None |
-| Files written | Persisted from artifact mode | Persisted from hard-prompt |
+| Metric        | 55NDeep                          | OpenCode                   |
+| ------------- | -------------------------------- | -------------------------- |
+| Worker tokens | Correction loop total            | Single shot                |
+| Corrections   | Up to 3 retries                  | 0                          |
+| Verification  | eslint + tsc + secdev + graphify | None                       |
+| Files written | Persisted from artifact mode     | Persisted from hard-prompt |
 
 ## Output
 

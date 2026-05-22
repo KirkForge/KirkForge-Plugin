@@ -124,7 +124,13 @@ export interface TaskObservationInput {
   turns?: number;
   finalVerdict?: "pass" | "fail" | "error" | "unknown";
   sourceOfTruth?: "task-validator" | "verifier";
-  taskValidation?: { status: string; validator: string; reason?: string; durationMs?: number; details?: unknown };
+  taskValidation?: {
+    status: string;
+    validator: string;
+    reason?: string;
+    durationMs?: number;
+    details?: unknown;
+  };
   emissions?: EmittedFileRecord[];
   emissionIds?: string[];
   validatorDurationMs?: number;
@@ -149,43 +155,78 @@ export interface MemoryAdapter {
 
 /** Normalized run row shape for SQLite specialized adapters. */
 export interface RunRow {
-  runId: string; taskId: string; description: string; language: string;
-  taskFamily?: string; mode: string; model: string;
-  providerKey: string; providerType: string; baseUrl?: string;
-  outcome: string; outcomeClass: string; routingLesson: string;
-  finalVerdict: string; sourceOfTruth: string; finalAction: string;
-  tokens: number; durationMs: number; turns: number;
-  validatorDurationMs: number; verifierOverall?: string;
-  filesEmitted: number; totalBytesEmitted: number;
-  emissionIds: string[]; timestamp: string;
+  runId: string;
+  taskId: string;
+  description: string;
+  language: string;
+  taskFamily?: string;
+  mode: string;
+  model: string;
+  providerKey: string;
+  providerType: string;
+  baseUrl?: string;
+  outcome: string;
+  outcomeClass: string;
+  routingLesson: string;
+  finalVerdict: string;
+  sourceOfTruth: string;
+  finalAction: string;
+  tokens: number;
+  durationMs: number;
+  turns: number;
+  validatorDurationMs: number;
+  verifierOverall?: string;
+  filesEmitted: number;
+  totalBytesEmitted: number;
+  emissionIds: string[];
+  timestamp: string;
 }
 
 /** Normalized emission row shape for SQLite specialized adapters. */
 export interface EmissionRow {
-  id: string; runId: string; taskId: string; turn: number;
-  path: string; sha256: string; bytes: number;
-  beforeHash: string | null; existed: boolean; timestamp: string;
+  id: string;
+  runId: string;
+  taskId: string;
+  turn: number;
+  path: string;
+  sha256: string;
+  bytes: number;
+  beforeHash: string | null;
+  existed: boolean;
+  timestamp: string;
 }
 
 export class InMemoryAdapter implements MemoryAdapter {
   private objects: MemoryObject[] = [];
 
-  async write(obj: MemoryObject): Promise<Result<void, Error>> { this.objects.push(obj); return ok(undefined); }
-  async read(id: string): Promise<Result<MemoryObject | null, Error>> { return ok(this.objects.find(o => o.id === id) ?? null); }
+  async write(obj: MemoryObject): Promise<Result<void, Error>> {
+    this.objects.push(obj);
+    return ok(undefined);
+  }
+  async read(id: string): Promise<Result<MemoryObject | null, Error>> {
+    return ok(this.objects.find((o) => o.id === id) ?? null);
+  }
   async query(q: MemoryQuery): Promise<Result<MemoryObject[], Error>> {
     let results = [...this.objects];
-    if (q.kind) results = results.filter(o => o.kind === q.kind);
-    if (q.tags) results = results.filter(o => q.tags!.some(t => o.tags.includes(t)));
-    if (q.since) results = results.filter(o => o.timestamp >= q.since!);
+    if (q.kind) results = results.filter((o) => o.kind === q.kind);
+    if (q.tags) results = results.filter((o) => q.tags!.some((t) => o.tags.includes(t)));
+    if (q.since) results = results.filter((o) => o.timestamp >= q.since!);
     results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     if (q.limit) results = results.slice(0, q.limit);
     return ok(results);
   }
   async stats(): Promise<Result<MemoryStats, Error>> {
-    return ok({ totalObjects: this.objects.length, lastWrite: this.objects[this.objects.length - 1]?.timestamp ?? "never" });
+    return ok({
+      totalObjects: this.objects.length,
+      lastWrite: this.objects[this.objects.length - 1]?.timestamp ?? "never",
+    });
   }
-  async persist(): Promise<void> { /* no-op: in-memory only */ }
-  clear(): void { this.objects = []; }
+  async persist(): Promise<void> {
+    /* no-op: in-memory only */
+  }
+  clear(): void {
+    this.objects = [];
+  }
 }
 
 export class FileAdapter implements MemoryAdapter {
@@ -214,7 +255,7 @@ export class FileAdapter implements MemoryAdapter {
         if (err.code !== "EEXIST" && err.code !== "ENOENT") return null;
       }
       if (Date.now() - started > timeoutMs) return null;
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     }
   }
 
@@ -223,12 +264,17 @@ export class FileAdapter implements MemoryAdapter {
       fsyncSync(fd);
       closeSync(fd);
       rmSync(this.lockPath);
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 
   private async load(): Promise<void> {
     if (this.loaded) return;
-    if (this.loading) { await this.loading; return; }
+    if (this.loading) {
+      await this.loading;
+      return;
+    }
     this.loading = (async () => {
       try {
         const raw = await readFile(this.filePath, "utf-8");
@@ -236,15 +282,19 @@ export class FileAdapter implements MemoryAdapter {
         if (!Array.isArray(parsed)) {
           throw new Error(`Memory file does not contain an array: ${this.filePath}`);
         }
-        const malformed = parsed.findIndex((obj: unknown) =>
-          typeof obj !== "object" || obj === null ||
-          typeof (obj as Record<string, unknown>).id !== "string" ||
-          typeof (obj as Record<string, unknown>).kind !== "string" ||
-          typeof (obj as Record<string, unknown>).taskId !== "string" ||
-          typeof (obj as Record<string, unknown>).timestamp !== "string"
+        const malformed = parsed.findIndex(
+          (obj: unknown) =>
+            typeof obj !== "object" ||
+            obj === null ||
+            typeof (obj as Record<string, unknown>).id !== "string" ||
+            typeof (obj as Record<string, unknown>).kind !== "string" ||
+            typeof (obj as Record<string, unknown>).taskId !== "string" ||
+            typeof (obj as Record<string, unknown>).timestamp !== "string",
         );
         if (malformed !== -1) {
-          this.loadError = new Error(`Memory file contains malformed object at index ${malformed}: each object must have string id, kind, taskId, and timestamp. File: ${this.filePath}`);
+          this.loadError = new Error(
+            `Memory file contains malformed object at index ${malformed}: each object must have string id, kind, taskId, and timestamp. File: ${this.filePath}`,
+          );
           this.objects = [];
           this.loaded = true;
           return;
@@ -259,8 +309,14 @@ export class FileAdapter implements MemoryAdapter {
           return;
         }
         const corruptPath = this.filePath + ".corrupt";
-        try { await copyFile(this.filePath, corruptPath); } catch { /* best effort */ }
-        this.loadError = new Error(`Memory file corrupted: ${this.filePath}. Backup saved to ${corruptPath}. Original error: ${errObj.message}`);
+        try {
+          await copyFile(this.filePath, corruptPath);
+        } catch {
+          /* best effort */
+        }
+        this.loadError = new Error(
+          `Memory file corrupted: ${this.filePath}. Backup saved to ${corruptPath}. Original error: ${errObj.message}`,
+        );
         this.objects = [];
         this.loaded = true;
       } finally {
@@ -282,13 +338,24 @@ export class FileAdapter implements MemoryAdapter {
         await writeFile(tmpPath, data, "utf-8");
         try {
           const fd = openSync(tmpPath, "r");
-          try { fsyncSync(fd); } finally { closeSync(fd); }
-        } catch { /* fsync best effort */ }
+          try {
+            fsyncSync(fd);
+          } finally {
+            closeSync(fd);
+          }
+        } catch {
+          /* fsync best effort */
+        }
         await rename(tmpPath, this.filePath);
         this.dirty = false;
       } catch (writeErr) {
         this.dirty = true;
-        try { const { unlink } = await import("node:fs/promises"); await unlink(tmpPath).catch(() => {}); } catch { /* cleanup best effort */ }
+        try {
+          const { unlink } = await import("node:fs/promises");
+          await unlink(tmpPath).catch(() => {});
+        } catch {
+          /* cleanup best effort */
+        }
         throw writeErr;
       }
     } finally {
@@ -298,10 +365,14 @@ export class FileAdapter implements MemoryAdapter {
 
   async write(obj: MemoryObject): Promise<Result<void, Error>> {
     const lockFd = await this.acquireLock(3000);
-    if (lockFd === null) return err(new Error("FileAdapter: could not acquire lock for write after 3s"));
+    if (lockFd === null)
+      return err(new Error("FileAdapter: could not acquire lock for write after 3s"));
     try {
       await this.load();
-      if (this.loadError) { this.releaseLock(lockFd); return err(this.loadError); }
+      if (this.loadError) {
+        this.releaseLock(lockFd);
+        return err(this.loadError);
+      }
       this.objects.push(obj);
       this.dirty = true;
       return ok(undefined);
@@ -313,16 +384,16 @@ export class FileAdapter implements MemoryAdapter {
   async read(id: string): Promise<Result<MemoryObject | null, Error>> {
     await this.load();
     if (this.loadError) return err(this.loadError);
-    return ok(this.objects.find(o => o.id === id) ?? null);
+    return ok(this.objects.find((o) => o.id === id) ?? null);
   }
 
   async query(q: MemoryQuery): Promise<Result<MemoryObject[], Error>> {
     await this.load();
     if (this.loadError) return err(this.loadError);
     let results = [...this.objects];
-    if (q.kind) results = results.filter(o => o.kind === q.kind);
-    if (q.tags) results = results.filter(o => q.tags!.some(t => o.tags.includes(t)));
-    if (q.since) results = results.filter(o => o.timestamp >= q.since!);
+    if (q.kind) results = results.filter((o) => o.kind === q.kind);
+    if (q.tags) results = results.filter((o) => q.tags!.some((t) => o.tags.includes(t)));
+    if (q.since) results = results.filter((o) => o.timestamp >= q.since!);
     results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     if (q.limit) results = results.slice(0, q.limit);
     return ok(results);
@@ -331,19 +402,27 @@ export class FileAdapter implements MemoryAdapter {
   async stats(): Promise<Result<MemoryStats, Error>> {
     await this.load();
     if (this.loadError) return err(this.loadError);
-    return ok({ totalObjects: this.objects.length, lastWrite: this.objects[this.objects.length - 1]?.timestamp ?? "never" });
+    return ok({
+      totalObjects: this.objects.length,
+      lastWrite: this.objects[this.objects.length - 1]?.timestamp ?? "never",
+    });
   }
 
   async persist(): Promise<void> {
     try {
       await this.flush();
     } catch (e) {
-      process.stderr.write(`[memory-palace] persist failed: ${e instanceof Error ? e.message : String(e)}\n`);
+      process.stderr.write(
+        `[memory-palace] persist failed: ${e instanceof Error ? e.message : String(e)}\n`,
+      );
       this.dirty = true;
     }
   }
 
-  clear(): void { this.objects = []; this.dirty = true; }
+  clear(): void {
+    this.objects = [];
+    this.dirty = true;
+  }
 }
 
 export interface MemoryStoreOptions {
@@ -375,13 +454,13 @@ export class MemoryStore {
     const cutoff = new Date(Date.now() - this._ttlMs).toISOString();
     const result = await this.adapter.query({ since: cutoff, limit: 10000 });
     if (!result.ok) return 0;
-    
+
     // The query returns entries AFTER the cutoff, so we need to find all entries
     // and check timestamps. For SQLite we'd use a proper query, but for the generic
     // adapter we iterate.
     const allResult = await this.adapter.query({ limit: 100000 });
     if (!allResult.ok) return 0;
-    
+
     let evicted = 0;
     for (const obj of allResult.value) {
       if (obj.timestamp < cutoff) {
@@ -398,19 +477,22 @@ export class MemoryStore {
     if (this._maxEntries <= 0) return 0;
     const statsResult = await this.adapter.stats();
     if (!statsResult.ok) return 0;
-    
+
     const excess = statsResult.value.totalObjects - this._maxEntries;
     if (excess <= 0) return 0;
-    
+
     const result = await this.adapter.query({ limit: excess });
     if (!result.ok) return 0;
-    
+
     return result.value.length;
   }
 
-  get ttlMs(): number { return this._ttlMs; }
-  get maxEntries(): number { return this._maxEntries; }
-
+  get ttlMs(): number {
+    return this._ttlMs;
+  }
+  get maxEntries(): number {
+    return this._maxEntries;
+  }
 
   static async create(dbPath?: string, options?: MemoryStoreOptions): Promise<MemoryStore> {
     if (dbPath) {
@@ -420,9 +502,10 @@ export class MemoryStore {
     }
     // Default to SQLite at ~/.55ndeep/memory.db for daemon/enterprise safety.
     // CODEX_HOME overrides the base directory; fallback to ~/.55ndeep.
-    const home = process.env.CODEX_HOME
-      ?? resolve(process.env.HOME ?? process.env.USERPROFILE ?? '/tmp', '.55ndeep');
-    const defaultPath = resolve(home, 'memory.db');
+    const home =
+      process.env.CODEX_HOME ??
+      resolve(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".55ndeep");
+    const defaultPath = resolve(home, "memory.db");
     try {
       const { SqliteAdapter } = await import("./sqlite-adapter.js");
       const adapter = new SqliteAdapter(defaultPath);
@@ -437,7 +520,9 @@ export class MemoryStore {
   async writeTaskObservation(params: TaskObservationInput): Promise<Result<void, Error>> {
     const tokens = tokenize(params.description);
     const vector = vectorize(tokens);
-    const inferredOutcome = params.outcome ?? (params.taskPass === true ? "pass" : params.taskPass === false ? "fail" : "error");
+    const inferredOutcome =
+      params.outcome ??
+      (params.taskPass === true ? "pass" : params.taskPass === false ? "fail" : "error");
     const id = `observation-${params.taskId}-${Date.now()}-${randomBytes(4).toString("hex")}`;
     const obj: MemoryObject = {
       id,
@@ -458,7 +543,13 @@ export class MemoryStore {
         finalAction: params.finalAction,
         taskPass: params.taskPass,
         outcome: inferredOutcome,
-        reason: params.reason ?? (inferredOutcome === "pass" ? "task passed" : inferredOutcome === "fail" ? "task tests failed" : "task outcome unknown"),
+        reason:
+          params.reason ??
+          (inferredOutcome === "pass"
+            ? "task passed"
+            : inferredOutcome === "fail"
+              ? "task tests failed"
+              : "task outcome unknown"),
         tokens: params.tokens,
         durationMs: params.durationMs,
         turns: params.turns,
@@ -473,7 +564,12 @@ export class MemoryStore {
     return this.adapter.write(obj);
   }
 
-  async writeDecomposition(taskId: string, description: string, tasks: import("@55ndeep/core-types").TaskNode[], language: string): Promise<Result<void, Error>> {
+  async writeDecomposition(
+    taskId: string,
+    description: string,
+    tasks: import("@55ndeep/core-types").TaskNode[],
+    language: string,
+  ): Promise<Result<void, Error>> {
     const id = `decomp-${taskId}-${Date.now()}`;
     const obj: MemoryObject = {
       id,
@@ -491,14 +587,26 @@ export class MemoryStore {
     return this.adapter.write(obj);
   }
 
-  async recallDecomposition(taskIdOrDescription: string): Promise<Result<{ taskId: string; description: string; tasks: import("@55ndeep/core-types").TaskNode[]; timestamp: string } | null, Error>> {
+  async recallDecomposition(taskIdOrDescription: string): Promise<
+    Result<
+      {
+        taskId: string;
+        description: string;
+        tasks: import("@55ndeep/core-types").TaskNode[];
+        timestamp: string;
+      } | null,
+      Error
+    >
+  > {
     const queryResult = await this.adapter.query({ kind: "task-decomposition", limit: 100 });
     if (!queryResult.ok) return queryResult;
     const decomps = queryResult.value;
     if (decomps.length === 0) return ok(null);
 
     // Find by taskId first, then by description substring
-    const byId = decomps.find(d => d.taskId === taskIdOrDescription || d.id.includes(taskIdOrDescription));
+    const byId = decomps.find(
+      (d) => d.taskId === taskIdOrDescription || d.id.includes(taskIdOrDescription),
+    );
     if (byId) {
       return ok({
         taskId: byId.taskId,
@@ -510,11 +618,11 @@ export class MemoryStore {
 
     // Fall back to most recent decomposition for fuzzy description match
     const tokens = tokenize(taskIdOrDescription.toLowerCase());
-    let best: typeof decomps[0] | null = null;
+    let best: (typeof decomps)[0] | null = null;
     let bestScore = 0;
     for (const d of decomps) {
       const descTokens = tokenize(d.description.toLowerCase());
-      const overlap = tokens.filter(t => descTokens.includes(t)).length;
+      const overlap = tokens.filter((t) => descTokens.includes(t)).length;
       const score = overlap / Math.max(1, tokens.length);
       if (score > bestScore) {
         bestScore = score;
@@ -533,21 +641,33 @@ export class MemoryStore {
     return ok(null);
   }
 
-  async recall(taskDescription: string, workerModel?: string): Promise<Result<Recommendation | null, Error>> {
+  async recall(
+    taskDescription: string,
+    workerModel?: string,
+  ): Promise<Result<Recommendation | null, Error>> {
     try {
       const query: MemoryQuery = { kind: "task-observation", limit: 200 };
       const result = await this.adapter.query(query);
       if (!result.ok) return result;
       const observations = result.value;
       if (observations.length === 0) return ok(null);
-      const recommendation = buildEmpiricalRecommendation(taskDescription, observations, workerModel);
+      const recommendation = buildEmpiricalRecommendation(
+        taskDescription,
+        observations,
+        workerModel,
+      );
       return ok(recommendation);
     } catch (e) {
       return err(e instanceof Error ? e : new Error(String(e)));
     }
   }
 
-  async writeEmissionRecords(runId: string, taskId: string, turn: number, emissions: EmittedFileRecord[]): Promise<Result<string[], Error>> {
+  async writeEmissionRecords(
+    runId: string,
+    taskId: string,
+    turn: number,
+    emissions: EmittedFileRecord[],
+  ): Promise<Result<string[], Error>> {
     const ids: string[] = [];
     for (let i = 0; i < emissions.length; i++) {
       const e = emissions[i]!;
@@ -561,14 +681,23 @@ export class MemoryStore {
       if (this.adapter.writeEmission) {
         try {
           this.adapter.writeEmission({
-            id, runId, taskId, turn,
-            path: e.path, sha256: e.sha256, bytes: e.bytes,
+            id,
+            runId,
+            taskId,
+            turn,
+            path: e.path,
+            sha256: e.sha256,
+            bytes: e.bytes,
             beforeHash: e.beforeHash ?? null,
             existed: e.existed ?? false,
             timestamp: ts,
           });
         } catch (cause) {
-          return err(new Error(`writeEmission failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+          return err(
+            new Error(
+              `writeEmission failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+            ),
+          );
         }
       }
 
@@ -581,7 +710,8 @@ export class MemoryStore {
         timestamp: ts,
         description: `Emitted: ${e.path}`,
         properties: {
-          runId, turn,
+          runId,
+          turn,
           path: e.path,
           sha256: e.sha256,
           bytes: e.bytes,
@@ -630,7 +760,9 @@ export class MemoryStore {
           timestamp: run.timestamp,
         });
       } catch (cause) {
-        return err(new Error(`writeRun failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+        return err(
+          new Error(`writeRun failed: ${cause instanceof Error ? cause.message : String(cause)}`),
+        );
       }
     }
 
@@ -683,22 +815,32 @@ export class MemoryStore {
     // Delegate to adapter-level transactional write when available (SQLite)
     if (this.adapter.writeRunAndEmissions) {
       try {
-        const ids = emissions.map(e => e.id ?? `${run.runId}:${e.path}:${e.sha256.slice(0, 12)}`);
+        const ids = emissions.map((e) => e.id ?? `${run.runId}:${e.path}:${e.sha256.slice(0, 12)}`);
         run.emissionIds = ids;
         run.filesEmitted = emissions.length;
         run.totalBytesEmitted = emissions.reduce((s, e) => s + e.bytes, 0);
         this.adapter.writeRunAndEmissions(
           run as any,
           emissions.map((e, i) => ({
-            id: ids[i]!, runId: run.runId, taskId: run.taskId, turn,
-            path: e.path, sha256: e.sha256, bytes: e.bytes,
-            beforeHash: e.beforeHash ?? null, existed: e.existed ?? false,
+            id: ids[i]!,
+            runId: run.runId,
+            taskId: run.taskId,
+            turn,
+            path: e.path,
+            sha256: e.sha256,
+            bytes: e.bytes,
+            beforeHash: e.beforeHash ?? null,
+            existed: e.existed ?? false,
             timestamp: e.timestamp ?? new Date().toISOString(),
           })),
         );
         return ok(undefined);
       } catch (cause) {
-        return err(new Error(`writeRunAndEmissions failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+        return err(
+          new Error(
+            `writeRunAndEmissions failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+          ),
+        );
       }
     }
     // Fallback: sequential writes for non-transactional adapters
@@ -726,7 +868,9 @@ export class MemoryStore {
         }));
         return ok(objects);
       } catch (cause) {
-        return err(new Error(`queryRuns failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+        return err(
+          new Error(`queryRuns failed: ${cause instanceof Error ? cause.message : String(cause)}`),
+        );
       }
     }
     return this.adapter.query({ kind: "run", limit: limit ?? 50 });
@@ -735,7 +879,7 @@ export class MemoryStore {
   async queryEmissions(taskId: string): Promise<Result<MemoryObject[], Error>> {
     const all = await this.adapter.query({ kind: "emission", limit: 1000 });
     if (!all.ok) return all;
-    return ok(all.value!.filter(o => o.taskId === taskId));
+    return ok(all.value!.filter((o) => o.taskId === taskId));
   }
 
   async queryEmissionsForRun(runId: string): Promise<Result<MemoryObject[], Error>> {
@@ -760,12 +904,16 @@ export class MemoryStore {
         }));
         return ok(objects);
       } catch (cause) {
-        return err(new Error(`queryEmissionsForRun failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+        return err(
+          new Error(
+            `queryEmissionsForRun failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+          ),
+        );
       }
     }
     const all = await this.adapter.query({ kind: "emission", limit: 1000 });
     if (!all.ok) return all;
-    return ok(all.value!.filter(o => (o.properties as { runId?: string }).runId === runId));
+    return ok(all.value!.filter((o) => (o.properties as { runId?: string }).runId === runId));
   }
 }
 
@@ -807,7 +955,24 @@ function detectFamily(description: string): string {
 }
 
 function tokenize(text: string): string[] {
-  const stop = new Set(["the", "and", "for", "with", "that", "this", "from", "into", "using", "task", "file", "files", "write", "create", "build", "make"]);
+  const stop = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "that",
+    "this",
+    "from",
+    "into",
+    "using",
+    "task",
+    "file",
+    "files",
+    "write",
+    "create",
+    "build",
+    "make",
+  ]);
   return [...new Set(text.toLowerCase().match(/[a-z0-9][a-z0-9._-]{2,}/g) ?? [])]
     .filter((word) => !stop.has(word))
     .slice(0, 40);
@@ -827,7 +992,9 @@ function vectorize(tokens: string[], dimensions = 64): number[] {
 }
 
 function cosine(a: number[], b: number[]): number {
-  let dot = 0, an = 0, bn = 0;
+  let dot = 0,
+    an = 0,
+    bn = 0;
   const length = Math.max(a.length, b.length);
   for (let i = 0; i < length; i++) {
     const av = a[i] ?? 0;
@@ -840,11 +1007,21 @@ function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(an) * Math.sqrt(bn));
 }
 
-function buildEmpiricalRecommendation(taskDescription: string, observations: MemoryObject[], workerModel?: string): Recommendation | null {
+function buildEmpiricalRecommendation(
+  taskDescription: string,
+  observations: MemoryObject[],
+  workerModel?: string,
+): Recommendation | null {
   const query = fingerprintTask(taskDescription, "unknown");
   const similar = observations
     .map((object) => {
-      const vector = Array.isArray(object.properties.vector) ? object.properties.vector as number[] : vectorize([String(object.properties.language ?? ""), String(object.properties.taskFamily ?? ""), ...tokenize(object.description)]);
+      const vector = Array.isArray(object.properties.vector)
+        ? (object.properties.vector as number[])
+        : vectorize([
+            String(object.properties.language ?? ""),
+            String(object.properties.taskFamily ?? ""),
+            ...tokenize(object.description),
+          ]);
       const similarity = cosine(query.vector, vector);
       const sameFamily = object.properties.taskFamily === query.taskFamily ? 0.25 : 0;
       return { object, similarity: Math.min(1, similarity + sameFamily) };
@@ -869,9 +1046,11 @@ function buildEmpiricalRecommendation(taskDescription: string, observations: Mem
     // Derive routingLesson from outcome when not explicitly set
     const routingLesson = routingLessonRaw
       ? routingLessonRaw
-      : outcome === "pass" ? "reward"
-      : outcome === "fail" ? "punish"
-      : "neutral";
+      : outcome === "pass"
+        ? "reward"
+        : outcome === "fail"
+          ? "punish"
+          : "neutral";
     const truthFactor = sourceOfTruth === "task-validator" ? 2.0 : 1.0;
     const weight = entry.similarity * truthFactor;
     const modelStats = byModel.get(model) ?? { pass: 0, fail: 0, tokens: 0, score: 0 };
@@ -917,19 +1096,37 @@ function buildEmpiricalRecommendation(taskDescription: string, observations: Mem
   }
 
   const rankedModels = [...byModel.entries()]
-    .map(([model, data]) => ({ model, passRate: data.pass / Math.max(0.001, data.pass + data.fail), evidence: data.pass + data.fail, expectedTokens: Math.round(data.tokens / Math.max(0.001, data.score)) }))
-    .sort((a, b) => (b.passRate - a.passRate) || (b.evidence - a.evidence));
+    .map(([model, data]) => ({
+      model,
+      passRate: data.pass / Math.max(0.001, data.pass + data.fail),
+      evidence: data.pass + data.fail,
+      expectedTokens: Math.round(data.tokens / Math.max(0.001, data.score)),
+    }))
+    .sort((a, b) => b.passRate - a.passRate || b.evidence - a.evidence);
   const rankedModes = [...byMode.entries()]
-    .map(([mode, data]) => ({ mode, passRate: data.pass / Math.max(0.001, data.pass + data.fail), evidence: data.pass + data.fail }))
-    .sort((a, b) => (b.passRate - a.passRate) || (b.evidence - a.evidence));
+    .map(([mode, data]) => ({
+      mode,
+      passRate: data.pass / Math.max(0.001, data.pass + data.fail),
+      evidence: data.pass + data.fail,
+    }))
+    .sort((a, b) => b.passRate - a.passRate || b.evidence - a.evidence);
 
-  const prefer = rankedModels.filter((m) => m.passRate >= 0.62).slice(0, 2).map((m) => m.model);
-  const avoid = rankedModels.filter((m) => m.passRate <= 0.38 && m.evidence >= 0.35).slice(0, 3).map((m) => m.model);
+  const prefer = rankedModels
+    .filter((m) => m.passRate >= 0.62)
+    .slice(0, 2)
+    .map((m) => m.model);
+  const avoid = rankedModels
+    .filter((m) => m.passRate <= 0.38 && m.evidence >= 0.35)
+    .slice(0, 3)
+    .map((m) => m.model);
   const bestModel = prefer[0] ?? rankedModels[0]?.model ?? workerModel ?? "unknown";
   const bestMode = rankedModes[0]?.mode ?? "hard-prompt";
   const bestModelStats = rankedModels.find((m) => m.model === bestModel);
   const evidence = similar.length;
-  const confidence = Math.min(0.9, (bestModelStats?.evidence ?? evidence) / ((bestModelStats?.evidence ?? evidence) + 2));
+  const confidence = Math.min(
+    0.9,
+    (bestModelStats?.evidence ?? evidence) / ((bestModelStats?.evidence ?? evidence) + 2),
+  );
 
   return {
     mode: bestMode,
@@ -949,6 +1146,7 @@ function buildEmpiricalRecommendation(taskDescription: string, observations: Mem
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function fingerprintTask(description: string, _defaultFamily: string) {
   const tokens = tokenize(description);
   const vector = vectorize(tokens);
@@ -956,14 +1154,16 @@ function fingerprintTask(description: string, _defaultFamily: string) {
   return { tokens, vector, taskFamily };
 }
 
-function normalizeOutcomeClass(value: unknown): "pass" | "task_fail" | "validator_error" | "tool_error" | "escalated" | "unknown" {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function normalizeOutcomeClass(
+  value: unknown,
+): "pass" | "task_fail" | "validator_error" | "tool_error" | "escalated" | "unknown" {
   const valid = ["pass", "task_fail", "validator_error", "tool_error", "escalated", "unknown"];
   return typeof value === "string" && valid.includes(value)
-    ? value as "pass" | "task_fail" | "validator_error" | "tool_error" | "escalated" | "unknown"
+    ? (value as "pass" | "task_fail" | "validator_error" | "tool_error" | "escalated" | "unknown")
     : "unknown";
 }
 
 function normalizeOutcome(value: unknown): "pass" | "fail" | "error" {
   return value === "pass" || value === "fail" || value === "error" ? value : "error";
 }
-

@@ -32,17 +32,17 @@ No model calls. Entirely deterministic.
 
 ## Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `--workspace` | yes | Path to the project root to verify |
-| `--task-id` | yes | Task identifier for correlation |
-| `--task-desc` | yes | Natural-language task description |
-| `--language` | yes | Language hint (typescript, python, etc.) |
-| `--mode` | yes | Delegation mode (hard-prompt, ts-contract, artifact) |
-| `--model` | yes | Worker model used for this task |
-| `--outcome` | yes | Task outcome: `pass`, `fail`, or `escalate`. Must be provided by the host, not derived from verifier status. |
-| `--memory` | yes | Path to the memory store file |
-| `--elapsed-ms` | no | Wall-clock time in milliseconds (defaults to 0) |
+| Argument       | Required | Description                                                                                                  |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| `--workspace`  | yes      | Path to the project root to verify                                                                           |
+| `--task-id`    | yes      | Task identifier for correlation                                                                              |
+| `--task-desc`  | yes      | Natural-language task description                                                                            |
+| `--language`   | yes      | Language hint (typescript, python, etc.)                                                                     |
+| `--mode`       | yes      | Delegation mode (hard-prompt, ts-contract, artifact)                                                         |
+| `--model`      | yes      | Worker model used for this task                                                                              |
+| `--outcome`    | yes      | Task outcome: `pass`, `fail`, or `escalate`. Must be provided by the host, not derived from verifier status. |
+| `--memory`     | yes      | Path to the memory store file                                                                                |
+| `--elapsed-ms` | no       | Wall-clock time in milliseconds (defaults to 0)                                                              |
 
 ## Stdout contract
 
@@ -56,10 +56,10 @@ The host should read stdout for the correction prompt and feed it back into its 
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Verification completed; observation recorded. Check stdout for correction prompt if any. |
-| 1 | Missing dependency, missing required argument, or CLI command failure. |
+| Code | Meaning                                                                                  |
+| ---- | ---------------------------------------------------------------------------------------- |
+| 0    | Verification completed; observation recorded. Check stdout for correction prompt if any. |
+| 1    | Missing dependency, missing required argument, or CLI command failure.                   |
 
 ## Testing
 

@@ -20,11 +20,11 @@ Then configure in your Codex session:
 {
   "plugins": {
     "55ndeep": {
-      "policy": "strict",   // "strict" | "lenient"
+      "policy": "strict", // "strict" | "lenient"
       "languages": ["typescript", "python"],
-      "maxConcurrent": 4
-    }
-  }
+      "maxConcurrent": 4,
+    },
+  },
 }
 ```
 

@@ -12,15 +12,11 @@ describe("tenantIdFromPath", () => {
   });
 
   it("returns the same id for the same path", () => {
-    expect(tenantIdFromPath("/tmp/test-workspace")).toBe(
-      tenantIdFromPath("/tmp/test-workspace"),
-    );
+    expect(tenantIdFromPath("/tmp/test-workspace")).toBe(tenantIdFromPath("/tmp/test-workspace"));
   });
 
   it("returns different ids for different paths", () => {
-    expect(tenantIdFromPath("/tmp/workspace-a")).not.toBe(
-      tenantIdFromPath("/tmp/workspace-b"),
-    );
+    expect(tenantIdFromPath("/tmp/workspace-a")).not.toBe(tenantIdFromPath("/tmp/workspace-b"));
   });
 
   it("resolves relative paths before hashing", () => {

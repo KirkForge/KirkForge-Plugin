@@ -58,7 +58,9 @@ export class EventLogger {
       }
       // Store the computed hash of this last line as prevHash
       this.prevHash = this._hmac(lastLine);
-      this.logger?.debug(`[event-log] Recovered chain: seq=${this.seq}, prevHash=${this.prevHash?.slice(0, 12)}...`);
+      this.logger?.debug(
+        `[event-log] Recovered chain: seq=${this.seq}, prevHash=${this.prevHash?.slice(0, 12)}...`,
+      );
     } catch {
       // If recovery fails, start fresh
       this.seq = 0;
@@ -68,15 +70,25 @@ export class EventLogger {
 
   private _wire(): void {
     const eventKinds: NDeepEvent["kind"][] = [
-      "verify.lint", "verify.types", "verify.security",
-      "state.changes", "state.graph",
-      "artifact.blocked", "artifact.unterminated", "artifact.truncated", "artifact.emitted",
+      "verify.lint",
+      "verify.types",
+      "verify.security",
+      "state.changes",
+      "state.graph",
+      "artifact.blocked",
+      "artifact.unterminated",
+      "artifact.truncated",
+      "artifact.emitted",
     ];
 
     for (const kind of eventKinds) {
       this.eventBus.on(kind as any, async (event) => {
-        try { this._append(event); } catch (e) {
-          this.logger?.warn(`[event-log] Failed to persist: ${e instanceof Error ? e.message : String(e)}`);
+        try {
+          this._append(event);
+        } catch (e) {
+          this.logger?.warn(
+            `[event-log] Failed to persist: ${e instanceof Error ? e.message : String(e)}`,
+          );
         }
         return { ok: true, value: undefined };
       });
@@ -103,7 +115,10 @@ export class EventLogger {
    * Verify the integrity of the entire log by replaying the hash chain.
    * Returns { valid: boolean, brokenAt: number | null }.
    */
-  static verifyLog(path: string, hmacSecret?: string): { valid: boolean; brokenAt: number | null; entries: number } {
+  static verifyLog(
+    path: string,
+    hmacSecret?: string,
+  ): { valid: boolean; brokenAt: number | null; entries: number } {
     const secret = hmacSecret ?? process.env.EVENT_LOG_HMAC_SECRET;
     if (!secret) {
       return { valid: false, brokenAt: null, entries: 0 };
@@ -154,14 +169,22 @@ export class EventLogger {
       this.prevHash = this._hmac(line.slice(0, -1)); // hash without trailing newline
       this.seq = currentSeq + 1;
     } catch {
-      try { closeSync(this.fd!); } catch { /* ok */ }
+      try {
+        closeSync(this.fd!);
+      } catch {
+        /* ok */
+      }
       this.fd = null;
     }
   }
 
   close(): void {
     if (this.fd !== null) {
-      try { closeSync(this.fd); } catch { /* ok */ }
+      try {
+        closeSync(this.fd);
+      } catch {
+        /* ok */
+      }
       this.fd = null;
     }
   }

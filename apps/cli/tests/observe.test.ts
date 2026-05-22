@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { recordObservation } from "@55ndeep/plugin";
 import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -48,10 +48,7 @@ describe("observe: output shape", () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
-      const result = await recordObservation(
-        { ...validObservation, tokens: 1200 },
-        store,
-      );
+      const result = await recordObservation({ ...validObservation, tokens: 1200 }, store);
       expect(result.ok).toBe(true);
       await adapter.persist();
     } finally {
@@ -63,10 +60,7 @@ describe("observe: output shape", () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
-      const result = await recordObservation(
-        { ...validObservation, outcome: "escalate" },
-        store,
-      );
+      const result = await recordObservation({ ...validObservation, outcome: "escalate" }, store);
       expect(result.ok).toBe(true);
       await adapter.persist();
     } finally {
@@ -95,10 +89,7 @@ describe("observe: output shape", () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
-      await recordObservation(
-        { ...validObservation, outcome: "escalate" },
-        store,
-      );
+      await recordObservation({ ...validObservation, outcome: "escalate" }, store);
       await adapter.persist();
 
       const queryResult = await adapter.query({ kind: "task-observation" });

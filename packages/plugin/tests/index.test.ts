@@ -25,7 +25,12 @@ function makeFailPacket(): ReducedStatePacket {
       security: { findings: 2, critical: 0, high: 1 },
       overall: "fail",
     },
-    changes: { filesChanged: 2, paths: ["src/index.ts", "src/utils.ts"], insertions: 10, deletions: 5 },
+    changes: {
+      filesChanged: 2,
+      paths: ["src/index.ts", "src/utils.ts"],
+      insertions: 10,
+      deletions: 5,
+    },
     graph: { edgeCount: 5, newEdges: 0, brokenEdges: 0, cycles: 0 },
     contributingSignals: [],
   };
@@ -37,7 +42,16 @@ describe("doctor()", () => {
     expect(report).toBeDefined();
     expect(typeof report).toBe("object");
 
-    const toolKeys = ["eslint", "tsc", "ruff", "pyright", "bandit", "secdev", "gitnexus", "graphify"] as const;
+    const toolKeys = [
+      "eslint",
+      "tsc",
+      "ruff",
+      "pyright",
+      "bandit",
+      "secdev",
+      "gitnexus",
+      "graphify",
+    ] as const;
     for (const key of toolKeys) {
       expect(report).toHaveProperty(key);
       expect(typeof report[key].available).toBe("boolean");
@@ -79,8 +93,14 @@ describe("doctor()", () => {
   it("every tool entry has a source field", async () => {
     const report = await doctor();
     const toolEntries = [
-      report.eslint, report.tsc, report.ruff, report.pyright,
-      report.bandit, report.secdev, report.gitnexus, report.graphify,
+      report.eslint,
+      report.tsc,
+      report.ruff,
+      report.pyright,
+      report.bandit,
+      report.secdev,
+      report.gitnexus,
+      report.graphify,
     ];
     for (const entry of toolEntries) {
       expect(entry.source).toBeDefined();
@@ -182,7 +202,11 @@ describe("buildCorrectionPrompt()", () => {
   it("includes artifact enforcement info when present", () => {
     const packet: ReducedStatePacket = {
       ...makeFailPacket(),
-      artifactEnforcement: { blocked: 1, blockedPaths: [{ path: ".env", reason: "dotfile not allowed" }], status: "fail" },
+      artifactEnforcement: {
+        blocked: 1,
+        blockedPaths: [{ path: ".env", reason: "dotfile not allowed" }],
+        status: "fail",
+      },
     };
     const prompt = buildCorrectionPrompt(packet);
     expect(prompt).toContain(".env");
@@ -400,12 +424,20 @@ describe("createPluginCore()", () => {
 describe("exported types and values", () => {
   it("toolNames returns correct mapping for typescript", () => {
     const ts = toolNames("typescript");
-    expect(ts).toEqual({ lint: "55NDeep TypeScript lint engine", types: "tsc", security: "55NDeep TypeScript lint engine (safety rules)" });
+    expect(ts).toEqual({
+      lint: "55NDeep TypeScript lint engine",
+      types: "tsc",
+      security: "55NDeep TypeScript lint engine (safety rules)",
+    });
   });
 
   it("toolNames returns correct mapping for python", () => {
     const py = toolNames("python");
-    expect(py).toEqual({ lint: "55NDeep Python lint engine", types: "pyright", security: "55NDeep Python lint engine (safety rules)" });
+    expect(py).toEqual({
+      lint: "55NDeep Python lint engine",
+      types: "pyright",
+      security: "55NDeep Python lint engine (safety rules)",
+    });
   });
 
   it("toolNames returns default for unknown language", () => {

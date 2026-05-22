@@ -4,11 +4,7 @@ import { promisify } from "node:util";
 import { writeFileSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  buildCorrectionPrompt,
-  recallRoutingBias,
-  verifyWorkspace,
-} from "@55ndeep/plugin";
+import { buildCorrectionPrompt, recallRoutingBias, verifyWorkspace } from "@55ndeep/plugin";
 import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
 
 const execFileAsync = promisify(execFile);
@@ -233,7 +229,11 @@ describe("recallRoutingBias", () => {
       expect(writeResult.ok).toBe(true);
       await adapter.persist();
 
-      const result = await recallRoutingBias("completely unrelated unicorn feature", undefined, store);
+      const result = await recallRoutingBias(
+        "completely unrelated unicorn feature",
+        undefined,
+        store,
+      );
       expect(result.ok).toBe(true);
       if (result.ok) {
         // Weak semantic match still returns a bias with low confidence

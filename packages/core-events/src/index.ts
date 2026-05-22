@@ -25,7 +25,15 @@ function makeEventId(event: NDeepEvent): string {
   const payload = "value" in event ? event.value : "reason" in event ? (event as any).reason : "";
   // Include timestamp to distinguish events with identical kind/stream/sequence
   const ts = "timestamp" in event ? event.timestamp : new Date().toISOString();
-  return sha256(JSON.stringify({ kind: event.kind, streamId: event.streamId, sequence: event.sequence, payload, ts }));
+  return sha256(
+    JSON.stringify({
+      kind: event.kind,
+      streamId: event.streamId,
+      sequence: event.sequence,
+      payload,
+      ts,
+    }),
+  );
 }
 
 function now(): string {
@@ -58,7 +66,9 @@ export class EventBus {
     return () => set.delete(handler as EventHandler);
   }
 
-  emit(event: NDeepEvent): Promise<Result<void, HandlerError | BufferOverflowError | IdempotencyError>> {
+  emit(
+    event: NDeepEvent,
+  ): Promise<Result<void, HandlerError | BufferOverflowError | IdempotencyError>> {
     if (!this._running || this._shuttingDown) {
       return Promise.resolve(err(new HandlerError("emit", new Error("EventBus is not running"))));
     }
@@ -134,19 +144,35 @@ export class EventBus {
     }
   }
 
-  get running(): boolean { return this._running; }
-  get inflightCount(): number { return this._inflight; }
-  getBufferSize(): number { return this._buffer.length; }
-  getBufferCapacity(): number { return this._bufferCapacity; }
+  get running(): boolean {
+    return this._running;
+  }
+  get inflightCount(): number {
+    return this._inflight;
+  }
+  getBufferSize(): number {
+    return this._buffer.length;
+  }
+  getBufferCapacity(): number {
+    return this._bufferCapacity;
+  }
 
-  shutdown(): void { this._running = false; this._shuttingDown = true; }
+  shutdown(): void {
+    this._running = false;
+    this._shuttingDown = true;
+  }
 
   async gracefulShutdown(drainTimeoutMs?: number): Promise<void> {
     this._shuttingDown = true;
-    if (this._inflight === 0) { this._running = false; return; }
+    if (this._inflight === 0) {
+      this._running = false;
+      return;
+    }
     const timeout = drainTimeoutMs ?? 10000;
-    const drainPromise = new Promise<void>(r => { this._drainResolve = r; });
-    const timeoutPromise = new Promise<void>(r => setTimeout(r, timeout));
+    const drainPromise = new Promise<void>((r) => {
+      this._drainResolve = r;
+    });
+    const timeoutPromise = new Promise<void>((r) => setTimeout(r, timeout));
     await Promise.race([drainPromise, timeoutPromise]);
     this._running = false;
   }

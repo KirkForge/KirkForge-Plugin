@@ -17,7 +17,7 @@ import type { Result } from "@55ndeep/core-types";
 function makeModelConfig() {
   return {
     providers: {
-      "test": {
+      test: {
         provider: "ollama" as const,
         baseUrl: "http://localhost:11434",
         defaultModel: "test-model",
@@ -30,7 +30,10 @@ function makeModelConfig() {
 function tmpWorkspace(extraFiles: Record<string, string> = {}): string {
   const dir = mkdtempSync(join(tmpdir(), "55ndeep-chaos-"));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "chaos-test", type: "module" }));
-  writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", strict: true } }));
+  writeFileSync(
+    join(dir, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", strict: true } }),
+  );
   writeFileSync(join(dir, "src.ts"), "export function hello() { return 'hello'; }\n");
   for (const [relPath, content] of Object.entries(extraFiles)) {
     const full = resolve(dir, relPath);
@@ -59,7 +62,13 @@ function makePassPacket(taskId: string, files: string[] = ["src.ts"]) {
     emissions: {
       filesWritten: files.length,
       totalBytes: files.length * 100,
-      files: files.map((f) => ({ path: f, sha256: "abc123", bytes: 100, beforeHash: null, existed: true })),
+      files: files.map((f) => ({
+        path: f,
+        sha256: "abc123",
+        bytes: 100,
+        beforeHash: null,
+        existed: true,
+      })),
     },
     verifierPolicy: {
       required: ["lint" as const],
@@ -73,13 +82,22 @@ function makePassPacket(taskId: string, files: string[] = ["src.ts"]) {
 type DelegationResultStub = {
   decision: { mode: "artifact" | "hard-prompt" | "schema-contract" };
   emission: {
-    agentId: string; content: string; promptTokens: number;
-    completionTokens: number; totalTokens: number;
-    model: string; format: "artifact" | "hard-prompt" | "schema-contract";
+    agentId: string;
+    content: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    model: string;
+    format: "artifact" | "hard-prompt" | "schema-contract";
   };
   signals: Array<{
-    id: string; taskId: string; domain: string; kind: string;
-    source: string; ts: string; value: unknown;
+    id: string;
+    taskId: string;
+    domain: string;
+    kind: string;
+    source: string;
+    ts: string;
+    value: unknown;
   }>;
   packet: ReturnType<typeof makePassPacket>;
 };
@@ -104,8 +122,12 @@ class TestableOrchestrator extends Orchestrator {
 
 describe("circuit breaker chaos", () => {
   let dir: string;
-  beforeAll(() => { dir = tmpWorkspace(); });
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  beforeAll(() => {
+    dir = tmpWorkspace();
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("escalates instead of infinite-looping when delegation keep failing", async () => {
     const adapter = new InMemoryAdapter();
@@ -127,11 +149,25 @@ describe("circuit breaker chaos", () => {
       return ok({
         decision: { mode: "artifact" },
         emission: {
-          agentId: "a1", content: "// code\n",
-          promptTokens: 10, completionTokens: 5, totalTokens: 15,
-          model: "test-model", format: "artifact" as const,
+          agentId: "a1",
+          content: "// code\n",
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+          model: "test-model",
+          format: "artifact" as const,
         },
-        signals: [{ id: "s1", taskId: task.taskId ?? "chaos-loop", domain: "files", kind: "files.written", source: "agent", ts: new Date().toISOString(), value: { files: ["src.ts"] } }],
+        signals: [
+          {
+            id: "s1",
+            taskId: task.taskId ?? "chaos-loop",
+            domain: "files",
+            kind: "files.written",
+            source: "agent",
+            ts: new Date().toISOString(),
+            value: { files: ["src.ts"] },
+          },
+        ],
         packet,
       });
     });
@@ -152,8 +188,12 @@ describe("circuit breaker chaos", () => {
 
 describe("validator chaos", () => {
   let dir: string;
-  beforeAll(() => { dir = tmpWorkspace(); });
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  beforeAll(() => {
+    dir = tmpWorkspace();
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("handles validator returning error status as infrastructure failure", async () => {
     const adapter = new InMemoryAdapter();
@@ -171,11 +211,25 @@ describe("validator chaos", () => {
       return ok({
         decision: { mode: "artifact" },
         emission: {
-          agentId: "a1", content: "// code\n",
-          promptTokens: 10, completionTokens: 5, totalTokens: 15,
-          model: "test-model", format: "artifact" as const,
+          agentId: "a1",
+          content: "// code\n",
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+          model: "test-model",
+          format: "artifact" as const,
         },
-        signals: [{ id: "s1", taskId: task.taskId ?? "chaos-val", domain: "files", kind: "files.written", source: "agent", ts: new Date().toISOString(), value: { files: ["src.ts"] } }],
+        signals: [
+          {
+            id: "s1",
+            taskId: task.taskId ?? "chaos-val",
+            domain: "files",
+            kind: "files.written",
+            source: "agent",
+            ts: new Date().toISOString(),
+            value: { files: ["src.ts"] },
+          },
+        ],
         packet,
       });
     });
@@ -224,11 +278,25 @@ describe("concurrency chaos (separate instances)", () => {
           return ok({
             decision: { mode: "hard-prompt" },
             emission: {
-              agentId: "a1", content: "ok",
-              promptTokens: 5, completionTokens: 5, totalTokens: 10,
-              model: "test-model", format: "hard-prompt" as const,
+              agentId: "a1",
+              content: "ok",
+              promptTokens: 5,
+              completionTokens: 5,
+              totalTokens: 10,
+              model: "test-model",
+              format: "hard-prompt" as const,
             },
-            signals: [{ id: "s1", taskId: task.taskId ?? `conc-${i}`, domain: "files", kind: "files.written", source: "agent", ts: new Date().toISOString(), value: { files: ["src.ts"] } }],
+            signals: [
+              {
+                id: "s1",
+                taskId: task.taskId ?? `conc-${i}`,
+                domain: "files",
+                kind: "files.written",
+                source: "agent",
+                ts: new Date().toISOString(),
+                value: { files: ["src.ts"] },
+              },
+            ],
             packet,
           });
         });
@@ -247,7 +315,11 @@ describe("concurrency chaos (separate instances)", () => {
       }
     } finally {
       for (const d of dirs) {
-        try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+        try {
+          rmSync(d, { recursive: true, force: true });
+        } catch {
+          /* ignore */
+        }
       }
     }
   });
@@ -255,8 +327,12 @@ describe("concurrency chaos (separate instances)", () => {
 
 describe("memory chaos", () => {
   let dir: string;
-  beforeAll(() => { dir = tmpWorkspace(); });
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  beforeAll(() => {
+    dir = tmpWorkspace();
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("survives memory store adapter write errors without throwing", async () => {
     class FailingAdapter extends InMemoryAdapter {
@@ -280,11 +356,25 @@ describe("memory chaos", () => {
       return ok({
         decision: { mode: "hard-prompt" },
         emission: {
-          agentId: "a1", content: "ok",
-          promptTokens: 5, completionTokens: 5, totalTokens: 10,
-          model: "test-model", format: "hard-prompt" as const,
+          agentId: "a1",
+          content: "ok",
+          promptTokens: 5,
+          completionTokens: 5,
+          totalTokens: 10,
+          model: "test-model",
+          format: "hard-prompt" as const,
         },
-        signals: [{ id: "s1", taskId: task.taskId ?? "chaos-mem", domain: "files", kind: "files.written", source: "agent", ts: new Date().toISOString(), value: { files: ["src.ts"] } }],
+        signals: [
+          {
+            id: "s1",
+            taskId: task.taskId ?? "chaos-mem",
+            domain: "files",
+            kind: "files.written",
+            source: "agent",
+            ts: new Date().toISOString(),
+            value: { files: ["src.ts"] },
+          },
+        ],
         packet,
       });
     });
@@ -307,7 +397,9 @@ describe("path safety chaos", () => {
       "sub/deep.ts": "export const x = 1;\n",
     });
   });
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("blocks emission of files that escape cwd", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
@@ -329,14 +421,21 @@ describe("path safety chaos", () => {
       return ok({
         decision: { mode: "artifact" },
         emission: {
-          agentId: "a1", content: "attempted path escape",
-          promptTokens: 5, completionTokens: 5, totalTokens: 10,
-          model: "test-model", format: "artifact" as const,
+          agentId: "a1",
+          content: "attempted path escape",
+          promptTokens: 5,
+          completionTokens: 5,
+          totalTokens: 10,
+          model: "test-model",
+          format: "artifact" as const,
         },
         signals: [
           {
-            id: "s1", taskId: task.taskId ?? "chaos-path",
-            domain: "artifact", kind: "artifact.blocked", source: "orchestrator",
+            id: "s1",
+            taskId: task.taskId ?? "chaos-path",
+            domain: "artifact",
+            kind: "artifact.blocked",
+            source: "orchestrator",
             ts: new Date().toISOString(),
             value: { blockedPaths: [{ path: "../escape.ts", reason: "path escapes cwd" }] },
           },
@@ -357,8 +456,12 @@ describe("path safety chaos", () => {
 
 describe("shutdown chaos", () => {
   let dir: string;
-  beforeAll(() => { dir = tmpWorkspace(); });
-  afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
+  beforeAll(() => {
+    dir = tmpWorkspace();
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("gracefulShutdown while a run is in-flight does not throw", async () => {
     const store = new MemoryStore(new InMemoryAdapter());
@@ -375,11 +478,25 @@ describe("shutdown chaos", () => {
       return ok({
         decision: { mode: "hard-prompt" },
         emission: {
-          agentId: "a1", content: "ok",
-          promptTokens: 5, completionTokens: 5, totalTokens: 10,
-          model: "test-model", format: "hard-prompt" as const,
+          agentId: "a1",
+          content: "ok",
+          promptTokens: 5,
+          completionTokens: 5,
+          totalTokens: 10,
+          model: "test-model",
+          format: "hard-prompt" as const,
         },
-        signals: [{ id: "s1", taskId: task.taskId ?? "chaos-shutdown", domain: "files", kind: "files.written", source: "agent", ts: new Date().toISOString(), value: { files: ["src.ts"] } }],
+        signals: [
+          {
+            id: "s1",
+            taskId: task.taskId ?? "chaos-shutdown",
+            domain: "files",
+            kind: "files.written",
+            source: "agent",
+            ts: new Date().toISOString(),
+            value: { files: ["src.ts"] },
+          },
+        ],
         packet,
       });
     });
@@ -391,7 +508,7 @@ describe("shutdown chaos", () => {
     );
 
     // Give it a moment to start, then shut down
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 50));
     const shutdownP = orchestrator.gracefulShutdown();
 
     const [runR] = await Promise.allSettled([runP, shutdownP]);

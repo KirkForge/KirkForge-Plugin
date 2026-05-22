@@ -3,7 +3,7 @@ import { resolve, join } from "node:path";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { ok, err, type Result } from "@55ndeep/core-types";
-import { MemoryStore, type MemoryAdapter, type MemoryStats } from "@55ndeep/memory-palace";
+import { MemoryStore, type MemoryAdapter } from "@55ndeep/memory-palace";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,7 +54,11 @@ export class TenantRegistry {
     try {
       const raw = readFileSync(indexPath, "utf-8");
       const data = JSON.parse(raw) as Array<{
-        tenantId: string; label: string; workspacePath: string; storageDir: string; createdAt: string;
+        tenantId: string;
+        label: string;
+        workspacePath: string;
+        storageDir: string;
+        createdAt: string;
       }>;
       for (const entry of data) {
         this.tenants.set(entry.tenantId, entry);
@@ -68,7 +72,7 @@ export class TenantRegistry {
     try {
       const indexPath = this._indexPath();
       mkdirSync(this.storageRoot, { recursive: true });
-      const data = [...this.tenants.values()].map(t => ({
+      const data = [...this.tenants.values()].map((t) => ({
         tenantId: t.tenantId,
         label: t.label,
         workspacePath: t.workspacePath,
@@ -143,7 +147,11 @@ export class TenantRegistry {
       // with InMemoryAdapter fallback
       return ok(await MemoryStore.create(dbPath));
     } catch (cause) {
-      return err(new Error(`TenantRegistry: failed to create memory store for ${tenantId}: ${cause instanceof Error ? cause.message : String(cause)}`));
+      return err(
+        new Error(
+          `TenantRegistry: failed to create memory store for ${tenantId}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
     }
   }
 

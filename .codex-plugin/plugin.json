@@ -25,7 +25,15 @@
     }
   },
   "capabilities": ["verify", "correct", "route", "doctor"],
-  "keywords": ["verification", "linting", "agent", "codex", "claude-code", "opencode", "deterministic"],
+  "keywords": [
+    "verification",
+    "linting",
+    "agent",
+    "codex",
+    "claude-code",
+    "opencode",
+    "deterministic"
+  ],
   "repository": "https://github.com/55ndeep/55ndeep",
   "homepage": "https://github.com/55ndeep/55ndeep#readme",
   "engines": {

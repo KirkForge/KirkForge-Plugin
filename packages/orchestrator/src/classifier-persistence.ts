@@ -6,9 +6,9 @@
  * incorporates real task descriptions + their outcomes to continuously
  * improve routing accuracy.
  */
-import { classifyNlp, resetNlpModel } from "./classifier-nlp.js";
+import { resetNlpModel } from "./classifier-nlp.js";
 import type { DelegationMode } from "@55ndeep/core-types";
-import type { MemoryStore, RunRecord } from "@55ndeep/memory-palace";
+import type { MemoryStore } from "@55ndeep/memory-palace";
 
 // ---------------------------------------------------------------------------
 // Outcome weights
@@ -17,10 +17,10 @@ import type { MemoryStore, RunRecord } from "@55ndeep/memory-palace";
 /** Weight applied to each outcome class for classifier learning. */
 const OUTCOME_WEIGHTS: Record<string, number> = {
   pass: 1.0,
-  task_fail: -0.3,       // slight negative — the mode was wrong for this task
-  validator_error: -0.1,  // tiny negative — infrastructure issue, not mode
+  task_fail: -0.3, // slight negative — the mode was wrong for this task
+  validator_error: -0.1, // tiny negative — infrastructure issue, not mode
   tool_error: -0.1,
-  escalated: 0.0,         // neutral — escalated for other reasons
+  escalated: 0.0, // neutral — escalated for other reasons
   unknown: 0.0,
 };
 
@@ -90,7 +90,9 @@ export class ClassifierMemory {
       for (const obs of result.value) {
         const description = String(obs.properties.description ?? obs.description);
         const mode = String(obs.properties.mode ?? "hard-prompt") as DelegationMode;
-        const outcomeClass = String(obs.properties.outcomeClass ?? obs.properties.outcome ?? "unknown");
+        const outcomeClass = String(
+          obs.properties.outcomeClass ?? obs.properties.outcome ?? "unknown",
+        );
 
         // Only learn from tasks with clear pass/fail outcomes
         const weight = OUTCOME_WEIGHTS[outcomeClass] ?? 0;

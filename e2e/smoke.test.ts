@@ -32,19 +32,26 @@ describe("e2e smoke — real language tooling", () => {
     const dir = mkdtempSync(join(tmpdir(), "55n-smoke-"));
     try {
       writeFileSync(join(dir, "bad.js"), "const x = 1;\nconst y = 2;\n");
-      writeFileSync(join(dir, "eslint.config.mjs"), [
-        "export default [",
-        "  {",
-        "    rules: {",
-        '      "no-unused-vars": "error",',
-        "    },",
-        "  },",
-        "];",
-      ].join("\n"));
+      writeFileSync(
+        join(dir, "eslint.config.mjs"),
+        [
+          "export default [",
+          "  {",
+          "    rules: {",
+          '      "no-unused-vars": "error",',
+          "    },",
+          "  },",
+          "];",
+        ].join("\n"),
+      );
 
       let output: string;
       try {
-        const result = execFileSync(eslint, ["bad.js", "--format=json", "--no-warn-ignored"], { cwd: dir, stdio: "pipe", timeout: 30000 });
+        const result = execFileSync(eslint, ["bad.js", "--format=json", "--no-warn-ignored"], {
+          cwd: dir,
+          stdio: "pipe",
+          timeout: 30000,
+        });
         output = result.toString();
       } catch (err: any) {
         if (err?.stdout) output = err.stdout.toString();
@@ -66,17 +73,20 @@ describe("e2e smoke — real language tooling", () => {
     const dir = mkdtempSync(join(tmpdir(), "55n-smoke-"));
     try {
       writeFileSync(join(dir, "good.ts"), "export const x: number = 42;\n");
-      writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({
-        compilerOptions: {
-          strict: true,
-          target: "ES2022",
-          module: "ESNext",
-          moduleResolution: "bundler",
-          skipLibCheck: true,
-          noEmit: true,
-        },
-        include: ["good.ts"],
-      }));
+      writeFileSync(
+        join(dir, "tsconfig.json"),
+        JSON.stringify({
+          compilerOptions: {
+            strict: true,
+            target: "ES2022",
+            module: "ESNext",
+            moduleResolution: "bundler",
+            skipLibCheck: true,
+            noEmit: true,
+          },
+          include: ["good.ts"],
+        }),
+      );
 
       const result = execFileSync(tsc, ["--noEmit"], { cwd: dir, stdio: "pipe", timeout: 30000 });
       expect(result.toString().trim()).toBe("");

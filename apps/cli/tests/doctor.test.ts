@@ -19,8 +19,14 @@ describe("doctor", () => {
   it("each tool entry has available boolean and optional version", async () => {
     const report = await doctor();
     const toolEntries = [
-      report.eslint, report.tsc, report.ruff, report.pyright,
-      report.bandit, report.secdev, report.gitnexus, report.graphify,
+      report.eslint,
+      report.tsc,
+      report.ruff,
+      report.pyright,
+      report.bandit,
+      report.secdev,
+      report.gitnexus,
+      report.graphify,
     ];
 
     for (const entry of toolEntries) {

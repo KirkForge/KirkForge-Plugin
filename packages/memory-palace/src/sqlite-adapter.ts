@@ -18,11 +18,12 @@ export class SqliteAdapter implements MemoryAdapter {
   constructor(filePath: string) {
     let Database: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       Database = require("better-sqlite3");
     } catch {
       throw new Error(
         "SQLite adapter requires optional dependency better-sqlite3. " +
-        "Install it (npm install better-sqlite3) or use FileMemoryAdapter instead."
+          "Install it (npm install better-sqlite3) or use FileMemoryAdapter instead.",
       );
     }
     this.filePath = resolve(filePath);
@@ -80,7 +81,11 @@ export class SqliteAdapter implements MemoryAdapter {
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_outcome_class ON runs(outcome_class)");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_runs_timestamp ON runs(timestamp)");
     // Migration: add emission_ids column if missing (pre-1.1 databases)
-    try { this.db.exec("ALTER TABLE runs ADD COLUMN emission_ids TEXT NOT NULL DEFAULT '[]'"); } catch { /* column already exists */ }
+    try {
+      this.db.exec("ALTER TABLE runs ADD COLUMN emission_ids TEXT NOT NULL DEFAULT '[]'");
+    } catch {
+      /* column already exists */
+    }
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS emissions (
@@ -100,7 +105,11 @@ export class SqliteAdapter implements MemoryAdapter {
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_emissions_task_id ON emissions(task_id)");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_emissions_run_id ON emissions(run_id)");
     // Migration: add turn column if missing (pre-1.1 databases)
-    try { this.db.exec("ALTER TABLE emissions ADD COLUMN turn INTEGER NOT NULL DEFAULT 0"); } catch { /* column already exists */ }
+    try {
+      this.db.exec("ALTER TABLE emissions ADD COLUMN turn INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* column already exists */
+    }
 
     // Schema versioning for future migrations
     this.db.exec(`
@@ -110,14 +119,18 @@ export class SqliteAdapter implements MemoryAdapter {
       )
     `);
     // Seed initial version if empty
-    const versionRow = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as { v: number | null } | undefined;
+    const versionRow = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as
+      | { v: number | null }
+      | undefined;
     if (!versionRow || versionRow.v === null) {
-      this.db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(1, new Date().toISOString());
+      this.db
+        .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+        .run(1, new Date().toISOString());
     }
 
     // Cache prepared statements for performance (B9)
     this._stmtInsertObs = this.db.prepare(
-      "INSERT OR REPLACE INTO observations (id, kind, task_id, timestamp, description, properties, tags) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT OR REPLACE INTO observations (id, kind, task_id, timestamp, description, properties, tags) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     this._stmtInsertRun = this.db.prepare(
       `INSERT OR REPLACE INTO runs
@@ -126,16 +139,14 @@ export class SqliteAdapter implements MemoryAdapter {
         routing_lesson, final_verdict, source_of_truth, final_action,
         tokens, duration_ms, turns, validator_duration_ms, verifier_overall,
         files_emitted, total_bytes_emitted, emission_ids, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this._stmtInsertEmission = this.db.prepare(
       `INSERT OR REPLACE INTO emissions
        (id, run_id, task_id, turn, path, sha256, bytes, before_hash, existed, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    this._stmtDeleteEmissionsByRun = this.db.prepare(
-      "DELETE FROM emissions WHERE run_id = ?"
-    );
+    this._stmtDeleteEmissionsByRun = this.db.prepare("DELETE FROM emissions WHERE run_id = ?");
     this._stmtBeginTx = this.db.prepare("BEGIN IMMEDIATE");
     this._stmtCommit = this.db.prepare("COMMIT");
     this._stmtRollback = this.db.prepare("ROLLBACK");
@@ -150,11 +161,15 @@ export class SqliteAdapter implements MemoryAdapter {
         obj.timestamp,
         obj.description,
         JSON.stringify(obj.properties),
-        JSON.stringify(obj.tags)
+        JSON.stringify(obj.tags),
       );
       return ok(undefined);
     } catch (cause) {
-      return err(new Error(`SqliteAdapter write failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+      return err(
+        new Error(
+          `SqliteAdapter write failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
     }
   }
 
@@ -165,7 +180,11 @@ export class SqliteAdapter implements MemoryAdapter {
       if (!row) return ok(null);
       return ok(this._rowToObject(row));
     } catch (cause) {
-      return err(new Error(`SqliteAdapter read failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+      return err(
+        new Error(
+          `SqliteAdapter read failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
     }
   }
 
@@ -196,7 +215,11 @@ export class SqliteAdapter implements MemoryAdapter {
       const rows = stmt.all(...params) as Row[];
       return ok(rows.map((r) => this._rowToObject(r)));
     } catch (cause) {
-      return err(new Error(`SqliteAdapter query failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+      return err(
+        new Error(
+          `SqliteAdapter query failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
     }
   }
 
@@ -204,76 +227,151 @@ export class SqliteAdapter implements MemoryAdapter {
     try {
       const countStmt = this.db.prepare("SELECT COUNT(*) as cnt FROM observations");
       const countRow = countStmt.get() as { cnt: number };
-      const lastStmt = this.db.prepare("SELECT timestamp FROM observations ORDER BY timestamp DESC LIMIT 1");
+      const lastStmt = this.db.prepare(
+        "SELECT timestamp FROM observations ORDER BY timestamp DESC LIMIT 1",
+      );
       const lastRow = lastStmt.get() as { timestamp: string } | undefined;
       return ok({
         totalObjects: countRow.cnt,
         lastWrite: lastRow?.timestamp ?? "never",
       });
     } catch (cause) {
-      return err(new Error(`SqliteAdapter stats failed: ${cause instanceof Error ? cause.message : String(cause)}`));
+      return err(
+        new Error(
+          `SqliteAdapter stats failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
+      );
     }
   }
 
   writeRun(run: {
-    runId: string; taskId: string; description: string; language: string;
-    taskFamily?: string; mode: string; model: string;
-    providerKey: string; providerType: string; baseUrl?: string;
-    outcome: string; outcomeClass: string; routingLesson: string;
-    finalVerdict: string; sourceOfTruth: string; finalAction: string;
-    tokens: number; durationMs: number; turns: number;
-    validatorDurationMs: number; verifierOverall?: string;
-    filesEmitted: number; totalBytesEmitted: number;
-    emissionIds: string[]; timestamp: string;
+    runId: string;
+    taskId: string;
+    description: string;
+    language: string;
+    taskFamily?: string;
+    mode: string;
+    model: string;
+    providerKey: string;
+    providerType: string;
+    baseUrl?: string;
+    outcome: string;
+    outcomeClass: string;
+    routingLesson: string;
+    finalVerdict: string;
+    sourceOfTruth: string;
+    finalAction: string;
+    tokens: number;
+    durationMs: number;
+    turns: number;
+    validatorDurationMs: number;
+    verifierOverall?: string;
+    filesEmitted: number;
+    totalBytesEmitted: number;
+    emissionIds: string[];
+    timestamp: string;
   }): void {
     this._stmtInsertRun.run(
-      run.runId, run.taskId, run.description, run.language,
-      run.taskFamily ?? null, run.mode, run.model,
-      run.providerKey, run.providerType, run.baseUrl ?? null,
-      run.outcome, run.outcomeClass, run.routingLesson,
-      run.finalVerdict, run.sourceOfTruth, run.finalAction,
-      run.tokens, run.durationMs, run.turns,
-      run.validatorDurationMs, run.verifierOverall ?? null,
-      run.filesEmitted, run.totalBytesEmitted,
+      run.runId,
+      run.taskId,
+      run.description,
+      run.language,
+      run.taskFamily ?? null,
+      run.mode,
+      run.model,
+      run.providerKey,
+      run.providerType,
+      run.baseUrl ?? null,
+      run.outcome,
+      run.outcomeClass,
+      run.routingLesson,
+      run.finalVerdict,
+      run.sourceOfTruth,
+      run.finalAction,
+      run.tokens,
+      run.durationMs,
+      run.turns,
+      run.validatorDurationMs,
+      run.verifierOverall ?? null,
+      run.filesEmitted,
+      run.totalBytesEmitted,
       JSON.stringify(run.emissionIds ?? []),
-      run.timestamp
+      run.timestamp,
     );
   }
 
   writeEmission(emission: {
-    id: string; runId: string; taskId: string; turn: number;
-    path: string; sha256: string; bytes: number;
-    beforeHash: string | null; existed: boolean; timestamp: string;
+    id: string;
+    runId: string;
+    taskId: string;
+    turn: number;
+    path: string;
+    sha256: string;
+    bytes: number;
+    beforeHash: string | null;
+    existed: boolean;
+    timestamp: string;
   }): void {
     this._stmtInsertEmission.run(
-      emission.id, emission.runId, emission.taskId, emission.turn,
-      emission.path, emission.sha256, emission.bytes,
-      emission.beforeHash, emission.existed ? 1 : 0, emission.timestamp
+      emission.id,
+      emission.runId,
+      emission.taskId,
+      emission.turn,
+      emission.path,
+      emission.sha256,
+      emission.bytes,
+      emission.beforeHash,
+      emission.existed ? 1 : 0,
+      emission.timestamp,
     );
   }
 
   queryRuns(limit = 50): Array<Record<string, unknown>> {
-    const stmt = this.db.prepare(
-      "SELECT * FROM runs ORDER BY timestamp DESC LIMIT ?"
-    );
+    const stmt = this.db.prepare("SELECT * FROM runs ORDER BY timestamp DESC LIMIT ?");
     return stmt.all(limit) as Array<Record<string, unknown>>;
   }
 
-  writeRunAndEmissions(run: {
-    runId: string; taskId: string; description: string; language: string;
-    taskFamily?: string; mode: string; model: string;
-    providerKey: string; providerType: string; baseUrl?: string;
-    outcome: string; outcomeClass: string; routingLesson: string;
-    finalVerdict: string; sourceOfTruth: string; finalAction: string;
-    tokens: number; durationMs: number; turns: number;
-    validatorDurationMs: number; verifierOverall?: string;
-    filesEmitted: number; totalBytesEmitted: number;
-    emissionIds: string[]; timestamp: string;
-  }, emissions: Array<{
-    id: string; runId: string; taskId: string; turn: number;
-    path: string; sha256: string; bytes: number;
-    beforeHash: string | null; existed: boolean; timestamp: string;
-  }>): void {
+  writeRunAndEmissions(
+    run: {
+      runId: string;
+      taskId: string;
+      description: string;
+      language: string;
+      taskFamily?: string;
+      mode: string;
+      model: string;
+      providerKey: string;
+      providerType: string;
+      baseUrl?: string;
+      outcome: string;
+      outcomeClass: string;
+      routingLesson: string;
+      finalVerdict: string;
+      sourceOfTruth: string;
+      finalAction: string;
+      tokens: number;
+      durationMs: number;
+      turns: number;
+      validatorDurationMs: number;
+      verifierOverall?: string;
+      filesEmitted: number;
+      totalBytesEmitted: number;
+      emissionIds: string[];
+      timestamp: string;
+    },
+    emissions: Array<{
+      id: string;
+      runId: string;
+      taskId: string;
+      turn: number;
+      path: string;
+      sha256: string;
+      bytes: number;
+      beforeHash: string | null;
+      existed: boolean;
+      timestamp: string;
+    }>,
+  ): void {
     this._stmtBeginTx.run();
     try {
       // Remove stale emissions from a prior write of the same run
@@ -284,15 +382,17 @@ export class SqliteAdapter implements MemoryAdapter {
       this.writeRun(run);
       this._stmtCommit.run();
     } catch (e) {
-      try { this._stmtRollback.run(); } catch { /* best-effort */ }
+      try {
+        this._stmtRollback.run();
+      } catch {
+        /* best-effort */
+      }
       throw e;
     }
   }
 
   queryEmissionsForRun(runId: string): Array<Record<string, unknown>> {
-    const stmt = this.db.prepare(
-      "SELECT * FROM emissions WHERE run_id = ? ORDER BY path"
-    );
+    const stmt = this.db.prepare("SELECT * FROM emissions WHERE run_id = ? ORDER BY path");
     return stmt.all(runId) as Array<Record<string, unknown>>;
   }
 
@@ -303,7 +403,9 @@ export class SqliteAdapter implements MemoryAdapter {
 
   schemaVersion(): number | null {
     try {
-      const row = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as { v: number | null } | undefined;
+      const row = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as
+        | { v: number | null }
+        | undefined;
       return row?.v ?? null;
     } catch {
       return null;

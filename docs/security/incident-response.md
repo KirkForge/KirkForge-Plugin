@@ -26,20 +26,24 @@ This is a minimal incident response playbook for enterprise deployments.
 ## Common incident types
 
 ### Auth / token validation failures
+
 - Check OIDC config (issuer/audience/JWKS)
 - Verify clock skew and token expiry
 
 ### Storage corruption / memory write failures
+
 - Switch to read-only mode if possible
 - Restore from backup
 - Run integrity check tool (to be implemented)
 
 ### Quota saturation / noisy neighbor
+
 - Identify tenant causing saturation
 - Apply stricter per-tenant caps
 - Confirm metrics: blocked_count, queue depth
 
 ### Suspected data leakage
+
 - Immediately isolate tenant namespaces
 - Rotate keys/secrets
 - Export and preserve audit trail

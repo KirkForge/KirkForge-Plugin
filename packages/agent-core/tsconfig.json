@@ -22,11 +22,6 @@
       "path": "../prompt-core"
     }
   ],
-  "exclude": [
-    "dist",
-    "**/*.test.ts"
-  ],
-  "include": [
-    "src"
-  ]
+  "exclude": ["dist", "**/*.test.ts"],
+  "include": ["src"]
 }

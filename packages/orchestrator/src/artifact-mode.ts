@@ -18,7 +18,10 @@ import type { WriteResult } from "./path-safety.js";
 const FILE_MARKER = /^### FILE:\s*(.+)$/;
 const END_MARKER = /^### END\s*$/;
 
-export interface ParsedArtifact { filePath: string; content: string; }
+export interface ParsedArtifact {
+  filePath: string;
+  content: string;
+}
 
 export interface ParseResult {
   artifacts: ParsedArtifact[];
@@ -36,18 +39,30 @@ export function parseArtifacts(output: string): ParseResult {
     const fm = line.match(FILE_MARKER);
     if (fm) {
       if (currentPath !== null && currentContent.length > 0) {
-        const hadMarkerInContent = currentContent.some(cl => FILE_MARKER.test(cl));
+        const hadMarkerInContent = currentContent.some((cl) => FILE_MARKER.test(cl));
         if (hadMarkerInContent) {
-          warnings.push(`artifact "${currentPath}" content contained a line matching "### FILE:" — possible marker collision, file may be truncated`);
+          warnings.push(
+            `artifact "${currentPath}" content contained a line matching "### FILE:" — possible marker collision, file may be truncated`,
+          );
         }
-        artifacts.push({ filePath: currentPath, content: stripOuterFence(currentContent.join("\n")) });
+        artifacts.push({
+          filePath: currentPath,
+          content: stripOuterFence(currentContent.join("\n")),
+        });
       }
       currentPath = fm[1]!.trim();
       currentContent = [];
       continue;
     }
     if (END_MARKER.test(line)) {
-      if (currentPath !== null) { artifacts.push({ filePath: currentPath, content: stripOuterFence(currentContent.join("\n")) }); currentPath = null; currentContent = []; }
+      if (currentPath !== null) {
+        artifacts.push({
+          filePath: currentPath,
+          content: stripOuterFence(currentContent.join("\n")),
+        });
+        currentPath = null;
+        currentContent = [];
+      }
       continue;
     }
     if (currentPath !== null) currentContent.push(line);
@@ -87,21 +102,32 @@ export function parseJsonlArtifacts(output: string): ParseResult {
           if (typeof obj.content_b64 === "string") {
             // Validate canonical base64 before decoding
             if (!/^[A-Za-z0-9+\/]*={0,2}$/.test(obj.content_b64)) {
-              warnings.push(`line ${i + 1}: JSONL artifact "${obj.path}" has invalid base64 content_b64`);
+              warnings.push(
+                `line ${i + 1}: JSONL artifact "${obj.path}" has invalid base64 content_b64`,
+              );
               strictTermination = false;
               continue;
             }
 
             fileContent = Buffer.from(obj.content_b64, "base64").toString("utf-8");
-          } else if (typeof obj.content === "string" && process.env.ALLOW_LEGACY_JSONL_CONTENT === "1") {
+          } else if (
+            typeof obj.content === "string" &&
+            process.env.ALLOW_LEGACY_JSONL_CONTENT === "1"
+          ) {
             fileContent = obj.content;
-            warnings.push(`line ${i + 1}: JSONL artifact "${obj.path}" uses deprecated "content" field — prefer "content_b64"`);
+            warnings.push(
+              `line ${i + 1}: JSONL artifact "${obj.path}" uses deprecated "content" field — prefer "content_b64"`,
+            );
           } else if (typeof obj.content === "string") {
-            warnings.push(`line ${i + 1}: JSONL artifact "${obj.path}" uses deprecated "content" field — set ALLOW_LEGACY_JSONL_CONTENT=1 to accept legacy format`);
+            warnings.push(
+              `line ${i + 1}: JSONL artifact "${obj.path}" uses deprecated "content" field — set ALLOW_LEGACY_JSONL_CONTENT=1 to accept legacy format`,
+            );
             strictTermination = false;
             continue;
           } else {
-            warnings.push(`line ${i + 1}: JSONL artifact "${obj.path}" missing both content_b64 and content fields`);
+            warnings.push(
+              `line ${i + 1}: JSONL artifact "${obj.path}" missing both content_b64 and content fields`,
+            );
             strictTermination = false;
             continue;
           }
@@ -116,16 +142,19 @@ export function parseJsonlArtifacts(output: string): ParseResult {
           // Hard-fail on hash mismatch — no silent acceptance
           const actualHash = sha256Of(fileContent);
           if (actualHash !== obj.sha256) {
-            warnings.push(`line ${i + 1}: JSONL sha256 mismatch for "${obj.path}": expected ${obj.sha256}, got ${actualHash}`);
+            warnings.push(
+              `line ${i + 1}: JSONL sha256 mismatch for "${obj.path}": expected ${obj.sha256}, got ${actualHash}`,
+            );
             strictTermination = false;
             continue;
           }
 
           jsonlArtifacts.push({ filePath: obj.path.trim(), content: fileContent });
         } else if (obj && typeof obj === "object" && "type" in obj) {
-          warnings.push(`JSONL line ${i + 1}: unknown artifact type "${String(obj.type)}" — only "file_write" is recognized`);
+          warnings.push(
+            `JSONL line ${i + 1}: unknown artifact type "${String(obj.type)}" — only "file_write" is recognized`,
+          );
           strictTermination = false;
-
         }
       } catch {
         // Non-JSON line in JSONL stream — protocol violation
@@ -154,9 +183,13 @@ export function parseJsonlArtifacts(output: string): ParseResult {
   // If no artifacts were found and no JSONL lines at all, mark non-strict.
   // Empty output is also non-strict — the orchestrator's empty-emission
   // override will produce an actionable correction prompt.
-  const hasAnyJsonl = output.split("\n").some(l => l.trim().startsWith("{"));
+  const hasAnyJsonl = output.split("\n").some((l) => l.trim().startsWith("{"));
   if (!hasAnyJsonl) {
-    return { artifacts: [], strictTermination: false, warnings: ["No JSONL artifact protocol detected in output"] };
+    return {
+      artifacts: [],
+      strictTermination: false,
+      warnings: ["No JSONL artifact protocol detected in output"],
+    };
   }
 
   return { artifacts: [], strictTermination: true, warnings: [] };
@@ -182,7 +215,7 @@ export type { WriteResult };
  * no artifact writes should reach disk. All artifacts are treated as blocked.
  */
 function blockedByProtocol(artifacts: ParsedArtifact[], reason: string): WriteResult[] {
-  return artifacts.map(a => ({
+  return artifacts.map((a) => ({
     filePath: a.filePath,
     bytes: 0,
     ok: false as const,
@@ -192,7 +225,13 @@ function blockedByProtocol(artifacts: ParsedArtifact[], reason: string): WriteRe
 
 // ── Execution ──────────────────────────────────────────────────────────────
 
-export async function executeArtifact(agent: Agent, brief: TaskBrief, taskId: string, cwd: string, profile?: TaskProfile): Promise<OrchestratorResult> {
+export async function executeArtifact(
+  agent: Agent,
+  brief: TaskBrief,
+  taskId: string,
+  cwd: string,
+  profile?: TaskProfile,
+): Promise<OrchestratorResult> {
   const result = await agent.execute(brief);
   if (!result.ok) return err(result.error);
   const emission = result.value;
@@ -206,40 +245,106 @@ export async function executeArtifact(agent: Agent, brief: TaskBrief, taskId: st
     ...(wasTruncated ? [`truncated model output (finish_reason: ${emission.finishReason})`] : []),
   ].join(" + ");
   const writes: WriteResult[] = protocolBroken
-    ? blockedByProtocol(artifacts, warnings.length > 0
-        ? `${protocolReason} — parse warnings: ${warnings.slice(0, 5).join("; ")}`
-        : protocolReason)
+    ? blockedByProtocol(
+        artifacts,
+        warnings.length > 0
+          ? `${protocolReason} — parse warnings: ${warnings.slice(0, 5).join("; ")}`
+          : protocolReason,
+      )
     : writeArtifacts(artifacts, cwd, profile);
 
   const allWarnings = [...warnings];
   if (wasTruncated) {
-    allWarnings.push(`model output was truncated (finish_reason: ${emission.finishReason}) — artifact content may be incomplete`);
+    allWarnings.push(
+      `model output was truncated (finish_reason: ${emission.finishReason}) — artifact content may be incomplete`,
+    );
   }
   if (protocolBroken && artifacts.length > 0) {
-    allWarnings.push(`protocol integrity violation: all ${artifacts.length} artifact(s) blocked from write`);
+    allWarnings.push(
+      `protocol integrity violation: all ${artifacts.length} artifact(s) blocked from write`,
+    );
   }
 
-  const okWrites = writes.filter(w => w.ok);
-  const blocked = writes.filter(w => w.blocked);
+  const okWrites = writes.filter((w) => w.ok);
+  const blocked = writes.filter((w) => w.blocked);
   for (const w of writes) {
     if (w.warning) allWarnings.push(w.warning);
   }
 
   const signals: DelegationResult["signals"] = [
-    { id: `sig-${taskId}`, taskId, domain: "task", kind: "emission", source: emission.agentId, ts: new Date().toISOString(), value: { content: emission.content.slice(0, 200) } },
-    { id: `sig-artifact-${taskId}`, taskId, domain: "code", kind: "artifact.emitted", source: emission.agentId, ts: new Date().toISOString(), value: { filesWritten: okWrites.length, totalBytes: writes.reduce((s, w) => s + w.bytes, 0), files: okWrites.map(w => ({ path: w.filePath, sha256: w.sha256!, bytes: w.bytes, beforeHash: w.beforeHash ?? null, existed: w.existed ?? false })), language: profile?.language ?? "unknown" }, confidence: writes.every(w => w.ok) ? 0.9 : 0.4 },
+    {
+      id: `sig-${taskId}`,
+      taskId,
+      domain: "task",
+      kind: "emission",
+      source: emission.agentId,
+      ts: new Date().toISOString(),
+      value: { content: emission.content.slice(0, 200) },
+    },
+    {
+      id: `sig-artifact-${taskId}`,
+      taskId,
+      domain: "code",
+      kind: "artifact.emitted",
+      source: emission.agentId,
+      ts: new Date().toISOString(),
+      value: {
+        filesWritten: okWrites.length,
+        totalBytes: writes.reduce((s, w) => s + w.bytes, 0),
+        files: okWrites.map((w) => ({
+          path: w.filePath,
+          sha256: w.sha256!,
+          bytes: w.bytes,
+          beforeHash: w.beforeHash ?? null,
+          existed: w.existed ?? false,
+        })),
+        language: profile?.language ?? "unknown",
+      },
+      confidence: writes.every((w) => w.ok) ? 0.9 : 0.4,
+    },
   ];
   if (!strictTermination) {
-    signals.push({ id: `sig-unterminated-${taskId}`, taskId, domain: "code", kind: "artifact.unterminated", source: emission.agentId, ts: new Date().toISOString(), value: { warnings: allWarnings } });
+    signals.push({
+      id: `sig-unterminated-${taskId}`,
+      taskId,
+      domain: "code",
+      kind: "artifact.unterminated",
+      source: emission.agentId,
+      ts: new Date().toISOString(),
+      value: { warnings: allWarnings },
+    });
   }
   if (wasTruncated) {
-    signals.push({ id: `sig-truncated-${taskId}`, taskId, domain: "code", kind: "artifact.truncated", source: emission.agentId, ts: new Date().toISOString(), value: { finishReason: emission.finishReason, warnings: allWarnings } });
+    signals.push({
+      id: `sig-truncated-${taskId}`,
+      taskId,
+      domain: "code",
+      kind: "artifact.truncated",
+      source: emission.agentId,
+      ts: new Date().toISOString(),
+      value: { finishReason: emission.finishReason, warnings: allWarnings },
+    });
   }
   if (blocked.length > 0) {
-    signals.push({ id: `sig-blocked-${taskId}`, taskId, domain: "code", kind: "artifact.blocked", source: emission.agentId, ts: new Date().toISOString(), value: { blockedPaths: blocked.map(b => ({ path: b.filePath, reason: b.blocked! })), parseWarnings: allWarnings } });
+    signals.push({
+      id: `sig-blocked-${taskId}`,
+      taskId,
+      domain: "code",
+      kind: "artifact.blocked",
+      source: emission.agentId,
+      ts: new Date().toISOString(),
+      value: {
+        blockedPaths: blocked.map((b) => ({ path: b.filePath, reason: b.blocked! })),
+        parseWarnings: allWarnings,
+      },
+    });
   }
   const dr: DelegationResult = {
-    decision: { mode: "artifact", reason: `artifact emission: ${okWrites.length} files written${blocked.length > 0 ? `, ${blocked.length} blocked` : ""}${!strictTermination ? " (unterminated)" : ""}${wasTruncated ? " (truncated)" : ""}`, autoRouted: true },
+    decision: {
+      mode: "artifact",
+      reason: `artifact emission: ${okWrites.length} files written${blocked.length > 0 ? `, ${blocked.length} blocked` : ""}${!strictTermination ? " (unterminated)" : ""}${wasTruncated ? " (truncated)" : ""}`,
+      autoRouted: true,
+    },
     emission,
     signals,
   };

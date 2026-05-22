@@ -1,4 +1,7 @@
-export interface ChatMessage { role: "system" | "user" | "assistant"; content: string; }
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
 
 export interface ModelResponse {
   content: string;

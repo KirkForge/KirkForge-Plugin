@@ -1,7 +1,7 @@
-
 ## v8.4 — Native strict lint, all 3 phases complete (2026-05-20)
 
 ### Phase 3 completion — 8 languages, native lint
+
 - **8 lint packages**: `tool-lint-core` (shared engine), `tool-lint-ts` (29 rules), `tool-lint-py` (34 rules), `tool-lint-sh` (9 rules), `tool-lint-c` (10 rules), `tool-lint-rs` (8 rules), `tool-lint-go` (7 rules), `tool-lint-sql` (6 rules) — **~103 total rules** across all languages
 - **Full test coverage**: 30 tests across 8 lint packages (C: 8, Rust: 7, Go: 7, SQL: 8, plus existing TS/Py/Sh). All rules have detection + clean-pass + file-filter tests.
 - **emitter-factory routing**: All 8 languages routed through native `create*LintEngine()` factories based on task profile language. Per-language lint engine dispatch.
@@ -9,6 +9,7 @@
 - **Benchmark**: ~138ms/100 files, 100% finding parity vs Ruff's ~90ms
 
 ### Build & test
+
 - `tsc --build`: **clean** | `npm test`: **508 tests, 35 files, 0 failures**
 - CLI smoke tests fixed (`tsc --build --force` regenerates `apps/cli/dist/`)
 - All 28 packages build and import cleanly
@@ -18,6 +19,7 @@
 ## Unreleased (v7-dev)
 
 ### Task decomposition & execution engine
+
 - **decompose CLI command**: Breaks complex tasks into smaller, independently verifiable subtasks using a dedicated planning model. Returns a topologically sorted dependency tree with complexity estimates and token projections.
 - **executeDecomposition**: New orchestrator method walks the sorted task tree, delegates each subtask in dependency order, propagates dependency failures (children of failed deps are skipped with clear error messages), and returns a structured `DecompositionExecutionResult` with per-node `SubtaskExecutionResult` entries.
 - **`--execute` flag on decompose**: Chains decompose → execute in one command. Prints a compact summary with ✓/✗ status, tokens, duration, and output files per subtask. JSON mode serializes the full result.
@@ -28,39 +30,46 @@
 - **Bracket heuristic**: Robust JSON extraction handles prose brackets, markdown code fences, nested `[DEPRECATED]` markers in strings, `src/[id]/page.tsx` paths, and whitespace-heavy model output. Fuzz-tested for edge cases.
 
 ### Hard-prompt emission ledger unification
+
 - **extractEmissionFiles now handles `files.written`**: Hard-prompt emissions now enter the same canonical emission ledger as artifact emissions. Previously `extractEmissionFiles()` only read `artifact.emitted` signals, silently ignoring hard-prompt file writes in memory records.
 
 ### Provider semantics explicit
+
 - **providerType field**: `ModelClientOptions` now accepts an explicit `providerType` field. `ModelClient.isAnthropic()` and `providerKey` derivation prefer this over brittle URL-substring matching. `Agent` constructor maps the existing `provider` config field to `providerType` automatically.
 
 ### Transactional run + emission writes
+
 - **MemoryStore.writeRunAndEmissions()**: New method atomically persists a run record with its emission records. Guarantees no orphaned run records with missing emissions. Pre-computed emission IDs ensure ID consistency between run and emission records.
 
 ### Environment/config hygiene
+
 - **Bootstrap no longer auto-loads `.env`/`.55ndeperc`**: Config loading is explicit. No implicit process.cwd file reads at import time. Removes a source of non-deterministic behavior.
 - **ConfigService.load() no longer mutates `process.env`**: The `55NDEEP_CONFIG` key is no longer written to the global environment. Callers manage their own config path tracking.
 - **ConfigService.getPath() workspace containment**: Now validates that resolved paths stay within the workspace directory, throwing on escape attempts.
 
 ### JSONL protocol tightening
+
 - **Non-JSONL lines now break strict mode**: Lines that don't start with `{` or contain invalid JSON in a JSONL artifact stream now set `strictTermination = false`. Previously they were silently skipped, allowing prose intermixed with valid JSONL to pass protocol integrity checks.
 
 ### Smaller fixes
+
 - **writeArtifacts() error preservation**: Write failures now include the exception message in the `blocked` field instead of silently dropping to `ok: false`.
 - **EventBus idempotency**: Event ID derivation now includes timestamp to distinguish events with identical kind/streamId/sequence/payload combinations.
 
 ### Test results
+
 - **Build**: Clean (`tsc --build` passes, `tsc --build --noEmit` passes)
 - **Lint**: Clean (`eslint --max-warnings 0` passes)
 - **Typecheck**: Clean
 - **Individual test suites**: All pass (orchestrator 77, coverage 67, chaos 6, validator-contract 12, validator 12, memory 19, events 4, correction-core 48, model-client 7, model-config 6, core-logging 6, agent-core 2, secdev 4, prompt-core 5, result 10, plus fuzz tests).
 - **Full `npm test`**: Requires external tool availability (eslint, tsc, ruff, pyright, bandit, git) for CLI/plugin integration tests. Verify in a full environment.
 
-
-
 ### Critical data-integrity fix
+
 - **Hard-prompt beforeHash/existed corruption**: `persistCodeBlocks()` now snapshots `beforeHash` and `existed` BEFORE the atomic write, not after. Previously, all hard-prompt emissions recorded the after-write hash as `beforeHash` and `existed: true` unconditionally, corrupting emission audit data. Snapshots captured via `beforeHashSnapshots` Map before the atomic `renameSync`.
 
 ### Deployment fixes
+
 - **Dockerfile**: Added missing `core-secrets` and `core-tenancy` manifest-layer COPY lines. Previously npm ci created broken workspace symlinks for these packages.
 - **Dockerfile CMD**: Changed from `--help` to `serve` — container no longer exits immediately.
 - **docker-compose**: Added explicit `command: ["serve"]` to prevent container exit loop.
@@ -70,6 +79,7 @@
 - **Helm configmap.yaml**: Added missing ConfigMap template that `deployment.yaml` referenced for checksum annotations.
 
 ### Test reliability
+
 - **vitest pool**: Switched from `forks` to `threads` pool for faster, more reliable execution.
 - **plugin path-safety test**: Updated "sanitizes file paths that escape workspace" to expect `ok: false` with descriptive error message, matching the implementation's hard-reject behavior.
 
@@ -78,39 +88,46 @@
 ## Unreleased (v8-dev)
 
 ### Memory transactional writes
+
 - **SqliteAdapter.writeRunAndEmissions()**: New adapter-level method wraps run + emission writes in a SQL transaction (BEGIN IMMEDIATE / COMMIT / ROLLBACK). MemoryStore delegates to it when available, falling back to sequential writes for non-transactional adapters.
 - **FileAdapter cross-process lock**: `flush()` acquires an exclusive file lock before writing. Note: concurrent processes that both load stale in-memory state before flushing can still lose each other's writes (read-modify-write across processes is not fully atomic). Sufficient for single-process daemon use; concurrent CLI automation should use SqliteAdapter.
 
 ### Protocol & validation hardening
+
 - **JSONL base64 validation**: `content_b64` is now validated against canonical base64 regex before decoding. Invalid base64 triggers protocol violation.
 - **JSONL unknown type detection**: JSON objects with unrecognized `type` fields (not `file_write`) now set `strictTermination = false` instead of being silently ignored.
 - **JSONL empty-output handling**: When no JSONL artifacts are found and no JSONL-formatted lines exist in the output, returns `strictTermination: false` instead of `true`.
 - **writeArtifacts() ordering**: Overwrite policy and denyPaths checks now run before reading `beforeHash`. `beforeHash` read is wrapped in try/catch with a descriptive `blocked` message on failure.
 
 ### Profile accuracy
+
 - **Shell profile**: `checkCommand` corrected from `"bash -n && shellcheck -x"` to `"bash -n"` to match the actual `structuredCheck`.
 
 ### Config & path safety
+
 - **Vault KV v2 path encoding**: Path segments are now individually URI-encoded, preserving `/` as path separators. Previously `encodeURIComponent()` on the full path encoded slashes, breaking Vault KV v2 lookup.
 - **ConfigService.getPath()**: Uses `relative()` + `isAbsolute()` for workspace containment instead of POSIX-specific `startsWith()` prefix check.
 
 ### Provider disambiguation
+
 - **ModelClient circuit breaker key**: Now includes baseUrl host when `providerType` is `"openai"` (or unset), disambiguating OpenRouter, Ollama, and other OpenAI-compatible providers that previously shared a single circuit breaker key.
 - **ModelClient.isAnthropic()**: URL-substring fallback now logs a warning in non-production environments, nudging callers to set `providerType` explicitly.
 
 ### Event bus & deployment
+
 - **EventBus overflow**: When buffer capacity is exceeded, the `event.bus.overflowed` event now includes `originalEventKind` and `originalStreamId` so consumers can determine what was lost.
 - **Dockerfile**: Added missing `core-secrets` and `core-tenancy` manifest-layer COPY entries for correct workspace resolution during `npm ci`.
-
 
 ## Unreleased (v5-dev)
 
 ### Infrastructure wiring
+
 - **core-secrets**: AWS Secrets Manager now implements SigV4 signing (previously was a non-functional stub). GCP Secret Manager now uses JWT-based service-account authentication with proper credentials file loading. Both providers are wired into the CLI bootstrap via `buildModelConfigAsync`.
 - **core-telemetry**: OpenTelemetry SDK now initialized in CLI bootstrap when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `--no-otel` flag disables. Proper shutdown on process exit.
 - **SLO burn-rate reporting**: Now exposed in the `health` CLI command alongside existing health stats.
 
 ### Bug fixes
+
 - **Empty-emission correction prompt**: When artifact or schema-contract modes produce zero files, the correction prompt now includes a clear message telling the worker to emit at least one file instead of returning a useless generic prompt.
 - **validator-contract test semantic drift**: Test now imports the production `finalVerdictFromValidation` from truth-model.ts. Error/skipped validator status correctly maps to `"unknown"` instead of `"error"`.
 - **walkFiles duplication eliminated**: Shared `walkFiles` utility extracted to `@55ndeep/core-logging` and used by both `tool-python` and `tool-secdev`. Consistent exclusion rules across both packages.
@@ -130,6 +147,7 @@
 - **Test names corrected**: Agent-core "executes and returns emission on network failure" → "throws on network failure". Chaos test renamed with concurrency constraint documentation.
 
 ### Dependency changes
+
 - `core-secrets`: No new dependencies (pure Node.js crypto for SigV4).
 - `core-telemetry`: Now activated at runtime (OTel deps were already in `package.json`).
 
@@ -194,7 +212,8 @@ Prior development history exists in the sandbox at `/path/to/runtime-sandbox/ben
 - Benchmark scripts: `real-tbench-benchmark.mjs`, `comprehensive-benchmark.mjs`, `head-to-head.mjs`, `honest-empirical.mjs`, `live-benchmark.mjs`, `sandbox-head-to-head.mjs`
 
 ### Phase 3: Native strict lint for all 8 supported languages (2026-05-20)
-- **`@55ndeep/tool-lint-sh`**: 9 inline rules detecting unquoted variables, curl-bash-pipe, rm -rf *, sudo, eval, and more. File-level shebang check via shared engine.
+
+- **`@55ndeep/tool-lint-sh`**: 9 inline rules detecting unquoted variables, curl-bash-pipe, rm -rf \*, sudo, eval, and more. File-level shebang check via shared engine.
 - **`@55ndeep/tool-lint-c`**: 10 rules covering safety (no-gets, no-strcpy, no-sprintf, no-system), style (no-malloc-cast, no-ternary-nest, no-goto, no-magic-numbers), and correctness (no-void-main, no-missing-include-guard). Supports .c/.cc/.cpp/.cxx/.h/.hpp/.hxx extensions.
 - **`@55ndeep/tool-lint-rs`**: 8 rules for safety (no-unwrap, no-unsafe, no-expect-in-prod), performance (no-clone-on-copy), maintainability (no-todo, no-dbg), and style (no-println-in-lib).
 - **`@55ndeep/tool-lint-go`**: 7 rules for safety (no-panic), correctness (no-unhandled-error), style (no-global-var, no-naked-return), performance (no-defer-in-loop), and maintainability (no-init-side-effect, no-string-title).

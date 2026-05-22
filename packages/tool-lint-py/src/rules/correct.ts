@@ -13,7 +13,8 @@ export const correctRules: LintRule[] = [
     category: "correct",
     severity: "high",
     pattern: /\bassert\s*\([^,)]+,[^)]+\)/g,
-    message: "assert(x, y) is always truthy; assert separately or use parentheses for the condition",
+    message:
+      "assert(x, y) is always truthy; assert separately or use parentheses for the condition",
   },
   {
     id: "no-incorrect-type-is",

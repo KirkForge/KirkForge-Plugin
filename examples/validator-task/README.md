@@ -50,6 +50,7 @@ python3 -m pytest tests/ -v
 ```
 
 Expected results:
+
 - `verify-workspace` returns `overall: "pass"` (or `"fail"` if lint/types find issues)
 - `pytest` exits 0 (pass) or nonzero (fail)
 - `observe --outcome` records the host's judgment, not the verifier verdict
