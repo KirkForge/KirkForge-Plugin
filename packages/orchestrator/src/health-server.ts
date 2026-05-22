@@ -239,6 +239,7 @@ export class HealthServer {
         // JWT validated successfully
         this._auditAuth(jwtResult.actor.id, "auth.success", jwtResult.actor.tenantId, "JWT auth");
         this._authSuccessCount++;
+        this.orchestrator.recordAuthEvent("auth.success", jwtResult.actor.id, jwtResult.actor.tenantId);
         return { actor: jwtResult.actor, tokenId: jwtResult.actor.id };
       }
       // JWT failed — fall through to API key if configured
@@ -249,10 +250,12 @@ export class HealthServer {
       if (result.ok) {
         this._auditAuth(result.value.id, "auth.success", result.value.tenantId, "API key auth");
         this._authSuccessCount++;
+        this.orchestrator.recordAuthEvent("auth.success", result.value.id, result.value.tenantId);
         return { actor: result.value, tokenId: result.value.id };
       }
       this._auditAuth("unknown", "auth.failure", "", "Invalid API key");
       this._authFailureCount++;
+      this.orchestrator.recordAuthEvent("auth.failure");
       this._sendForbidden(res, "invalid API key");
       return null;
     }
@@ -325,6 +328,7 @@ export class HealthServer {
         `RBAC deny: ${actor.role} lacks ${required} for ${normalizedUrl}`,
       );
       this._authFailureCount++;
+      this.orchestrator.recordAuthEvent("auth.failure", actor.id, actor.tenantId);
       this._sendForbidden(res, result.error.message);
       return false;
     }

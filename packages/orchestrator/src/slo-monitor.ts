@@ -44,6 +44,19 @@ export const DEFAULT_SLO_TARGETS: SloTarget[] = [
   { name: "task_pass_rate", target: 0.99, windowMs: 30 * 24 * 3600 * 1000 }, // 99% over 30d
 ];
 
+// ── Enterprise SLO targets for auth/policy/audit ────────────────────────────
+// Auth failure rate: <1% auth failures over 7d and 30d
+// Policy deny rate: <5% policy denials over 7d (some denials are expected)
+// Audit write failure rate: <0.1% audit write failures over 7d
+
+export const ENTERPRISE_SLO_TARGETS: SloTarget[] = [
+  ...DEFAULT_SLO_TARGETS,
+  { name: "auth_failure_rate", target: 0.99, windowMs: 7 * 24 * 3600 * 1000 },  // <1% auth failures over 7d
+  { name: "auth_failure_rate", target: 0.999, windowMs: 30 * 24 * 3600 * 1000 }, // <0.1% auth failures over 30d
+  { name: "policy_deny_rate", target: 0.95, windowMs: 7 * 24 * 3600 * 1000 },   // <5% policy denials over 7d
+  { name: "audit_write_rate", target: 0.999, windowMs: 7 * 24 * 3600 * 1000 },   // <0.1% audit write failures over 7d
+];
+
 // Evaluation windows for burn-rate alerting
 // "Google SRE workbook" style: error budget consumed over short & long windows
 const BURN_RATE_WINDOWS = [
@@ -151,6 +164,134 @@ export class SloMonitor {
       burnRate: Math.round(burnRate * 100) / 100,
       status,
     };
+  }
+
+  private _formatWindow(ms: number): string {
+    const h = ms / 3600000;
+    return h < 24 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auth/Policy/Audit SLO Monitor
+// ---------------------------------------------------------------------------
+// Tracks counters for auth success/failure, policy deny, and audit write
+// success/failure. Computes burn-rate windows the same way as SloMonitor
+// but from an in-memory event ring buffer instead of the MemoryStore.
+
+export interface AuthEvent {
+  timestamp: number;
+  type: "auth.success" | "auth.failure" | "policy.deny" | "policy.allow" | "audit.write.success" | "audit.write.failure";
+  actorId?: string;
+  tenantId?: string;
+}
+
+export class AuthPolicySloMonitor {
+  private events: AuthEvent[] = [];
+  private maxSize: number;
+  private targets: SloTarget[];
+
+  constructor(targets: SloTarget[] = ENTERPRISE_SLO_TARGETS, maxSize: number = 100_000) {
+    this.targets = targets;
+    this.maxSize = maxSize;
+  }
+
+  /** Record an auth/policy/audit event. */
+  record(event: AuthEvent): void {
+    this.events.push(event);
+    // Ring buffer: drop oldest when over capacity
+    if (this.events.length > this.maxSize) {
+      this.events = this.events.slice(-this.maxSize);
+    }
+  }
+
+  /** Compute SLO windows for auth/policy/audit metrics. */
+  compute(now?: number): SloReport {
+    const timestamp = now ?? Date.now();
+    const windows: SloWindow[] = [];
+
+    for (const target of this.targets) {
+      for (const bw of BURN_RATE_WINDOWS) {
+        if (bw.ms > target.windowMs) continue;
+
+        const windowStart = timestamp - bw.ms;
+        const relevant = this.events.filter(
+          (e) => e.timestamp >= windowStart && this._eventMatchesTarget(e, target.name),
+        );
+
+        if (relevant.length < MIN_SAMPLES) continue;
+
+        let good = 0;
+        let bad = 0;
+        for (const e of relevant) {
+          if (this._isGood(e, target.name)) {
+            good++;
+          } else {
+            bad++;
+          }
+        }
+
+        const total = good + bad;
+        const rate = total > 0 ? good / total : 1;
+        const budgetRemaining = target.target - (1 - rate);
+        const budgetConsumed =
+          target.target > 0 && 1 - target.target > 0
+            ? Math.min(1, (1 - rate) / (1 - target.target))
+            : 0;
+        const burnRate =
+          1 - target.target > 0 && bw.ms > 0
+            ? ((1 - rate) / (1 - target.target)) * (target.windowMs / bw.ms)
+            : 0;
+
+        let status: SloWindow["status"] = "ok";
+        if (burnRate >= bw.critical) {
+          status = "critical";
+        } else if (burnRate >= bw.warning) {
+          status = "warning";
+        }
+
+        windows.push({
+          name: `${target.name}@${this._formatWindow(bw.ms)}`,
+          windowMs: bw.ms,
+          total,
+          good,
+          bad,
+          rate: Math.round(rate * 10000) / 10000,
+          budgetRemaining: Math.round(budgetRemaining * 10000) / 10000,
+          budgetConsumed: Math.round(budgetConsumed * 10000) / 10000,
+          burnRate: Math.round(burnRate * 100) / 100,
+          status,
+        });
+      }
+    }
+
+    return { targets: this.targets, windows, computedAt: new Date(timestamp).toISOString() };
+  }
+
+  private _eventMatchesTarget(event: AuthEvent, targetName: string): boolean {
+    switch (targetName) {
+      case "auth_failure_rate":
+        return event.type === "auth.success" || event.type === "auth.failure";
+      case "policy_deny_rate":
+        return event.type === "policy.allow" || event.type === "policy.deny";
+      case "audit_write_rate":
+        return event.type === "audit.write.success" || event.type === "audit.write.failure";
+      default:
+        return false;
+    }
+  }
+
+  private _isGood(event: AuthEvent, targetName: string): boolean {
+    switch (targetName) {
+      case "auth_failure_rate":
+        return event.type === "auth.success";
+      case "policy_deny_rate":
+        return event.type === "policy.allow";
+      case "audit_write_rate":
+        return event.type === "audit.write.success";
+      default:
+        return true;
+    }
   }
 
   private _formatWindow(ms: number): string {

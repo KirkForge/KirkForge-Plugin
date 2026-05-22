@@ -20,7 +20,7 @@ export type { JsonlArtifact, ParsedArtifact, ParseResult } from "./artifact-mode
 import { detectTaskProfile, profileForLanguage } from "./task-profile.js";
 import type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
 import { computeFinalVerdict } from "./truth-model.js";
-import { SloMonitor, type SloReport } from "./slo-monitor.js";
+import { SloMonitor, AuthPolicySloMonitor, type SloReport } from "./slo-monitor.js";
 import { ClassifierMemory } from "./classifier-persistence.js";
 import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 import { extractWrittenFiles, extractEmissionFiles } from "./types.js";
@@ -191,6 +191,7 @@ export class Orchestrator {
   private _classifierLoaded = false;
   private _busy = false;
   private _sloMonitor: SloMonitor | null = null;
+  private _authPolicySlo: AuthPolicySloMonitor;
   private _classifierMemory: ClassifierMemory | null = null;
   private _baselineSnapshotDir: string | null = null;
   private _isolatedBaselineDirs: string[] = [];
@@ -213,6 +214,7 @@ export class Orchestrator {
       this._sloMonitor = new SloMonitor(this.memoryStore);
     }
     this._classifierMemory = new ClassifierMemory(this.memoryStore);
+    this._authPolicySlo = new AuthPolicySloMonitor();
     this._policyEngine = config.policyEngine;
     this._auditLogger = config.auditLogger;
   }
@@ -677,6 +679,13 @@ export class Orchestrator {
     policyHash: string,
     actor?: import("@55ndeep/core-rbac").Actor,
   ): void {
+    // Track policy deny for SLO monitoring
+    this._authPolicySlo.record({
+      timestamp: Date.now(),
+      type: "policy.deny",
+      actorId: actor?.id,
+      tenantId: actor?.tenantId,
+    });
     if (!this._auditLogger) return;
     this._auditLogger
       .record({
@@ -687,8 +696,17 @@ export class Orchestrator {
         reason,
         policyHash,
       })
+      .then((ok) => {
+        this._authPolicySlo.record({
+          timestamp: Date.now(),
+          type: ok ? "audit.write.success" : "audit.write.failure",
+        });
+      })
       .catch(() => {
-        // Audit write failure must not block execution
+        this._authPolicySlo.record({
+          timestamp: Date.now(),
+          type: "audit.write.failure",
+        });
       });
   }
 
@@ -1423,6 +1441,21 @@ export class Orchestrator {
   async slo(): Promise<SloReport | null> {
     if (!this._sloMonitor) return null;
     return this._sloMonitor.compute();
+  }
+
+  /** Get auth/policy/audit SLO report. */
+  authPolicySlo(): SloReport {
+    return this._authPolicySlo.compute();
+  }
+
+  /** Record an auth event for SLO monitoring. */
+  recordAuthEvent(type: "auth.success" | "auth.failure", actorId?: string, tenantId?: string): void {
+    this._authPolicySlo.record({ timestamp: Date.now(), type, actorId, tenantId });
+  }
+
+  /** Record a policy allow event for SLO monitoring. */
+  recordPolicyAllow(actorId?: string, tenantId?: string): void {
+    this._authPolicySlo.record({ timestamp: Date.now(), type: "policy.allow", actorId, tenantId });
   }
 
   healthCheck() {
