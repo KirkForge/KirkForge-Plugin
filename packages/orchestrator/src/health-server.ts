@@ -86,6 +86,11 @@ export class HealthServer {
   private groupRoleMapping?: import("@55ndeep/core-rbac").GroupRoleMapping;
   private auditLogger?: AuditLogger;
   private policyEngine?: PolicyEngine;
+
+  // ── Auth/policy counters for Prometheus ────────────────────────────────
+  private _authSuccessCount = 0;
+  private _authFailureCount = 0;
+  private _policyDenyCount = 0;
   constructor(
     private orchestrator: Orchestrator,
     private config: HealthServerConfig = {},
@@ -232,6 +237,7 @@ export class HealthServer {
       if (jwtResult) {
         // JWT validated successfully
         this._auditAuth(jwtResult.actor.id, "auth.success", jwtResult.actor.tenantId, "JWT auth");
+        this._authSuccessCount++;
         return { actor: jwtResult.actor, tokenId: jwtResult.actor.id };
       }
       // JWT failed — fall through to API key if configured
@@ -241,9 +247,11 @@ export class HealthServer {
       const result = actorFromApiKey(token, this.apiKey);
       if (result.ok) {
         this._auditAuth(result.value.id, "auth.success", result.value.tenantId, "API key auth");
+        this._authSuccessCount++;
         return { actor: result.value, tokenId: result.value.id };
       }
       this._auditAuth("unknown", "auth.failure", "", "Invalid API key");
+      this._authFailureCount++;
       this._sendForbidden(res, "invalid API key");
       return null;
     }
@@ -298,6 +306,7 @@ export class HealthServer {
         actor.tenantId,
         `RBAC deny: ${actor.role} lacks ${required} for ${normalizedUrl}`,
       );
+      this._authFailureCount++;
       this._sendForbidden(res, result.error.message);
       return false;
     }
@@ -455,6 +464,10 @@ export class HealthServer {
     gauge("process_heap_total_bytes", "Total heap in bytes", memUsage.heapTotal);
     gauge("process_heap_used_bytes", "Used heap in bytes", memUsage.heapUsed);
     gauge("process_uptime_seconds", "Process uptime in seconds", process.uptime());
+    // Auth/policy counters
+    counter("55ndeep_auth_success_total", "Total successful auth events", this._authSuccessCount);
+    counter("55ndeep_auth_failure_total", "Total failed auth events", this._authFailureCount);
+    counter("55ndeep_policy_deny_total", "Total policy deny events", this._policyDenyCount);
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
     res.end(lines.join("\n") + "\n");

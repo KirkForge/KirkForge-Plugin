@@ -229,7 +229,7 @@ export class Orchestrator {
       const providerConfig = this._resolveProvider(null);
       const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
       if (!modelDecision.allowed) {
-        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash);
+        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, task.actor);
         return err(
           new NDeepError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
@@ -240,7 +240,7 @@ export class Orchestrator {
       const profile = detectTaskProfile(task.description);
       const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
       if (!toolDecision.allowed) {
-        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash);
+        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, task.actor);
         return err(
           new NDeepError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
@@ -409,12 +409,12 @@ export class Orchestrator {
           turns.push({
             action: "escalate",
             rationale: `delegation failed: ${result.error.message}`,
-            packet: this.reducer.reduce(taskId, turn, profile.verifierPolicy),
+            packet: this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash()),
             correctionCount: turn,
             workerTokens: 0,
             sessionTokens,
           });
-          allPackets.push(this.reducer.reduce(taskId, turn, profile.verifierPolicy));
+          allPackets.push(this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash()));
           this._cleanupTurnWorkspace();
           break;
         }
@@ -434,7 +434,7 @@ export class Orchestrator {
         );
 
         const packet =
-          delegationResult.packet ?? this.reducer.reduce(taskId, turn, profile.verifierPolicy);
+          delegationResult.packet ?? this.reducer.reduce(taskId, turn, profile.verifierPolicy, this._policyEngine?.getHash());
         const emittedFiles = packet.emissions?.files?.map((f) => ({ path: f.path })) ?? [];
         if (structuredValidator) {
           taskValidation = await this._runStructuredTaskValidator(
@@ -598,13 +598,13 @@ export class Orchestrator {
       const escalateDecision: CorrectionDecision = {
         action: "escalate",
         rationale: `internal orchestrator error: ${errMsg}`,
-        packet: this.reducer.reduce(taskId, 0, profile.verifierPolicy),
+        packet: this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash()),
         correctionCount: turns.length,
         workerTokens: 0,
         sessionTokens,
       };
       turns.push(escalateDecision);
-      allPackets.push(this.reducer.reduce(taskId, 0, profile.verifierPolicy));
+      allPackets.push(this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash()));
       const taskValidation: TaskValidationResult = {
         status: "error",
         validator: "orchestrator",
@@ -655,7 +655,7 @@ export class Orchestrator {
     const taskId = task.taskId ?? `verify-${Date.now()}`;
     const profile = detectTaskProfile(task.description ?? "verify current TypeScript workspace");
     await this._runVerifiers(taskId, task.files, profile.language);
-    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy);
+    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash());
     this.reducer.resetTask(taskId);
     return packet;
   }
@@ -675,14 +675,15 @@ export class Orchestrator {
     action: "model.deny" | "tool.deny",
     reason: string,
     policyHash: string,
+    actor?: import("@55ndeep/core-rbac").Actor,
   ): void {
     if (!this._auditLogger) return;
     this._auditLogger
       .record({
         action: action as "model.deny" | "tool.deny",
         outcome: "deny",
-        actorId: "system",
-        tenantId: "",
+        actorId: actor?.id ?? "system",
+        tenantId: actor?.tenantId ?? "",
         reason,
         policyHash,
       })
@@ -1454,7 +1455,7 @@ export class Orchestrator {
       const providerConfig = this._resolveProvider(null);
       const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
       if (!modelDecision.allowed) {
-        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash);
+        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, task.actor);
         return err(
           new NDeepError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
@@ -1465,7 +1466,7 @@ export class Orchestrator {
       const profile = detectTaskProfile(task.description);
       const toolDecision = this._policyEngine.checkTool(profile.language ?? "unknown");
       if (!toolDecision.allowed) {
-        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash);
+        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, task.actor);
         return err(
           new NDeepError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
@@ -1537,6 +1538,7 @@ export class Orchestrator {
 
   async executeDecomposition(
     taskId: string,
+    actor?: import("@55ndeep/core-rbac").Actor,
   ): Promise<
     import("@55ndeep/core-types").Result<import("./types.js").DecompositionExecutionResult, Error>
   > {
@@ -1548,6 +1550,34 @@ export class Orchestrator {
     if (!recalled.ok) return err(recalled.error);
     if (!recalled.value || recalled.value.tasks.length === 0) {
       return err(new Error("No decomposition found for taskId: " + taskId));
+    }
+
+    // ── Policy enforcement for decomposition ────────────────────────────────
+    // Check model and tool policy using the decomposition's first subtask
+    // language profile (covers the dominant language of the task tree).
+    if (this._policyEngine) {
+      const providerConfig = this._resolveProvider(null);
+      const modelDecision = this._policyEngine.checkModel(providerConfig.defaultModel);
+      if (!modelDecision.allowed) {
+        this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, actor);
+        return err(
+          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+            rule: modelDecision.rule,
+            policyHash: modelDecision.policyHash,
+          }),
+        );
+      }
+      const firstLanguage = recalled.value.tasks[0]?.language ?? "unknown";
+      const toolDecision = this._policyEngine.checkTool(firstLanguage);
+      if (!toolDecision.allowed) {
+        this._auditPolicyDeny("tool.deny", toolDecision.reason, toolDecision.policyHash, actor);
+        return err(
+          new NDeepError("POLICY_DENIED", toolDecision.reason, {
+            rule: toolDecision.rule,
+            policyHash: toolDecision.policyHash,
+          }),
+        );
+      }
     }
 
     const tasks = recalled.value.tasks;
@@ -1603,6 +1633,7 @@ export class Orchestrator {
             taskId: taskId + "--" + node.id,
             description: node.description,
             suppressMemory: false,
+            actor,
           }),
           new Promise<never>((_, reject) =>
             setTimeout(
@@ -1940,7 +1971,7 @@ export class Orchestrator {
     }
     const writtenFiles = extractWrittenFiles(result.value);
     await this._runVerifiers(taskId, writtenFiles, profile.language, writtenFiles);
-    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy);
+    const packet = this.reducer.reduce(taskId, 0, profile.verifierPolicy, this._policyEngine?.getHash());
     result.value.packet = packet;
     if (mode === "artifact" && packet.changes.filesChanged === 0 && !packet.artifactEnforcement) {
       result.value.packet = {

@@ -1,4 +1,5 @@
 import type { DelegationMode, DelegationDecision } from "@55ndeep/core-types";
+import type { Actor } from "@55ndeep/core-rbac";
 
 export interface TaskInput {
   taskId?: string;
@@ -8,6 +9,8 @@ export interface TaskInput {
   modeOverride?: DelegationMode;
   taskPass?: boolean | null;
   suppressMemory?: boolean;
+  /** Authenticated actor context. Used for audit logging and tenant-scoped policy enforcement. */
+  actor?: Actor;
 }
 
 export interface DelegationResult {

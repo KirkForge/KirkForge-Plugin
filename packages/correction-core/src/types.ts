@@ -52,6 +52,8 @@ export interface ReducedStatePacket {
   };
   verifierPolicy?: VerifierPolicyResult;
   contributingSignals: Array<{ kind: string; ts: string; source: string }>;
+  /** Hash of the active policy at the time this packet was produced. Used for audit trail verification. */
+  policyHash?: string;
 }
 
 export interface CorrectionConfig {
