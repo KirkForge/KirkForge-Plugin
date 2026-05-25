@@ -144,3 +144,100 @@ describe("TenantRegistry", () => {
     }
   });
 });
+
+// ── Path traversal protection tests ──────────────────────────────────────
+import { isSafeResourceName } from "../src/index.js";
+
+describe("isSafeResourceName", () => {
+  it("accepts simple safe names", () => {
+    expect(isSafeResourceName("memory.db")).toBe(true);
+    expect(isSafeResourceName("events.jsonl")).toBe(true);
+    expect(isSafeResourceName("config.toml")).toBe(true);
+    expect(isSafeResourceName("data")).toBe(true);
+  });
+
+  it("rejects empty strings", () => {
+    expect(isSafeResourceName("")).toBe(false);
+  });
+
+  it("rejects path separators", () => {
+    expect(isSafeResourceName("../../../etc/passwd")).toBe(false);
+    expect(isSafeResourceName("sub/file.txt")).toBe(false);
+    expect(isSafeResourceName("sub\\file.txt")).toBe(false);
+  });
+
+  it("rejects .. segments", () => {
+    expect(isSafeResourceName("..")).toBe(false);
+    expect(isSafeResourceName("..something")).toBe(false);
+  });
+
+  it("rejects null bytes", () => {
+    expect(isSafeResourceName("bad\0name")).toBe(false);
+  });
+
+  it("rejects absolute paths", () => {
+    expect(isSafeResourceName("/etc/passwd")).toBe(false);
+    expect(isSafeResourceName("C:\\Windows\\System32")).toBe(false);
+  });
+
+  it("rejects hidden/dot files", () => {
+    expect(isSafeResourceName(".env")).toBe(false);
+    expect(isSafeResourceName(".htaccess")).toBe(false);
+  });
+});
+
+describe("TenantRegistry resolvePath path traversal protection", () => {
+  let tmpDir: string;
+  let registry: TenantRegistry;
+
+  function setup() {
+    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-traversal-test-"));
+    registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
+  }
+
+  function cleanup() {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  it("throws on path traversal via resource name", () => {
+    setup();
+    try {
+      const handle = registry.register("/workspace/safe-zone");
+      expect(() => registry.resolvePath(handle.tenantId, "../../../etc/passwd")).toThrow();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("throws on subdirectory resource name", () => {
+    setup();
+    try {
+      const handle = registry.register("/workspace/test");
+      expect(() => registry.resolvePath(handle.tenantId, "sub/directory")).toThrow();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("throws on dot-file resource name", () => {
+    setup();
+    try {
+      const handle = registry.register("/workspace/test");
+      expect(() => registry.resolvePath(handle.tenantId, ".env")).toThrow();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("accepts safe resource names", () => {
+    setup();
+    try {
+      const handle = registry.register("/workspace/test");
+      expect(registry.resolvePath(handle.tenantId, "memory.db")).toContain("memory.db");
+      expect(registry.resolvePath(handle.tenantId, "events.jsonl")).toContain("events.jsonl");
+      expect(registry.resolvePath(handle.tenantId, "data")).toContain("data");
+    } finally {
+      cleanup();
+    }
+  });
+});

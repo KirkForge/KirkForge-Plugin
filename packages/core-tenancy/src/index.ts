@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { resolve, join } from "node:path";
+import { resolve, join, isAbsolute } from "node:path";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { ok, err, type Result } from "@55ndeep/core-types";
@@ -28,12 +28,39 @@ export interface TenantRegistryConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Path safety for tenant resources
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate that a resource name is safe for use with resolvePath.
+ * Rejects: empty strings, paths with separators (/ or \), paths with ..
+ * segments, null bytes, and absolute paths.
+ *
+ * This prevents path traversal attacks when constructing tenant-scoped
+ * file paths. Always use this before passing user-provided names to
+ * resolvePath().
+ */
+export function isSafeResourceName(name: string): boolean {
+  if (!name || name.length === 0) return false;
+  if (name.includes("\0")) return false;
+  if (name.includes("/") || name.includes("\\")) return false;
+  if (name === ".." || name.includes("..")) return false;
+  if (isAbsolute(name)) return false;
+  // Reject leading dots (hidden files / directory traversal)
+  if (name.startsWith(".")) return false;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // TenantRegistry
 // ---------------------------------------------------------------------------
 
 /**
  * Manages tenant isolation: each workspace gets a stable tenant id and
  * isolated storage so memory, event logs, and configs never cross-contaminate.
+ *
+ * All resource name parameters passed to resolvePath are validated with
+ * isSafeResourceName to prevent path traversal attacks.
  */
 export class TenantRegistry {
   private storageRoot: string;
@@ -121,10 +148,24 @@ export class TenantRegistry {
 
   /**
    * Resolve a tenant-scoped path for a resource kind (e.g. "memory.db", "events.jsonl").
+   *
+   * IMPORTANT: The resourceName parameter is validated to prevent path traversal.
+   * Names containing path separators, ".." segments, null bytes, or absolute paths
+   * are rejected. Use isSafeResourceName() to pre-validate if needed.
+   *
+   * @throws Error if resourceName is not a safe, single-segment name.
    */
   resolvePath(tenantId: string, resourceName: string): string {
+    if (!isSafeResourceName(resourceName)) {
+      throw new Error(
+        `TenantRegistry.resolvePath: unsafe resource name "${resourceName}". ` +
+          `Must be a single path segment without separators, dots, or null bytes. ` +
+          `Use isSafeResourceName() to validate before calling resolvePath().`,
+      );
+    }
     const tenant = this.tenants.get(tenantId);
     const base = tenant?.storageDir ?? join(this.storageRoot, tenantId);
+    // join() is now safe because resourceName is validated to be a single segment
     return join(base, resourceName);
   }
 

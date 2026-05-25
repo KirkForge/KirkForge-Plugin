@@ -1,4 +1,7 @@
 import type { MemoryStore } from "@55ndeep/memory-palace";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { homedir } from "node:os";
 
 // ---------------------------------------------------------------------------
 // SLO Definitions
@@ -170,6 +173,61 @@ export class SloMonitor {
     const h = ms / 3600000;
     return h < 24 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`;
   }
+
+  // ── SLO state persistence ───────────────────────────────────────────────
+  //
+  // Persist and restore the AuthPolicySloMonitor's in-memory event ring buffer
+  // so that auth/policy/audit SLO calculations survive process restarts.
+  // The SloMonitor itself derives its data from the MemoryStore, so it doesn't
+  // need separate persistence — it recomputes from stored observations.
+  // This section provides helpers for AuthPolicySloMonitor persistence.
+
+  /**
+   * Persist SLO state to a JSON file.
+   * Saves auth/policy/audit events and computed windows for quick restore.
+   */
+  static persistState(
+    filePath: string,
+    events: Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }>,
+  ): void {
+    const absPath = resolve(filePath);
+    const dir = dirname(absPath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      absPath,
+      JSON.stringify({ version: 1, events, savedAt: new Date().toISOString() }, null, 2),
+      "utf-8",
+    );
+  }
+
+  /**
+   * Restore SLO state from a JSON file.
+   * Returns the saved events array, or empty array if the file doesn't exist.
+   */
+  static restoreState(
+    filePath: string,
+  ): Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }> {
+    const absPath = resolve(filePath);
+    if (!existsSync(absPath)) return [];
+    try {
+      const raw = readFileSync(absPath, "utf-8");
+      const data = JSON.parse(raw) as {
+        version: number;
+        events: Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }>;
+      };
+      if (data.version !== 1) return [];
+      return data.events ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Default file path for SLO state persistence.
+   */
+  static defaultStatePath(): string {
+    return resolve(homedir(), ".55ndeep", "slo-state.json");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -303,5 +361,60 @@ export class AuthPolicySloMonitor {
   private _formatWindow(ms: number): string {
     const h = ms / 3600000;
     return h < 24 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`;
+  }
+
+  // ── SLO state persistence ───────────────────────────────────────────────
+  //
+  // Persist and restore the AuthPolicySloMonitor's in-memory event ring buffer
+  // so that auth/policy/audit SLO calculations survive process restarts.
+  // The SloMonitor itself derives its data from the MemoryStore, so it doesn't
+  // need separate persistence — it recomputes from stored observations.
+  // This section provides helpers for AuthPolicySloMonitor persistence.
+
+  /**
+   * Persist SLO state to a JSON file.
+   * Saves auth/policy/audit events and computed windows for quick restore.
+   */
+  static persistState(
+    filePath: string,
+    events: Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }>,
+  ): void {
+    const absPath = resolve(filePath);
+    const dir = dirname(absPath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      absPath,
+      JSON.stringify({ version: 1, events, savedAt: new Date().toISOString() }, null, 2),
+      "utf-8",
+    );
+  }
+
+  /**
+   * Restore SLO state from a JSON file.
+   * Returns the saved events array, or empty array if the file doesn't exist.
+   */
+  static restoreState(
+    filePath: string,
+  ): Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }> {
+    const absPath = resolve(filePath);
+    if (!existsSync(absPath)) return [];
+    try {
+      const raw = readFileSync(absPath, "utf-8");
+      const data = JSON.parse(raw) as {
+        version: number;
+        events: Array<{ timestamp: number; type: string; actorId?: string; tenantId?: string }>;
+      };
+      if (data.version !== 1) return [];
+      return data.events ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Default file path for SLO state persistence.
+   */
+  static defaultStatePath(): string {
+    return resolve(homedir(), ".55ndeep", "slo-state.json");
   }
 }

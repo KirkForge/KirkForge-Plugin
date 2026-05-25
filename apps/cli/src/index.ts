@@ -55,7 +55,12 @@ program
     if (opts.mode && !ALL_MODES.includes(opts.mode)) {
       exitError(`--mode must be one of: ${ALL_MODES.join(", ")}`, opts.json);
     }
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap(opts);
+    const {
+      orchestrator,
+      shutdown: _shutdown,
+      policyEngine: _policyEngine,
+      auditLogger: _auditLogger,
+    } = await createBootstrap(opts);
     const result = await orchestrator.delegate({
       description,
       modeOverride: opts.mode,
@@ -167,7 +172,12 @@ program
         ? { command: opts.validator, args: opts.validatorArgs ?? [], timeoutMs: validatorTimeoutMs }
         : undefined;
 
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap(opts);
+    const {
+      orchestrator,
+      shutdown: _shutdown,
+      policyEngine: _policyEngine,
+      auditLogger: _auditLogger,
+    } = await createBootstrap(opts);
 
     const outcome = await orchestrator.runCorrectionLoop(
       { description, modeOverride: opts.mode, context: opts.context, files: opts.file },
@@ -236,7 +246,12 @@ program
   .option("--json", "JSON output")
   .option("--execute", "Execute the decomposed subtasks in dependency order")
   .action(async (description, opts) => {
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap(opts);
+    const {
+      orchestrator,
+      shutdown: _shutdown,
+      policyEngine: _policyEngine,
+      auditLogger: _auditLogger,
+    } = await createBootstrap(opts);
     const result = await orchestrator.decomposeTask({ description });
 
     if (opts.json) {
@@ -320,7 +335,12 @@ program
   .option("--task <description>", "Task description used only for verifier language routing")
   .option("--json", "JSON output")
   .action(async (opts) => {
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap(opts);
+    const {
+      orchestrator,
+      shutdown: _shutdown,
+      policyEngine: _policyEngine,
+      auditLogger: _auditLogger,
+    } = await createBootstrap(opts);
     const packet = await orchestrator.verify({ description: opts.task });
 
     if (opts.json) {
@@ -648,7 +668,12 @@ program
   .command("health")
   .description("Show orchestrator health and SLO status")
   .action(async () => {
-    const { orchestrator, shutdown: _shutdown /* unused */ } = await createBootstrap({});
+    const {
+      orchestrator,
+      shutdown: _shutdown,
+      policyEngine: _policyEngine,
+      auditLogger: _auditLogger,
+    } = await createBootstrap({});
     const h = orchestrator.healthCheck();
     console.log(`Status:         ${h.status}`);
     console.log(
@@ -790,8 +815,23 @@ program
   .command("serve")
   .description("Start daemon with health-check HTTP server (blocks until SIGTERM)")
   .action(async () => {
-    const { orchestrator, eventBus, shutdown: _shutdown } = await createBootstrap({});
-    await startDaemon({ orchestrator, eventBus });
+    const {
+      orchestrator,
+      eventBus,
+      shutdown: _shutdown,
+      enterpriseConfig,
+      policyEngine,
+      auditLogger,
+      logger,
+    } = await createBootstrap({});
+    await startDaemon({
+      orchestrator,
+      eventBus,
+      enterpriseConfig,
+      policyEngine,
+      auditLogger,
+      logger,
+    });
   });
 
 program.parse();

@@ -21,6 +21,9 @@ export interface BackupMetadata {
   rowCount: { observations: number; runs: number; emissions: number };
 }
 
+/** Current schema version. Increment when adding migrations. */
+export const SCHEMA_VERSION = 3;
+
 export class SqliteAdapter implements MemoryAdapter {
   private db: any;
   private filePath: string;
@@ -141,14 +144,95 @@ export class SqliteAdapter implements MemoryAdapter {
         applied_at TEXT NOT NULL
       )
     `);
-    // Seed initial version if empty
+    // Seed initial version if empty, then run pending migrations
     const versionRow = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as
       | { v: number | null }
       | undefined;
-    if (!versionRow || versionRow.v === null) {
+    const currentVersion = versionRow?.v ?? 0;
+    if (currentVersion === 0) {
       this.db
         .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
         .run(1, new Date().toISOString());
+    }
+
+    // Run pending migrations
+    this._runMigrations(currentVersion === 0 ? 1 : currentVersion);
+  }
+
+  /**
+   * Run any pending schema migrations. Each migration is a numbered step
+   * that upgrades the schema from version N to N+1.
+   *
+   * Migrations are tracked in the schema_migrations table. A migration is
+   * only applied if its version number is greater than the current version.
+   *
+   * To add a migration:
+   *   1. Add it to the MIGRATIONS array below with the next version number.
+   *   2. Each migration is a function that takes the Database instance.
+   *   3. Migrations MUST be idempotent (safe to re-run).
+   *   4. Migrations are applied in order, within a transaction.
+   */
+  private static readonly MIGRATIONS: Array<{
+    version: number;
+    description: string;
+    up: (db: any) => void;
+  }> = [
+    // Migration 2: Add run_outcome_reason column to runs table
+    {
+      version: 2,
+      description: "Add outcome_reason column to runs",
+      up(db: any): void {
+        // Check if column already exists (idempotent)
+        const columns = db.prepare("PRAGMA table_info(runs)").all() as Array<{ name: string }>;
+        const hasOutcomeReason = columns.some((c) => c.name === "outcome_reason");
+        if (!hasOutcomeReason) {
+          db.exec("ALTER TABLE runs ADD COLUMN outcome_reason TEXT");
+        }
+      },
+    },
+    // Migration 3: Add routing_bias column to observations table
+    {
+      version: 3,
+      description: "Add routing_bias column to observations",
+      up(db: any): void {
+        const columns = db.prepare("PRAGMA table_info(observations)").all() as Array<{
+          name: string;
+        }>;
+        const hasRoutingBias = columns.some((c) => c.name === "routing_bias");
+        if (!hasRoutingBias) {
+          db.exec("ALTER TABLE observations ADD COLUMN routing_bias TEXT");
+        }
+      },
+    },
+    // ── Add future migrations here ──────────────────────────────────────
+    // {
+    //   version: 4,
+    //   description: "Description of migration",
+    //   up(db: any): void {
+    //     db.exec("...");
+    //   },
+    // },
+  ];
+
+  private _runMigrations(fromVersion: number): void {
+    const pending = SqliteAdapter.MIGRATIONS.filter((m) => m.version > fromVersion);
+    if (pending.length === 0) return;
+
+    const runMigration = this.db.transaction(() => {
+      for (const migration of pending) {
+        migration.up(this.db);
+        this.db
+          .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+          .run(migration.version, new Date().toISOString());
+      }
+    });
+
+    try {
+      runMigration();
+    } catch (cause) {
+      throw new Error(
+        `Schema migration failed at version ${fromVersion}: ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
     }
   }
 
@@ -597,7 +681,12 @@ export class SqliteAdapter implements MemoryAdapter {
       const row = this.db.prepare("SELECT MAX(version) as v FROM schema_migrations").get() as
         | { v: number | null }
         | undefined;
-      return row?.v ?? null;
+      return (
+        row?.v ??
+        (SqliteAdapter.MIGRATIONS.length > 0
+          ? SqliteAdapter.MIGRATIONS[SqliteAdapter.MIGRATIONS.length - 1]!.version
+          : 1)
+      );
     } catch {
       return null;
     }

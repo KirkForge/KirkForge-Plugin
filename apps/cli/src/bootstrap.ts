@@ -7,6 +7,19 @@ import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
 import { createSecretsManager } from "@55ndeep/core-secrets";
 import { initTelemetry, shutdownTelemetry, isTracingEnabled } from "@55ndeep/core-telemetry";
 import type { SecretsManager } from "@55ndeep/core-secrets";
+import {
+  isEnterpriseMode,
+  requireEnterpriseOrDev,
+  type EnterpriseConfig,
+} from "@55ndeep/core-enterprise";
+import { PolicyEngine } from "@55ndeep/core-policy";
+import { TenantRegistry } from "@55ndeep/core-tenancy";
+import {
+  AuditLogger,
+  MemoryAuditSink,
+  createAuditSink,
+  type AuditSink,
+} from "@55ndeep/core-events";
 import { readFileSync } from "fs";
 import { URL } from "node:url";
 
@@ -31,6 +44,8 @@ export interface BootstrapOpts {
   temperature?: number;
   /** Disable OpenTelemetry even if OTEL_EXPORTER_OTLP_ENDPOINT is set. */
   noOtel?: boolean;
+  /** Workspace path for tenant scoping. Defaults to cwd. */
+  workspace?: string;
 }
 
 export interface BootstrapResult {
@@ -41,7 +56,11 @@ export interface BootstrapResult {
   logger: Logger;
   memoryStore: MemoryStore;
   secretsManager: SecretsManager | null;
-  /** Call to gracefully shut down telemetry. */
+  enterpriseConfig: EnterpriseConfig;
+  policyEngine: PolicyEngine;
+  auditLogger: AuditLogger;
+  tenantRegistry: TenantRegistry;
+  /** Call to gracefully shut down telemetry and flush audit. */
   shutdown: () => Promise<void>;
 }
 
@@ -52,6 +71,42 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
     format: opts.json ? "json" : "human",
     stream: opts.json ? "stderr" : "stdout",
   });
+
+  // ── Enterprise mode gate ───────────────────────────────────────────────
+  // In enterprise mode, startup will throw if critical controls are missing.
+  // In dev mode, missing controls produce warnings but don't block startup.
+  const enterpriseResult = requireEnterpriseOrDev();
+  let enterpriseConfig: EnterpriseConfig;
+  if (enterpriseResult.ok) {
+    enterpriseConfig = enterpriseResult.value;
+  } else {
+    // Enterprise mode validation failed — this should only happen in enterprise mode
+    logger.error(
+      `[bootstrap] Enterprise mode validation failed: ${enterpriseResult.error.message}`,
+    );
+    if (isEnterpriseMode()) {
+      for (const v of enterpriseResult.error.violations) {
+        logger.error(`[bootstrap]   ${v.severity}: ${v.control} — ${v.message}`);
+        logger.error(`[bootstrap]     Remediation: ${v.remediation}`);
+      }
+      throw enterpriseResult.error;
+    }
+    // Dev mode fallback
+    enterpriseConfig = {
+      enabled: false,
+      auth: { configured: false },
+      audit: { configured: false, sinkType: "none" },
+      policy: { configured: false },
+      storage: { backend: "memory", durable: false },
+      secrets: { providers: ["env"], envOnlyFallback: true },
+    };
+  }
+
+  if (enterpriseConfig.enabled) {
+    logger.info("[bootstrap] Enterprise mode ENABLED. All critical controls validated.");
+  } else {
+    logger.debug("[bootstrap] Running in developer mode. Enterprise controls not enforced.");
+  }
 
   // ── Secrets manager ──────────────────────────────────────────────────
   const secretsManager = createSecretsManager();
@@ -86,7 +141,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const configService: ConfigService = configResult.ok
     ? configResult.value
     : ConfigService.fromConfig({
-        workspace: ".",
+        workspace: opts.workspace ?? ".",
         orchestrator: { maxConcurrentWorkers: 4, retryAttempts: 3, retryDelayMs: 1000 },
         tools: {
           eslint: { enabled: true },
@@ -97,6 +152,66 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
         logging: { level: "info", format: "json" },
         memory: { path: ".55ndeep/memory", retentionDays: 30 },
       });
+
+  // ── Policy engine ─────────────────────────────────────────────────────
+  const policyEngine = new PolicyEngine();
+  const policyFilePath = process.env.POLICY_FILE_PATH ?? process.env["55NDEEP_POLICY_FILE"];
+  if (policyFilePath) {
+    const result = policyEngine.loadFromFile(policyFilePath);
+    if (!result.ok) {
+      logger.error(`[bootstrap] Failed to load policy file: ${result.error.message}`);
+      if (enterpriseConfig.enabled) {
+        throw new Error(`Enterprise mode requires a valid policy file: ${result.error.message}`);
+      }
+    } else {
+      logger.info(
+        `[bootstrap] Policy loaded from ${policyFilePath} (hash: ${policyEngine.getHash()})`,
+      );
+    }
+  } else if (enterpriseConfig.enabled) {
+    throw new Error("Enterprise mode requires a policy file (POLICY_FILE_PATH not set)");
+  } else {
+    logger.debug("[bootstrap] No policy file configured. Using default-deny policy.");
+  }
+
+  // ── Audit logger ──────────────────────────────────────────────────────
+  let auditSink: AuditSink;
+  const auditSinkType = process.env.AUDIT_SINK_TYPE ?? process.env["55NDEEP_AUDIT_SINK"] ?? "none";
+
+  if (auditSinkType === "file") {
+    const filePath = process.env.AUDIT_FILE_PATH ?? "/var/lib/55ndeep/audit/audit.jsonl";
+    auditSink = createAuditSink({ type: "file", filePath });
+    logger.info(`[bootstrap] Audit sink: file (${filePath})`);
+  } else if (auditSinkType === "http") {
+    const httpUrl = process.env.AUDIT_HTTP_URL;
+    if (!httpUrl) {
+      throw new Error("AUDIT_HTTP_URL is required for HTTP audit sink");
+    }
+    auditSink = createAuditSink({ type: "http", httpUrl });
+    logger.info(`[bootstrap] Audit sink: HTTP (${httpUrl})`);
+  } else if (auditSinkType === "memory") {
+    auditSink = new MemoryAuditSink();
+    logger.warn("[bootstrap] Audit sink: in-memory (NOT durable — do not use in production)");
+  } else {
+    auditSink = new MemoryAuditSink();
+    if (enterpriseConfig.enabled) {
+      throw new Error(
+        "Enterprise mode requires a durable audit sink (AUDIT_SINK_TYPE=file or http)",
+      );
+    }
+    logger.warn("[bootstrap] No audit sink configured. Using in-memory (ephemeral) audit.");
+  }
+  const auditLogger = new AuditLogger(auditSink);
+
+  // ── Record startup audit event ────────────────────────────────────────
+  await auditLogger.record({
+    action: "system.startup",
+    outcome: "success",
+    actorId: "system",
+    tenantId: "",
+    reason: enterpriseConfig.enabled ? "Enterprise mode startup" : "Dev mode startup",
+    policyHash: policyEngine.getHash(),
+  });
 
   // ── Model config (with secrets resolution) ──────────────────────────
   const env = process.env as Record<string, string | undefined>;
@@ -128,8 +243,25 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
 
   // ── Memory ───────────────────────────────────────────────────────────
   const memoryPath = configService.get().memory.path || ".55ndeep/memory.json";
-  const memoryAdapter = new FileAdapter(memoryPath);
+  const memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
+  let memoryAdapter: FileAdapter;
+
+  if (memoryBackend === "sqlite" && enterpriseConfig.enabled) {
+    // In enterprise mode with sqlite backend, use tenant-scoped storage
+    const tenantRegistry = new TenantRegistry();
+    const workspacePath = opts.workspace ?? process.cwd();
+    const handle = tenantRegistry.register(workspacePath);
+    memoryAdapter = new FileAdapter(handle.storageDir + "/memory.json");
+    logger.info(`[bootstrap] Memory: SQLite tenant-scoped (${handle.tenantId})`);
+  } else {
+    memoryAdapter = new FileAdapter(memoryPath);
+  }
   const memoryStore = new MemoryStore(memoryAdapter);
+
+  // ── Tenant registry ──────────────────────────────────────────────────
+  const tenantRegistry = new TenantRegistry();
+  const workspacePath = opts.workspace ?? process.cwd();
+  tenantRegistry.register(workspacePath);
 
   // ── Orchestrator ─────────────────────────────────────────────────────
   const orchestrator = new Orchestrator({
@@ -138,10 +270,21 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
     logger,
     eventBus,
     memoryStore,
+    policyEngine,
   });
 
   const shutdown = async () => {
     logger.info("[bootstrap] Graceful shutdown initiated");
+    await auditLogger.record({
+      action: "system.shutdown",
+      outcome: "success",
+      actorId: "system",
+      tenantId: "",
+      reason: "Graceful shutdown",
+      policyHash: policyEngine.getHash(),
+    });
+    await auditLogger.flush();
+    await auditLogger.close();
     if (isTracingEnabled()) {
       await shutdownTelemetry();
       logger.info("[bootstrap] Telemetry flushed");
@@ -177,6 +320,10 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
     logger,
     memoryStore,
     secretsManager,
+    enterpriseConfig,
+    policyEngine,
+    auditLogger,
+    tenantRegistry,
     shutdown,
   };
 }

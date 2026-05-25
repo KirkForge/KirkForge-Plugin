@@ -40,6 +40,9 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, relative, isAbsolute, dirname } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { shouldExcludeFromTurnCopy, outputSummary } from "./workspace.js";
+import { estimateSimpleCost, resolveCostProviderKey } from "./cost.js";
+
 export { StateReducer } from "./reducer.js";
 export type { ReducedStatePacket } from "./reducer.js";
 export { createVerificationEmitters } from "./emitter-factory.js";
@@ -61,26 +64,7 @@ export { resolveValidatorShellCommand };
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
-// Directories and file patterns excluded when copying turn/validator workspaces
-const TURN_COPY_EXCLUDED = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  ".tsbuildinfo",
-  "tsconfig.tsbuildinfo",
-]);
-
-function shouldExcludeFromTurnCopy(src: string, baseLen: number): boolean {
-  const rel = src.slice(baseLen + 1);
-  if (!rel) return false; // root itself
-  const segments = rel.split("/");
-  // Check path segments (directories like node_modules, .git, dist)
-  if (segments.some((seg) => TURN_COPY_EXCLUDED.has(seg))) return true;
-  // Check last segment (files like tsconfig.tsbuildinfo)
-  const last = segments[segments.length - 1];
-  if (last && TURN_COPY_EXCLUDED.has(last)) return true;
-  return false;
-}
+// shouldExcludeFromTurnCopy extracted to workspace.ts
 
 export interface ValidatorRunConfig {
   shellCommand?: string;
@@ -158,21 +142,6 @@ export interface OrchestratorConfig {
   policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
   /** Audit logger for policy deny events. */
   auditLogger?: import("@55ndeep/core-events").AuditLogger;
-}
-
-const PROVIDER_COST_KEY_MAP: Record<string, string> = {
-  "local-ollama": "local-ollama",
-  "openrouter-free": "openrouter-free",
-  "nvidia-free": "nvidia-free",
-  openai: "openai",
-  anthropic: "anthropic",
-  deepseek: "deepseek",
-  openrouter: "openrouter-free",
-  nvidia: "nvidia-free",
-};
-
-function resolveCostProviderKey(providerResolved: string): string {
-  return PROVIDER_COST_KEY_MAP[providerResolved] ?? providerResolved ?? "local-ollama";
 }
 
 export class Orchestrator {
@@ -2110,34 +2079,4 @@ export class Orchestrator {
   }
 }
 
-function outputSummary(output: string): string | undefined {
-  const firstLines = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 8)
-    .join("\n");
-  return firstLines ? firstLines.slice(0, 2000) : undefined;
-}
-
-function estimateSimpleCost(
-  provider: string,
-  promptTokens: number,
-  completionTokens: number,
-): number {
-  const rates: Record<string, { input: number; output: number }> = {
-    "local-ollama": { input: 0, output: 0 },
-    "openrouter-free": { input: 0, output: 0 },
-    "nvidia-free": { input: 0, output: 0 },
-    openai: { input: 0.00015, output: 0.0006 },
-    anthropic: { input: 0.0008, output: 0.004 },
-    deepseek: { input: 0.000014, output: 0.000028 },
-    google: { input: 0.0000375, output: 0.00015 },
-    xai: { input: 0.0002, output: 0.0008 },
-    groq: { input: 0.000059, output: 0.000079 },
-    mistral: { input: 0.0002, output: 0.0006 },
-    cohere: { input: 0.0003, output: 0.0015 },
-  };
-  const r = rates[provider] ?? rates["local-ollama"]!;
-  return (promptTokens * r.input + completionTokens * r.output) / 1000;
-}
+// outputSummary and estimateSimpleCost extracted to workspace.ts and cost.ts
