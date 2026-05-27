@@ -190,4 +190,8 @@ export {
   MemoryAuditSink,
   AuditLogger,
   createAuditSink,
+  WormAuditSink,
+  SyslogAuditSink,
+  initialHash,
+  chainHashOf,
 } from "./audit.js";

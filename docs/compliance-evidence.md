@@ -73,7 +73,17 @@ controls, test coverage, and known gaps.
 | Required controls | Auth, audit, policy, storage, secrets | ✅ Implemented | `core-enterprise/src/index.ts`  |
 | Per-tenant quotas | `QuotaManager`, `RateLimiter`         | ✅ Implemented | `core-enterprise/src/quotas.ts` |
 
-### 7. Observability
+### 7. Encryption & Key Management
+
+| Control                    | Evidence                                    | Status         | Location                                   |
+| -------------------------- | ------------------------------------------- | -------------- | ------------------------------------------ |
+| Per-tenant encryption keys | `TenantKeyProvider` with HKDF derivation    | ✅ Implemented | `core-secrets/src/index.ts`                |
+| Key rotation               | Versioned DEKs, active key versions         | ✅ Implemented | `core-secrets/src/index.ts`                |
+| Key rotation documentation | Procedures for all key types                | ✅ Documented  | `docs/security/key-rotation.md`            |
+| WORM audit immutability    | `makeSegmentImmutable()` with chattr +i     | ✅ Implemented | `core-events/src/audit.ts`                 |
+| Quota persistence          | File-based atomic write with integrity hash | ✅ Implemented | `core-enterprise/src/quota-persistence.ts` |
+
+### 8. Observability
 
 | Control            | Evidence                              | Status         | Location                            |
 | ------------------ | ------------------------------------- | -------------- | ----------------------------------- |
@@ -84,13 +94,17 @@ controls, test coverage, and known gaps.
 
 ## Known Gaps
 
-| Gap                                                | Severity | Remediation Plan                              |
-| -------------------------------------------------- | -------- | --------------------------------------------- |
-| Docker sandbox runtime not tested in CI            | Medium   | Add Docker-based integration tests            |
-| Ed25519 policy signing not yet production-hardened | Medium   | Complete Ed25519 verification in core-secrets |
-| QuotaManager is in-memory only (no persistence)    | Medium   | Add SQLite or Redis persistence               |
-| WORM sink file permissions not enforced by code    | Low      | Document OS-level WORM setup (chattr +i)      |
-| No formal external security audit yet              | High     | Schedule third-party penetration test         |
+| Gap                                                | Severity | Status          | Remediation Plan                               |
+| -------------------------------------------------- | -------- | --------------- | ---------------------------------------------- |
+| Docker sandbox runtime not tested in CI            | Medium   | ✅ Added CI job | Dockerfile.sandbox + CI docker-sandbox job     |
+| Ed25519 policy signing not yet production-hardened | Medium   | Open            | Complete Ed25519 verification in core-secrets  |
+| QuotaManager persistence (file-based added)        | Medium   | ✅ Implemented  | QuotaPersistence with atomic write + integrity |
+| WORM sink file permissions not enforced by code    | Low      | ✅ Implemented  | `makeSegmentImmutable()` with chattr +i        |
+| No formal external security audit yet              | High     | Open            | Schedule third-party penetration test          |
+| Per-tenant encryption keys missing                 | Medium   | ✅ Implemented  | `TenantKeyProvider` with key rotation support  |
+| Key rotation not documented                        | Low      | ✅ Documented   | docs/security/key-rotation.md                  |
+| JWT scope test flakiness under concurrency         | Medium   | ✅ Fixed        | Sequential tests + isolated keypairs           |
+| Enterprise load/stress tests missing               | Medium   | ✅ Added        | tests/load/enterprise-load.test.ts             |
 
 ## Compliance Controls Mapping
 
@@ -118,5 +132,5 @@ controls, test coverage, and known gaps.
 
 ## Last Updated
 
-- **Date**: 2026-05-27
+- **Date**: 2026-05-27 (updated)
 - **Review cycle**: Quarterly

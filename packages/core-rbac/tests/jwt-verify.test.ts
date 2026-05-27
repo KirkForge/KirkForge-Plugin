@@ -3,43 +3,51 @@ import { verifyJwt, validateJwtClaims, clearJwksCache } from "../src/index.js";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import type { OidcConfig, GroupRoleMapping } from "../src/index.js";
 
-describe("verifyJwt", () => {
+// Sequential execution to avoid JWKS cache contention and shared mutable state
+// between concurrent tests. Each test generates its own keypair.
+describe.sequential("verifyJwt", () => {
   const audience = "55ndeep";
 
-  let rsaKeyPair: CryptoKeyPair;
-  let rsaPublicKeyJwk: Record<string, unknown>;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     clearJwksCache();
-    rsaKeyPair = await generateKeyPair("RS256", { extractable: true });
-    rsaPublicKeyJwk = await exportJWK(rsaKeyPair.publicKey);
   });
+
+  async function makeKeyPair() {
+    return generateKeyPair("RS256", { extractable: true });
+  }
 
   async function signToken(
     payload: Record<string, unknown>,
-    keyPair?: CryptoKeyPair,
+    keyPair: CryptoKeyPair,
+    kid = "test-key-1",
   ): Promise<string> {
-    const kp = keyPair ?? rsaKeyPair;
-    return new SignJWT(payload)
-      .setProtectedHeader({ alg: "RS256", kid: "test-key-1" })
-      .sign(kp.privateKey);
+    return new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid }).sign(keyPair.privateKey);
+  }
+
+  function localJwks(publicKeyJwk: Record<string, unknown>, kid = "test-key-1") {
+    return { keys: [{ ...publicKeyJwk, kid, use: "sig" }] };
   }
 
   it("accepts a valid JWT with matching issuer and audience using local JWKS", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: issuer,
-      aud: audience,
-      exp: now + 3600,
-      iat: now,
-      groups: ["developers"],
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: issuer,
+        aud: audience,
+        exp: now + 3600,
+        iat: now,
+        groups: ["developers"],
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
     const result = await verifyJwt(token, config, undefined, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -50,19 +58,24 @@ describe("verifyJwt", () => {
   });
 
   it("rejects a token with wrong issuer using local JWKS", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: "https://evil.com",
-      aud: audience,
-      exp: now + 3600,
-      iat: now,
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: "https://evil.com",
+        aud: audience,
+        exp: now + 3600,
+        iat: now,
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
     const result = await verifyJwt(token, config, undefined, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -71,57 +84,72 @@ describe("verifyJwt", () => {
   });
 
   it("rejects a token with wrong audience using local JWKS", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: issuer,
-      aud: "wrong-audience",
-      exp: now + 3600,
-      iat: now,
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: issuer,
+        aud: "wrong-audience",
+        exp: now + 3600,
+        iat: now,
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
     const result = await verifyJwt(token, config, undefined, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(false);
   });
 
   it("rejects an expired token using local JWKS", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: issuer,
-      aud: audience,
-      exp: now - 300, // expired 5 minutes ago
-      iat: now - 3600,
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: issuer,
+        aud: audience,
+        exp: now - 300, // expired 5 minutes ago
+        iat: now - 3600,
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience, clockSkewSec: 10 };
     const result = await verifyJwt(token, config, undefined, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(false);
   });
 
   it("resolves roles from group mapping", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "admin-user",
-      iss: issuer,
-      aud: audience,
-      exp: now + 3600,
-      iat: now,
-      groups: ["platform-admins"],
-    });
+    const token = await signToken(
+      {
+        sub: "admin-user",
+        iss: issuer,
+        aud: audience,
+        exp: now + 3600,
+        iat: now,
+        groups: ["platform-admins"],
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
     const mapping: GroupRoleMapping = { "platform-admins": "admin" };
     const result = await verifyJwt(token, config, mapping, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -130,7 +158,9 @@ describe("verifyJwt", () => {
   });
 
   it("rejects token signed with wrong key using local JWKS", async () => {
-    const wrongKeyPair = await generateKeyPair("RS256", { extractable: true });
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
+    const wrongKeyPair = await makeKeyPair();
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
     const token = await signToken(
@@ -146,25 +176,30 @@ describe("verifyJwt", () => {
 
     const config: OidcConfig = { issuer, audience };
     const result = await verifyJwt(token, config, undefined, {
-      jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] },
+      jwksSet: localJwks(publicKeyJwk),
     });
     expect(result.ok).toBe(false);
   });
 
   it("enforces required scopes using local JWKS", async () => {
+    const keyPair = await makeKeyPair();
+    const publicKeyJwk = await exportJWK(keyPair.publicKey);
     const issuer = "https://auth.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: issuer,
-      aud: audience,
-      exp: now + 3600,
-      iat: now,
-      scope: "read write",
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: issuer,
+        aud: audience,
+        exp: now + 3600,
+        iat: now,
+        scope: "read write",
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
-    const jwksOpts = { jwksSet: { keys: [{ ...rsaPublicKeyJwk, kid: "test-key-1", use: "sig" }] } };
+    const jwksOpts = { jwksSet: localJwks(publicKeyJwk) };
 
     // Has required scope
     const resultOk = await verifyJwt(token, config, undefined, {
@@ -185,15 +220,19 @@ describe("verifyJwt", () => {
   });
 
   it("returns INVALID_TOKEN when JWKS endpoint is unreachable", async () => {
+    const keyPair = await makeKeyPair();
     const issuer = "https://auth-unreachable.example.com";
     const now = Math.floor(Date.now() / 1000);
-    const token = await signToken({
-      sub: "user-1",
-      iss: issuer,
-      aud: audience,
-      exp: now + 3600,
-      iat: now,
-    });
+    const token = await signToken(
+      {
+        sub: "user-1",
+        iss: issuer,
+        aud: audience,
+        exp: now + 3600,
+        iat: now,
+      },
+      keyPair,
+    );
 
     const config: OidcConfig = { issuer, audience };
     const result = await verifyJwt(token, config);

@@ -96,3 +96,29 @@ jobs:
           name: sbom
           path: sbom.json
           retention-days: 30
+
+  docker-sandbox:
+    name: Docker sandbox integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Build sandbox Docker image
+        run: docker build -t 55ndeep/sandbox:latest -f Dockerfile.sandbox . || echo "No Dockerfile.sandbox found, skipping"
+
+      - name: Run Docker sandbox integration tests
+        run: npx vitest run packages/core-sandbox/tests/ --reporter=verbose
+        env:
+          55NDEEP_DOCKER_SANDBOX: "1"

@@ -11,9 +11,11 @@ import {
   closeSync,
   unlinkSync,
   fsyncSync,
+  chmodSync,
 } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { createSocket } from "node:dgram";
+import { execFileSync } from "node:child_process";
 
 // ── Audit sink for 55NDeep ──────────────────────────────────────────────────
 //
@@ -428,11 +430,11 @@ export function createAuditSink(config: AuditSinkConfig): AuditSink {
 
 // ── Chain hash helpers ─────────────────────────────────────────────────────
 
-function initialHash(): string {
+export function initialHash(): string {
   return createHash("sha256").update("55ndeep-audit-genesis").digest("hex").slice(0, 24);
 }
 
-function chainHashOf(prevHash: string, event: AuditEvent): string {
+export function chainHashOf(prevHash: string, event: AuditEvent): string {
   const payload = `${prevHash}|${event.action}|${event.actorId}|${event.tenantId}|${event.timestamp}|${event.sequence}`;
   return createHash("sha256").update(payload, "utf-8").digest("hex").slice(0, 24);
 }
@@ -796,6 +798,64 @@ export class WormAuditSink implements AuditSink {
   /** Get the total number of events written. */
   getWriteCount(): number {
     return this.writeCount;
+  }
+
+  /**
+   * Make a segment file immutable using OS-level file permissions.
+   * On Linux, uses chattr +i (requires CAP_LINUX_IMMUTABLE or root).
+   * On other platforms, falls back to read-only file permissions (chmod 0o444).
+   *
+   * Returns true if immutability was successfully applied, false otherwise.
+   * This is a best-effort operation - cloud WORM storage (S3 Object Lock)
+   * should be used for production immutability guarantees.
+   */
+  makeSegmentImmutable(segmentNumber?: number): boolean {
+    const segPath =
+      segmentNumber !== undefined ? this._segmentPath(segmentNumber) : this.currentSegmentPath;
+    if (!segPath || !existsSync(segPath)) return false;
+
+    try {
+      chmodSync(segPath, 0o444);
+
+      if (process.platform === "linux") {
+        try {
+          execFileSync("chattr", ["+i", segPath], { timeout: 5000 });
+          return true;
+        } catch {
+          // chattr requires root/CAP_LINUX_IMMUTABLE - best effort
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if a segment file is immutable.
+   * On Linux, checks if the immutable flag is set via lsattr.
+   * On other platforms, checks if the file is read-only.
+   */
+  isSegmentImmutable(segmentNumber?: number): boolean {
+    const segPath =
+      segmentNumber !== undefined ? this._segmentPath(segmentNumber) : this.currentSegmentPath;
+    if (!segPath || !existsSync(segPath)) return false;
+
+    try {
+      if (process.platform === "linux") {
+        try {
+          const output = execFileSync("lsattr", ["-d", segPath], { timeout: 5000 });
+          const attrs = output.toString().split(/\s/)[0] ?? "";
+          return /i/.test(attrs);
+        } catch {
+          // lsattr not available or no permissions
+        }
+      }
+      const stats = statSync(segPath);
+      return (stats.mode & 0o200) === 0;
+    } catch {
+      return false;
+    }
   }
 
   /** Get the current segment number. */

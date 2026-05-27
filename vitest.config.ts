@@ -14,6 +14,7 @@ export default defineConfig({
       "apps/**/*.test.ts",
       "packages/**/tests/**/*.test.ts",
       "e2e/**/*.test.ts",
+      "tests/**/*.test.ts",
     ],
     coverage: {
       enabled: false,

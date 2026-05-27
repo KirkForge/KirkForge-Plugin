@@ -1,0 +1,24 @@
+# ── 55NDeep Sandbox Image ──────────────────────────────────────────────────
+# Minimal Alpine image for running verified code in isolation.
+# Used by runDockerSandboxed() for enterprise sandboxing.
+
+FROM alpine:3.21
+
+# Install common language runtimes for verification tools
+RUN apk add --no-cache \
+    nodejs \
+    python3 \
+    py3-pip \
+    shellcheck \
+    && rm -rf /var/cache/apk/*
+
+# Non-root user for all sandboxed execution
+RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+
+# Read-only root filesystem is enforced by Docker run flags
+# (--read-only --tmpfs /tmp:noexec,nosuid,size=64m)
+USER sandbox
+WORKDIR /workspace
+
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["echo '55NDeep sandbox ready'"]
