@@ -54,9 +54,7 @@ describe("Enterprise mode integration", () => {
   });
 
   it("startup gate throws in enterprise mode with missing controls", () => {
-    expect(() =>
-      enterpriseStartupGate(undefined, { "55NDEEP_ENTERPRISE_MODE": "1" })
-    ).toThrow();
+    expect(() => enterpriseStartupGate(undefined, { "55NDEEP_ENTERPRISE_MODE": "1" })).toThrow();
   });
 
   it("startup gate returns dev config when enterprise mode is off", () => {

@@ -41,7 +41,7 @@ run_step "test:adapter" npm run test:adapter
 run_step "self-verify"  npm run self-verify
 
 if command -v trufflehog &>/dev/null; then
-    run_step "secrets" trufflehog filesystem --no-update --directory=. --json
+    run_step "secrets" trufflehog filesystem --no-update --json --exclude-paths="node_modules,.git" .
 else
     echo -e "  ${YELLOW}secrets${NC}               SKIP (trufflehog not installed)"
 fi

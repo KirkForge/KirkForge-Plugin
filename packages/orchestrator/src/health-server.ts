@@ -392,29 +392,35 @@ export class HealthServer {
     }
     const policy = this.policyEngine.getPolicy();
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      policy,
-      hash: this.policyEngine.getHash(),
-    }));
+    res.end(
+      JSON.stringify({
+        policy,
+        hash: this.policyEngine.getHash(),
+      }),
+    );
   }
 
   private _handleAuditVerify(req: IncomingMessage, res: ServerResponse): void {
     // Return audit chain integrity status
     // This endpoint verifies the WORM audit log integrity
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      status: "available",
-      message: "Use `55ndeep audit-verify --file <path>` to verify audit chain integrity",
-    }));
+    res.end(
+      JSON.stringify({
+        status: "available",
+        message: "Use `55ndeep audit-verify --file <path>` to verify audit chain integrity",
+      }),
+    );
   }
 
   private _handleTenants(res: ServerResponse): void {
     // Tenant listing — requires admin:tenant permission (already checked by RBAC)
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      tenants: [],
-      message: "Tenant management via API is planned for a future release",
-    }));
+    res.end(
+      JSON.stringify({
+        tenants: [],
+        message: "Tenant management via API is planned for a future release",
+      }),
+    );
   }
 
   private _sendUnauthorized(res: ServerResponse, reason: string): void {

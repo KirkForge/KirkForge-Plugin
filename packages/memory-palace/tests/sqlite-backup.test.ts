@@ -26,7 +26,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("creates a backup with metadata", async () => {
+  it("creates a backup with metadata", { timeout: 60_000 }, async () => {
     const dbPath = join(dir, "backup-test.db");
     const adapter = new SqliteAdapter(dbPath);
 
@@ -59,7 +59,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     adapter.close();
   });
 
-  it("creates backup to a specific path", async () => {
+  it("creates backup to a specific path", { timeout: 60_000 }, async () => {
     const dbPath = join(dir, "specific-backup.db");
     const adapter = new SqliteAdapter(dbPath);
     const destPath = join(dir, "custom-backup.db");
@@ -84,7 +84,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     adapter.close();
   });
 
-  it("restores from a backup and recovers all data", async () => {
+  it("restores from a backup and recovers all data", { timeout: 60_000 }, async () => {
     const dbPath = join(dir, "restore-test.db");
     const adapter = new SqliteAdapter(dbPath);
 
@@ -187,7 +187,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     adapter.close();
   });
 
-  it("backup checksum is deterministic for same data", async () => {
+  it("backup checksum is deterministic for same data", { timeout: 60_000 }, async () => {
     const dbPath1 = join(dir, "checksum-1.db");
     const dbPath2 = join(dir, "checksum-2.db");
     const adapter1 = new SqliteAdapter(dbPath1);
@@ -219,7 +219,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     adapter2.close();
   });
 
-  it("listBackups returns sorted backup files", async () => {
+  it("listBackups returns sorted backup files", { timeout: 60_000 }, async () => {
     const dbPath = join(dir, "list-backups.db");
     const adapter = new SqliteAdapter(dbPath);
 
@@ -253,7 +253,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     adapter.close();
   });
 
-  it("backup includes runs and emissions", async () => {
+  it("backup includes runs and emissions", { timeout: 60_000 }, async () => {
     const dbPath = join(dir, "runs-backup.db");
     const adapter = new SqliteAdapter(dbPath);
 

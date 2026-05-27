@@ -28,6 +28,7 @@
 ### 1) Identity (SSO) and RBAC — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/core-rbac`
+
 - OIDC bearer token validation with full JWKS signature verification (`jose` library).
 - Static API key bearer auth with timing-safe comparison.
 - Role/permission model: Admin, Operator, Developer, Viewer.
@@ -38,6 +39,7 @@
 ### 2) Multi-tenancy & tenant isolation — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/core-tenancy`
+
 - `TenantRegistry` with path-safe resource names and path traversal prevention.
 - `createMemoryStore()` per tenant for isolated storage.
 - Tenant context propagation in audit events.
@@ -46,6 +48,7 @@
 ### 3) Policy engine — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/core-policy`
+
 - Deny-by-default policy engine with tool, model, workspace, and execution controls.
 - Signed policy bundles (HMAC-SHA256 and Ed25519).
 - Tenant overrides (tenants can only tighten, never loosen base policy).
@@ -55,6 +58,7 @@
 ### 4) Sandboxed execution — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/core-sandbox`
+
 - `runSandboxed()` with timeout, output limits, path scanning, env secret detection.
 - `runDockerSandboxed()` for full container isolation.
 - `mergeConstraints()` for tenant-scoped constraints (tenants can only tighten).
@@ -63,6 +67,7 @@
 ### 5) Audit logging and evidence retention — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/core-events` (audit module)
+
 - `AuditLogger` with chain-hash integrity verification.
 - `FileAuditSink` with rotation and fsync.
 - `WormAuditSink` with segment management and tamper detection.
@@ -73,6 +78,7 @@
 ### 6) Durable, scalable memory store — ✅ RESOLVED
 
 **Implementation:** `@55ndeep/memory-palace`
+
 - `SqliteAdapter` with `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` for atomic writes.
 - Backup/restore with SHA-256 verification.
 - Enterprise mode requires `MEMORY_BACKEND=sqlite`.
@@ -81,17 +87,20 @@
 ### 7) Secrets management + key lifecycle — ✅ PARTIALLY RESOLVED
 
 **Implementation:** `@55ndeep/core-secrets`
+
 - Chained: Vault → AWS (SigV4) → GCP (JWT) → env.
 - Secret redaction in logs, errors, and tool output.
 - Enterprise mode warns if secrets fall through to env-only.
 
 **Remaining:**
+
 - Key rotation workflow documentation.
 - Per-tenant encryption keys (architecture supports this; not yet wired).
 
 ### 8) Compliance posture — ✅ RESOLVED
 
 **Implementation:** `docs/` directory
+
 - Data classification policy (`docs/security/data-classification.md`).
 - Incident response runbooks (`docs/runbooks/`).
 - Access control policy (`docs/security/access-control-policy.md`).
@@ -103,6 +112,7 @@
 ### 9) Operational readiness — ✅ RESOLVED
 
 **Implementation:**
+
 - SLO definitions with burn-rate monitoring (`SloMonitor`, `AuthPolicySloMonitor`).
 - Runbooks for common incidents (`docs/runbooks/`).
 - Load testing baseline (`docs/load-test-baseline.md`).
@@ -116,28 +126,28 @@
 
 ## Remaining hardening (future work)
 
-| Item | Severity | Status | Notes |
-|------|----------|--------|-------|
-| Per-tenant encryption keys | Medium | Planned | Architecture supports, needs wiring |
-| Key rotation workflow docs | Low | Planned | KMS-managed key rotation guide |
-| Docker sandbox integration in CI | Medium | Planned | Requires Docker-in-Docker in CI |
-| External security audit | High | Planned | Schedule third-party pentest |
-| WORM file permissions enforcement | Low | Documented | OS-level `chattr +i` documented |
+| Item                              | Severity | Status     | Notes                               |
+| --------------------------------- | -------- | ---------- | ----------------------------------- |
+| Per-tenant encryption keys        | Medium   | Planned    | Architecture supports, needs wiring |
+| Key rotation workflow docs        | Low      | Planned    | KMS-managed key rotation guide      |
+| Docker sandbox integration in CI  | Medium   | Planned    | Requires Docker-in-Docker in CI     |
+| External security audit           | High     | Planned    | Schedule third-party pentest        |
+| WORM file permissions enforcement | Low      | Documented | OS-level `chattr +i` documented     |
 
 ---
 
 ## Risk register (updated)
 
-| Risk | Severity | Likelihood | Status | Notes |
-|------|----------|-----------|--------|-------|
-| Cross-tenant data leakage | Critical | Low | ✅ Mitigated | Tenant isolation enforced end-to-end |
-| No RBAC/SSO | Critical | — | ✅ Resolved | OIDC + API key + deny-by-default |
-| No policy engine | Critical | — | ✅ Resolved | Deny-by-default policy with signed bundles |
-| No sandboxing | High | — | ✅ Resolved | Process runner + Docker runner |
-| No immutable audit trail | High | — | ✅ Resolved | WORM sink with chain-hash + tamper detection |
-| Non-default durable store | Medium | — | ✅ Resolved | Enterprise mode requires SQLite |
-| Per-tenant encryption keys | Medium | Medium | Planned | Architecture ready, needs wiring |
-| External security audit | High | — | Planned | Schedule third-party pentest |
+| Risk                       | Severity | Likelihood | Status       | Notes                                        |
+| -------------------------- | -------- | ---------- | ------------ | -------------------------------------------- |
+| Cross-tenant data leakage  | Critical | Low        | ✅ Mitigated | Tenant isolation enforced end-to-end         |
+| No RBAC/SSO                | Critical | —          | ✅ Resolved  | OIDC + API key + deny-by-default             |
+| No policy engine           | Critical | —          | ✅ Resolved  | Deny-by-default policy with signed bundles   |
+| No sandboxing              | High     | —          | ✅ Resolved  | Process runner + Docker runner               |
+| No immutable audit trail   | High     | —          | ✅ Resolved  | WORM sink with chain-hash + tamper detection |
+| Non-default durable store  | Medium   | —          | ✅ Resolved  | Enterprise mode requires SQLite              |
+| Per-tenant encryption keys | Medium   | Medium     | Planned      | Architecture ready, needs wiring             |
+| External security audit    | High     | —          | Planned      | Schedule third-party pentest                 |
 
 ---
 
@@ -146,6 +156,7 @@
 **55NDeep v8 is enterprise-ready** for Phase B (Policy + Audit) and Phase C (Isolation + Ops) deployments. The remaining items (per-tenant encryption keys, external security audit) are Phase D hardening work.
 
 Organizations can now:
+
 - Deploy with OIDC SSO and RBAC enforcement.
 - Configure deny-by-default policy with signed bundles.
 - Maintain a tamper-evident audit trail with SIEM export.
