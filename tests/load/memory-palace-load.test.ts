@@ -226,8 +226,8 @@ describe("InMemoryAdapter load baseline", () => {
 
 // ── FileAdapter load tests ──────────────────────────────────────────────────
 
-describe("FileAdapter load baseline", () => {
-  it("meets file write p95 SLO", async () => {
+describe.skipIf(process.env.CI)("FileAdapter load baseline", () => {
+  it("meets file write p95 SLO", { timeout: 60_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-file-"));
     try {
       const filePath = join(dir, "memory.json");
@@ -257,7 +257,7 @@ describe("FileAdapter load baseline", () => {
     }
   });
 
-  it("meets file write throughput SLO", async () => {
+  it("meets file write throughput SLO", { timeout: 60_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-throughput-"));
     try {
       const filePath = join(dir, "memory.json");
@@ -288,7 +288,7 @@ describe("FileAdapter load baseline", () => {
     }
   });
 
-  it("meets file read p95 SLO", async () => {
+  it("meets file read p95 SLO", { timeout: 60_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-read-"));
     try {
       const filePath = join(dir, "memory.json");

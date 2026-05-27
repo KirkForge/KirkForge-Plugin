@@ -20,6 +20,10 @@
     "./event-log": {
       "types": "./dist/event-log.d.ts",
       "import": "./dist/event-log.js"
+    },
+    "./slo-monitor": {
+      "types": "./dist/slo-monitor.d.ts",
+      "import": "./dist/slo-monitor.js"
     }
   },
   "dependencies": {

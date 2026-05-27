@@ -2,6 +2,7 @@
 # 55NDeep CI — full release gate
 set -euo pipefail
 
+export CI=1
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

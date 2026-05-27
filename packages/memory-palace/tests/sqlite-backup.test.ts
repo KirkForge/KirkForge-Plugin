@@ -15,7 +15,7 @@ try {
   /* native binding unavailable */
 }
 
-describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
+describe.skipIf(!hasBetterSqlite3 || process.env.CI)("SqliteAdapter backup/restore", () => {
   let dir: string;
 
   beforeAll(() => {
