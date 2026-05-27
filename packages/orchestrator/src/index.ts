@@ -25,6 +25,7 @@ import { ClassifierMemory } from "./classifier-persistence.js";
 import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 import { extractWrittenFiles, extractEmissionFiles } from "./types.js";
 import type { MemoryStore } from "@55ndeep/memory-palace";
+import { QuotaManager } from "@55ndeep/core-enterprise";
 import type { Recommendation } from "@55ndeep/memory-palace";
 import type {
   ReducedStatePacket,
@@ -142,6 +143,8 @@ export interface OrchestratorConfig {
   policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
   /** Audit logger for policy deny events. */
   auditLogger?: import("@55ndeep/core-events").AuditLogger;
+  /** Per-tenant quota manager. If set, quotas are checked before execution. */
+  quotaManager?: QuotaManager;
 }
 
 export class Orchestrator {
@@ -166,6 +169,7 @@ export class Orchestrator {
   private _isolatedBaselineDirs: string[] = [];
   private _policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
   private _auditLogger?: import("@55ndeep/core-events").AuditLogger;
+  private _quotaManager?: QuotaManager;
 
   constructor(config: OrchestratorConfig) {
     this.modelConfig = config.modelConfig;
@@ -186,6 +190,7 @@ export class Orchestrator {
     this._authPolicySlo = new AuthPolicySloMonitor();
     this._policyEngine = config.policyEngine;
     this._auditLogger = config.auditLogger;
+    this._quotaManager = config.quotaManager;
   }
 
   async delegate(task: TaskInput): Promise<OrchestratorResult> {

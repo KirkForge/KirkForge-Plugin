@@ -488,12 +488,12 @@ export class SqliteAdapter implements MemoryAdapter {
   ): void {
     this._stmtBeginTx.run();
     try {
+      this.writeRun(run);
       // Remove stale emissions from a prior write of the same run
       this._stmtDeleteEmissionsByRun.run(run.runId);
       for (const emission of emissions) {
         this.writeEmission(emission);
       }
-      this.writeRun(run);
       this._stmtCommit.run();
     } catch (e) {
       try {

@@ -11,6 +11,8 @@ import {
   isEnterpriseMode,
   requireEnterpriseOrDev,
   type EnterpriseConfig,
+  QuotaManager,
+  QuotaPersistence,
 } from "@55ndeep/core-enterprise";
 import { PolicyEngine } from "@55ndeep/core-policy";
 import { TenantRegistry } from "@55ndeep/core-tenancy";
@@ -60,6 +62,8 @@ export interface BootstrapResult {
   policyEngine: PolicyEngine;
   auditLogger: AuditLogger;
   tenantRegistry: TenantRegistry;
+  /** Per-tenant quota manager (enterprise mode only, no-op in dev). */
+  quotaManager: QuotaManager;
   /** Call to gracefully shut down telemetry and flush audit. */
   shutdown: () => Promise<void>;
 }
@@ -263,6 +267,23 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const workspacePath = opts.workspace ?? process.cwd();
   tenantRegistry.register(workspacePath);
 
+  // ── Quota manager ───────────────────────────────────────────────────
+  const quotaManager = new QuotaManager();
+  if (enterpriseConfig.enabled) {
+    // In enterprise mode, set up quota persistence for cross-process durability
+    const quotaPersistencePath = process.env.QUOTA_PERSISTENCE_PATH ?? ".55ndeep/quotas.json";
+    const quotaPersistence = new QuotaPersistence(quotaManager, { filePath: quotaPersistencePath });
+    const loadResult = quotaPersistence.load();
+    if (loadResult.ok) {
+      quotaPersistence.startAutoSave();
+      logger.info("[bootstrap] Quota persistence enabled");
+    } else {
+      logger.warn("[bootstrap] Quota persistence load failed: " + loadResult.error.message);
+    }
+  } else {
+    logger.debug("[bootstrap] Quota manager: in-memory (no persistence in dev mode)");
+  }
+
   // ── Orchestrator ─────────────────────────────────────────────────────
   const orchestrator = new Orchestrator({
     modelConfig,
@@ -324,6 +345,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
     policyEngine,
     auditLogger,
     tenantRegistry,
+    quotaManager,
     shutdown,
   };
 }

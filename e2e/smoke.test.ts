@@ -53,8 +53,9 @@ describe("e2e smoke — real language tooling", () => {
           timeout: 30000,
         });
         output = result.toString();
-      } catch (err: any) {
-        if (err?.stdout) output = err.stdout.toString();
+      } catch (err: unknown) {
+        const caught = err as Error & { stdout?: Buffer };
+        if (caught?.stdout) output = caught.stdout.toString();
         else throw err;
       }
       const parsed = JSON.parse(output);
@@ -105,9 +106,10 @@ describe("e2e smoke — real language tooling", () => {
       let stdout = "";
       try {
         execFileSync("ruff", ["check", "bad.py"], { cwd: dir, stdio: "pipe", timeout: 30000 });
-      } catch (err: any) {
-        if (err?.stdout) stdout = err.stdout.toString();
-        else if (err?.stderr) stdout = err.stderr.toString();
+      } catch (err: unknown) {
+        const caught = err as Error & { stdout?: Buffer; stderr?: Buffer };
+        if (caught?.stdout) stdout = caught.stdout.toString();
+        else if (caught?.stderr) stdout = caught.stderr.toString();
         else throw err;
       }
       expect(stdout).toContain("import");

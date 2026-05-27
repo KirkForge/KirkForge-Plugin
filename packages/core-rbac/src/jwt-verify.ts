@@ -1,4 +1,7 @@
-import { jwtVerify, createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
+import { jwtVerify, createRemoteJWKSet, createLocalJWKSet, type JWTVerifyGetKey } from "jose";
+
+// Track JWKS instances for cache clearing in tests
+const jwksInstances: ReturnType<typeof createRemoteJWKSet>[] = [];
 import { ok, err, type Result } from "@55ndeep/core-types";
 import { AuthError } from "@55ndeep/core-errors";
 import type { OidcConfig, JwtClaims, GroupRoleMapping } from "./index.js";
@@ -61,6 +64,8 @@ export interface VerifyJwtOptions {
   jwksUri?: string;
   /** HTTP request timeout for JWKS fetch in ms. Default: 5000. */
   timeoutMs?: number;
+  /** Local JWKS set for testing or pre-fetched keys. Bypasses JWKS fetch. */
+  jwksSet?: { keys: Record<string, unknown>[] };
 }
 
 /**
@@ -82,15 +87,24 @@ export async function verifyJwt(
 ): Promise<Result<JwtClaims, AuthError>> {
   try {
     // ── Resolve JWKS URI ────────────────────────────────────────────────
-    const jwksUri = options?.jwksUri ?? config.jwksUri ?? (await discoverJwksUri(config.issuer));
+    let getKey: JWTVerifyGetKey;
+    if (options?.jwksSet) {
+      // Use local JWKS set — bypasses network fetch entirely
+      const localSet = createLocalJWKSet(options.jwksSet);
+      getKey = localSet;
+    } else {
+      const jwksUri = options?.jwksUri ?? config.jwksUri ?? (await discoverJwksUri(config.issuer));
 
-    // ── Verify signature + claims with jose ──────────────────────────────
-    // createRemoteJWKSet handles key caching, rotation, and refresh internally.
-    const jwksUrl = new URL(jwksUri);
-    const getKey: JWTVerifyGetKey = createRemoteJWKSet(jwksUrl, {
-      timeoutDuration: options?.timeoutMs ?? 5000,
-      cooldownDuration: 30_000, // 30s cooldown after failed fetches
-    });
+      // ── Verify signature + claims with jose ──────────────────────────────
+      // createRemoteJWKSet handles key caching, rotation, and refresh internally.
+      const jwksUrl = new URL(jwksUri);
+      const remoteSet = createRemoteJWKSet(jwksUrl, {
+        timeoutDuration: options?.timeoutMs ?? 5000,
+        cooldownDuration: 30_000, // 30s cooldown after failed fetches
+      });
+      jwksInstances.push(remoteSet);
+      getKey = remoteSet;
+    }
 
     const { payload } = await jwtVerify(token, getKey, {
       issuer: config.issuer,
@@ -141,7 +155,7 @@ export async function verifyJwt(
  * Note: jose's createRemoteJWKSet manages its own cache internally.
  */
 export function clearJwksCache(): void {
-  // jose handles its own key caching; this is a no-op placeholder
-  // for test isolation. In the future, we may need to track the
-  // remote JWKS instances if cache-clearing becomes necessary.
+  // Clear tracked JWKS instances. jose caches key sets per RemoteJWKSet instance;
+  // removing references allows GC to collect stale instances between tests.
+  jwksInstances.length = 0;
 }

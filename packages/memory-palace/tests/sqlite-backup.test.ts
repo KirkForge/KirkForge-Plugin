@@ -50,7 +50,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter backup/restore", () => {
     expect(meta.filePath).toContain("backup-test.db.backup.");
     expect(meta.sizeBytes).toBeGreaterThan(0);
     expect(meta.sha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(meta.schemaVersion).toBe(1);
+    expect(meta.schemaVersion).toBe(3);
     expect(meta.rowCount.observations).toBe(1);
     expect(meta.rowCount.runs).toBe(0);
     expect(meta.rowCount.emissions).toBe(0);

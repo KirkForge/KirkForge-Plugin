@@ -278,7 +278,7 @@ export async function runSandboxed(
       clearTimeout(timeoutHandle);
       clearInterval(memoryInterval);
 
-      const _durationMs = Date.now() - startTime;
+      const durationMs = Date.now() - startTime;
       const result: SandboxResult = {
         success: !killed && code === 0,
         exitCode: code,
