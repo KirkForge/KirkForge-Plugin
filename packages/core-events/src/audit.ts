@@ -9,7 +9,6 @@ import {
   readdirSync,
   openSync,
   closeSync,
-  unlinkSync,
   fsyncSync,
   chmodSync,
 } from "node:fs";
@@ -745,9 +744,14 @@ export class WormAuditSink implements AuditSink {
         }
       }
 
-      // Enforce max segments (delete oldest)
+      // Enforce max segments (WORM: refuse to delete old)
       if (this.maxSegments > 0) {
-        this._enforceMaxSegments();
+        if (!this._enforceMaxSegments()) {
+          // WORM: cannot delete old segments — refuse new writes to preserve
+          // audit evidence. Return false so callers know the write was rejected.
+          this.buffer = [];
+          return false;
+        }
       }
 
       // Append events to current segment
@@ -776,22 +780,22 @@ export class WormAuditSink implements AuditSink {
     await this.flush();
   }
 
-  private _enforceMaxSegments(): void {
+  private _enforceMaxSegments(): boolean {
     try {
       const files = readdirSync(this.directory)
         .filter((f) => f.startsWith(this.filePrefix) && f.endsWith(".jsonl"))
         .sort();
-      while (files.length > this.maxSegments) {
-        const oldest = files.shift()!;
-        try {
-          unlinkSync(join(this.directory, oldest));
-        } catch {
-          // WORM: deletion should not normally happen, but this is
-          // segment management (not tampering)
-        }
+      if (files.length >= this.maxSegments) {
+        // WORM compliance: refuse to delete old audit segments.
+        // Deleting old segments would destroy audit evidence.
+        // Return false so the caller knows writes must stop.
+        // Operators should configure external rotation (e.g. log shipping
+        // to immutable storage) or increase maxSegments.
+        return false;
       }
+      return true;
     } catch {
-      // Best-effort
+      return true; // no directory yet — fine to write
     }
   }
 

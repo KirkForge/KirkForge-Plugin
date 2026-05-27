@@ -395,16 +395,16 @@ export function actorFromApiKey(
     return err(new AuthError("UNAUTHORIZED", "Missing token or API key", {}));
   }
 
-  // Timing-safe comparison
+  // Timing-safe comparison: pad both buffers to equal length so the
+  // length check does not leak key length via timing.
   const tokenBuf = Buffer.from(token, "utf-8");
   const keyBuf = Buffer.from(expectedApiKey, "utf-8");
-  if (tokenBuf.length !== keyBuf.length) {
-    return err(new AuthError("INVALID_TOKEN", "Invalid token", {}));
-  }
-
-  // Use crypto timing-safe comparison
-  // timingSafeEqual imported at module level for ESM compatibility
-  if (!timingSafeEqual(tokenBuf, keyBuf)) {
+  const maxLen = Math.max(tokenBuf.length, keyBuf.length);
+  const paddedToken = Buffer.alloc(maxLen);
+  const paddedKey = Buffer.alloc(maxLen);
+  tokenBuf.copy(paddedToken, maxLen - tokenBuf.length);
+  keyBuf.copy(paddedKey, maxLen - keyBuf.length);
+  if (!timingSafeEqual(paddedToken, paddedKey)) {
     return err(new AuthError("INVALID_TOKEN", "Invalid token", {}));
   }
 

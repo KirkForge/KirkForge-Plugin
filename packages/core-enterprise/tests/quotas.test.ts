@@ -161,3 +161,87 @@ describe("RateLimiter", () => {
     expect(limiter.getCurrentCount("tenant:verify", 60000)).toBe(3);
   });
 });
+
+describe("QuotaManager auto-reset", () => {
+  it("auto-resets hourly counters when hour boundary passes", () => {
+    const mgr = new QuotaManager();
+    const originalDateNow = Date.now;
+
+    // Start at a known time
+    const baseTime = 1700000000000; // some known timestamp
+    Date.now = () => baseTime;
+
+    // Record some hourly usage
+    mgr.recordUsage("t1", { hourlyToolInvocations: 50, hourlyVerifyRuns: 30, hourlyCorrections: 10 });
+    const usage0 = mgr.getUsage("t1");
+    expect(usage0.hourlyToolInvocations).toBe(50);
+    expect(usage0.hourlyVerifyRuns).toBe(30);
+    expect(usage0.hourlyCorrections).toBe(10);
+
+    // Advance past the hour boundary (1 hour + 1 ms)
+    Date.now = () => baseTime + 3600_001;
+
+    // getUsage should trigger auto-reset, clearing hourly counters
+    const usage1 = mgr.getUsage("t1");
+    expect(usage1.hourlyToolInvocations).toBe(0);
+    expect(usage1.hourlyVerifyRuns).toBe(0);
+    expect(usage1.hourlyCorrections).toBe(0);
+
+    Date.now = originalDateNow;
+  });
+
+  it("auto-resets daily counters when day boundary passes", () => {
+    const mgr = new QuotaManager();
+    const originalDateNow = Date.now;
+
+    const baseTime = 1700000000000;
+    Date.now = () => baseTime;
+
+    mgr.recordUsage("t1", { dailyTokens: 500000 });
+    const usage0 = mgr.getUsage("t1");
+    expect(usage0.dailyTokens).toBe(500000);
+
+    // Advance past the day boundary (24 hours + 1 ms)
+    Date.now = () => baseTime + 86_400_001;
+
+    const usage1 = mgr.getUsage("t1");
+    expect(usage1.dailyTokens).toBe(0);
+
+    Date.now = originalDateNow;
+  });
+
+  it("checkQuota also triggers auto-reset", () => {
+    const mgr = new QuotaManager();
+    const originalDateNow = Date.now;
+
+    const baseTime = 1700000000000;
+    Date.now = () => baseTime;
+
+    mgr.setQuota("t1", { maxToolInvocationsPerHour: 10 });
+    mgr.recordUsage("t1", { hourlyToolInvocations: 10 });
+    // At the current time, should be blocked
+    expect(mgr.checkQuota("t1", "tool_invocation").ok).toBe(false);
+
+    // Advance past the hour boundary — auto-reset should clear hourly counters
+    Date.now = () => baseTime + 3600_001;
+    expect(mgr.checkQuota("t1", "tool_invocation").ok).toBe(true);
+
+    Date.now = originalDateNow;
+  });
+
+  it("does not reset if the boundary has not passed", () => {
+    const mgr = new QuotaManager();
+    const originalDateNow = Date.now;
+
+    const baseTime = 1700000000000;
+    Date.now = () => baseTime;
+
+    mgr.recordUsage("t1", { hourlyToolInvocations: 100 });
+    // Same hour — no reset
+    Date.now = () => baseTime + 1800_000; // 30 min later, same hour
+    const usage = mgr.getUsage("t1");
+    expect(usage.hourlyToolInvocations).toBe(100);
+
+    Date.now = originalDateNow;
+  });
+});

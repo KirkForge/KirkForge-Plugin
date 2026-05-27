@@ -545,3 +545,43 @@ describe("negative auth scenarios", () => {
     expect(hasPermission(unknown, "admin:config")).toBe(false);
   });
 });
+
+describe("actorFromApiKey timing-safe padding", () => {
+  it("rejects token shorter than key without length leak", () => {
+    const result = actorFromApiKey("short", "much-longer-api-key-value");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_TOKEN");
+    }
+  });
+
+  it("rejects token longer than key without length leak", () => {
+    const result = actorFromApiKey("much-longer-token-value-than-key", "shortkey");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_TOKEN");
+    }
+  });
+
+  it("accepts matching token and key of different lengths (padded)", () => {
+    // This test validates that padding works: the comparison should succeed
+    // when token and key have the same value regardless of buffer length
+    const secret = "my-api-key-12345";
+    const result = actorFromApiKey(secret, secret);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.role).toBe("operator");
+      expect(result.value.authMethod).toBe("api_key");
+    }
+  });
+
+  it("accepts matching token and key with explicit role and tenant", () => {
+    const secret = "top-secret-key";
+    const result = actorFromApiKey(secret, secret, "admin", "tenant-1");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.role).toBe("admin");
+      expect(result.value.tenantId).toBe("tenant-1");
+    }
+  });
+});

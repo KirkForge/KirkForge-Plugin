@@ -80,6 +80,10 @@ export class QuotaManager {
   private usage = new Map<string, QuotaUsage>();
   private defaultQuota: Required<TenantQuota>;
 
+  // Track the last reset boundary per tenant so counters auto-reset
+  private lastHourBoundary = new Map<string, number>();
+  private lastDayBoundary = new Map<string, number>();
+
   constructor(defaultQuota?: TenantQuota) {
     this.defaultQuota = { ...DEFAULT_QUOTA, ...defaultQuota };
   }
@@ -96,6 +100,7 @@ export class QuotaManager {
 
   /** Get current usage for a tenant (returns zeros if not tracked). */
   getUsage(tenantId: string): QuotaUsage {
+    this._autoResetIfStale(tenantId);
     return (
       this.usage.get(tenantId) ?? {
         concurrentTasks: 0,
@@ -111,8 +116,17 @@ export class QuotaManager {
 
   /** Check whether a tenant can perform an action without exceeding quota. */
   checkQuota(tenantId: string, action: QuotaAction): Result<void, QuotaExceededError> {
+    this._autoResetIfStale(tenantId);
     const quota = this.getQuota(tenantId);
-    const usage = this.getUsage(tenantId);
+    const usage = this.usage.get(tenantId) ?? {
+      concurrentTasks: 0,
+      storageMb: 0,
+      observationCount: 0,
+      dailyTokens: 0,
+      hourlyToolInvocations: 0,
+      hourlyVerifyRuns: 0,
+      hourlyCorrections: 0,
+    };
 
     switch (action) {
       case "concurrent_task":
@@ -134,11 +148,7 @@ export class QuotaManager {
       case "observation":
         if (usage.observationCount >= quota.maxObservations) {
           return err(
-            new QuotaExceededError(
-              "maxObservations",
-              quota.maxObservations,
-              usage.observationCount,
-            ),
+            new QuotaExceededError("maxObservations", quota.maxObservations, usage.observationCount),
           );
         }
         break;
@@ -202,7 +212,8 @@ export class QuotaManager {
 
   /** Reset hourly counters for a tenant (called at hour boundaries). */
   resetHourly(tenantId: string): void {
-    const current = this.getUsage(tenantId);
+    const current = this.usage.get(tenantId);
+    if (!current) return;
     this.usage.set(tenantId, {
       ...current,
       hourlyToolInvocations: 0,
@@ -213,7 +224,8 @@ export class QuotaManager {
 
   /** Reset daily counters for a tenant (called at day boundaries). */
   resetDaily(tenantId: string): void {
-    const current = this.getUsage(tenantId);
+    const current = this.usage.get(tenantId);
+    if (!current) return;
     this.usage.set(tenantId, {
       ...current,
       dailyTokens: 0,
@@ -224,11 +236,46 @@ export class QuotaManager {
   removeTenant(tenantId: string): void {
     this.quotas.delete(tenantId);
     this.usage.delete(tenantId);
+    this.lastHourBoundary.delete(tenantId);
+    this.lastDayBoundary.delete(tenantId);
   }
 
   /** List all tenant IDs that have quota overrides or usage data. */
   listTenantIds(): string[] {
     return [...new Set([...this.quotas.keys(), ...this.usage.keys()])];
+  }
+
+  // ── Auto-reset helpers ──────────────────────────────────────────────────
+  //
+  // Track hour/day boundaries per tenant. When a boundary has passed since
+  // the last reset, automatically reset the relevant counters. This prevents
+  // the quota lockout bug where counters accumulate forever because
+  // resetHourly()/resetDaily() are never called.
+
+  private _autoResetIfStale(tenantId: string): void {
+    const now = Date.now();
+    const currentHour = Math.floor(now / 3600_000);
+    const currentDay = Math.floor(now / 86_400_000);
+
+    const lastHour = this.lastHourBoundary.get(tenantId);
+    const lastDay = this.lastDayBoundary.get(tenantId);
+
+    // Initialize boundaries on first use
+    if (lastHour === undefined) {
+      this.lastHourBoundary.set(tenantId, currentHour);
+    } else if (currentHour > lastHour) {
+      // Hour boundary has passed — reset hourly counters
+      this.resetHourly(tenantId);
+      this.lastHourBoundary.set(tenantId, currentHour);
+    }
+
+    if (lastDay === undefined) {
+      this.lastDayBoundary.set(tenantId, currentDay);
+    } else if (currentDay > lastDay) {
+      // Day boundary has passed — reset daily counters
+      this.resetDaily(tenantId);
+      this.lastDayBoundary.set(tenantId, currentDay);
+    }
   }
 }
 

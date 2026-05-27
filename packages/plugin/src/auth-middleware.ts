@@ -9,7 +9,6 @@ import {
   authorize,
   authorizeTenant,
   actorFromApiKey,
-  validateJwtClaims,
   actorFromJwt,
   verifyJwt,
 } from "@55ndeep/core-rbac";
@@ -255,23 +254,9 @@ export class AuthMiddleware {
       if (!actorResult.ok) return null;
       return { actor: actorResult.value };
     } catch {
-      // Fallback: claims-only validation (signature not verified)
-      try {
-        const parts = token.split(".");
-        if (parts.length !== 3) return null;
-        const payload = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf-8"));
-        const claimsResult = validateJwtClaims(payload, this.oidcConfig);
-        if (!claimsResult.ok) return null;
-        const actorResult = actorFromJwt(
-          claimsResult.value,
-          this.oidcConfig,
-          this.groupRoleMapping,
-        );
-        if (!actorResult.ok) return null;
-        return { actor: actorResult.value };
-      } catch {
-        return null;
-      }
+      // Signature verification failed — deny. No fallback to unsigned claims.
+      // Allowing unsigned claims would defeat the purpose of JWKS verification.
+      return null;
     }
   }
 

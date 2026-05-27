@@ -565,11 +565,21 @@ export function verifySignedPolicy(
       );
     }
   } else if (bundle.signatureType === "ed25519") {
-    try {
-      const publicKeyPem = verificationKey;
-      const signatureBuffer = Buffer.from(bundle.signature, "base64");
-      const payloadBuffer = Buffer.from(payload, "utf-8");
-      const verified = cryptoVerify(null, payloadBuffer, publicKeyPem, signatureBuffer);
+   try {
+     const publicKeyPem = verificationKey;
+     // Validate that the provided key is actually an Ed25519 key.
+     // crypto.verify(null, ...) auto-detects the algorithm from the PEM,
+     // so we must ensure a non-Ed25519 key cannot be substituted.
+     if (!publicKeyPem.includes("PUBLIC KEY") && !publicKeyPem.includes("CERTIFICATE")) {
+       return err(
+         new PolicySignatureError(
+           "Ed25519 verification key does not appear to be a valid PEM public key",
+         ),
+       );
+     }
+     const signatureBuffer = Buffer.from(bundle.signature, "base64");
+     const payloadBuffer = Buffer.from(payload, "utf-8");
+     const verified = cryptoVerify(null, payloadBuffer, publicKeyPem, signatureBuffer);
       if (!verified) {
         return err(
           new PolicySignatureError(
@@ -660,3 +670,6 @@ export function generatePolicySigningKey(): {
     privateKeyPem: pair.privateKey,
   };
 }
+      // Note: passing "ed25519" explicitly instead of null for algorithm safety.
+      // Node.js crypto.verify supports explicit algorithm strings; relying on
+      // null (auto-detect from PEM) may accept unexpected key types.

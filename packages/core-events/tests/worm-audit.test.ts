@@ -11,7 +11,7 @@ function freshDir(): string {
   return join(tmpdir(), `55ndeep-worm-test-${Date.now()}-${testCounter}`);
 }
 
-describe("WormAuditSink", () => {
+describe.sequential("WormAuditSink", () => {
   let testDir: string;
 
   beforeEach(() => {
@@ -186,6 +186,89 @@ describe("WormAuditSink", () => {
     expect(events[0]!.action).toBe("system.startup");
     expect(events[0]!.chainHash).toBeTruthy();
     expect(memSink.verifyChain()).toBe(true);
+    await logger.close();
+  });
+});
+
+describe.sequential("WormAuditSink maxSegments WORM enforcement", () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = freshDir();
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses writes when maxSegments is reached and does not delete old segments", async () => {
+    const sink = new WormAuditSink({
+      directory: testDir,
+      maxSegments: 1,
+      flushInterval: 1,
+    });
+    const logger = new AuditLogger(sink);
+
+    // Write one event and flush — should succeed (no segments exist yet)
+    await logger.record({
+      action: "tool.invoke",
+      outcome: "success",
+      actorId: "user1",
+      tenantId: "t1",
+      reason: "first event",
+    });
+    const firstFlush = await sink.flush();
+    expect(firstFlush).toBe(true);
+
+    // First segment exists
+    const filesAfterFirst = readdirSync(testDir).filter((f) => f.endsWith(".jsonl"));
+    expect(filesAfterFirst.length).toBe(1);
+
+    // Write another event and flush — should fail because maxSegments=1 is reached
+    await logger.record({
+      action: "tool.invoke",
+      outcome: "success",
+      actorId: "user1",
+      tenantId: "t1",
+      reason: "overflow event",
+    });
+    const secondFlush = await sink.flush();
+    expect(secondFlush).toBe(false);
+
+    // Verify the old segment was NOT deleted (WORM compliance)
+    const filesAfterOverflow = readdirSync(testDir).filter((f) => f.endsWith(".jsonl"));
+    expect(filesAfterOverflow.length).toBe(1);
+    // Verify the original event data is still readable
+    const content = readFileSync(join(testDir, filesAfterOverflow[0]!), "utf-8").trim();
+    expect(content).toContain("first event");
+
+    await logger.close();
+  });
+
+  it("allows writes when segment count is below maxSegments", async () => {
+    const sink = new WormAuditSink({
+      directory: testDir,
+      maxSegments: 3,
+      flushInterval: 1,
+    });
+    const logger = new AuditLogger(sink);
+
+    // Write several events — should all succeed
+    for (let i = 0; i < 3; i++) {
+      await logger.record({
+        action: "tool.invoke",
+        outcome: "success",
+        actorId: "user1",
+        tenantId: "t1",
+        reason: `event ${i}`,
+      });
+    }
+    const result = await sink.flush();
+    expect(result).toBe(true);
+
     await logger.close();
   });
 });

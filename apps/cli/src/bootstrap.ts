@@ -250,10 +250,13 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
   let memoryAdapter: FileAdapter;
 
+  // ── Tenant registry (single instance used by both memory and returned) ──
+  const tenantRegistry = new TenantRegistry();
+  const workspacePath = opts.workspace ?? process.cwd();
+  tenantRegistry.register(workspacePath);
+
   if (memoryBackend === "sqlite" && enterpriseConfig.enabled) {
     // In enterprise mode with sqlite backend, use tenant-scoped storage
-    const tenantRegistry = new TenantRegistry();
-    const workspacePath = opts.workspace ?? process.cwd();
     const handle = tenantRegistry.register(workspacePath);
     memoryAdapter = new FileAdapter(handle.storageDir + "/memory.json");
     logger.info(`[bootstrap] Memory: SQLite tenant-scoped (${handle.tenantId})`);
@@ -261,11 +264,6 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
     memoryAdapter = new FileAdapter(memoryPath);
   }
   const memoryStore = new MemoryStore(memoryAdapter);
-
-  // ── Tenant registry ──────────────────────────────────────────────────
-  const tenantRegistry = new TenantRegistry();
-  const workspacePath = opts.workspace ?? process.cwd();
-  tenantRegistry.register(workspacePath);
 
   // ── Quota manager ───────────────────────────────────────────────────
   const quotaManager = new QuotaManager();
