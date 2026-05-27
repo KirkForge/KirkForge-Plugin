@@ -317,3 +317,24 @@ export function enterpriseStartupGate(
   log.info("[enterprise] All critical controls validated. Starting in enterprise mode.");
   return config;
 }
+
+// ── Per-tenant quotas and rate limiting ──────────────────────────────────────
+
+export {
+  TenantQuota,
+  DEFAULT_QUOTA,
+  QuotaUsage,
+  QuotaExceededError,
+  QuotaManager,
+  QuotaAction,
+  RateLimiter,
+  RateLimitConfig,
+} from "./quotas.js";
+
+// ── Quota persistence ──────────────────────────────────────────────────────
+
+export {
+  QuotaPersistence,
+  QuotaPersistenceError,
+  type QuotaPersistenceConfig,
+} from "./quota-persistence.js";

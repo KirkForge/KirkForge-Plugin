@@ -108,6 +108,34 @@ export interface Actor {
   verifiedAt: string;
 }
 
+// ── Auth audit hook ─────────────────────────────────────────────────────────
+
+/**
+ * Callback invoked when an authorization decision is made.
+ * Allows the integration layer to emit audit events without core-rbac
+ * depending on core-events directly.
+ */
+export interface AuthDecision {
+  /** Whether access was granted. */
+  granted: boolean;
+  /** Actor making the request. */
+  actorId: string;
+  /** Actor role. */
+  role: Role;
+  /** Permission requested. */
+  permission: Permission;
+  /** Target tenant (for tenant-scoped checks). */
+  targetTenantId?: string;
+  /** Actor's own tenant. */
+  actorTenantId: string;
+  /** Reason for deny (empty if granted). */
+  reason: string;
+  /** ISO timestamp. */
+  timestamp: string;
+}
+
+export type AuthAuditHook = (decision: AuthDecision) => void;
+
 // ── Authorization ───────────────────────────────────────────────────────────
 
 /**
@@ -122,42 +150,81 @@ export function hasPermission(actor: Actor, permission: Permission): boolean {
 
 /**
  * Authorize an actor for a specific permission. Returns ok if granted,
- * err(AuthError) if denied.
+ * err(AuthError) if denied. Optionally records the decision via audit hook.
  */
-export function authorize(actor: Actor, permission: Permission): Result<void, AuthError> {
+export function authorize(
+  actor: Actor,
+  permission: Permission,
+  auditHook?: AuthAuditHook,
+): Result<void, AuthError> {
   if (hasPermission(actor, permission)) {
+    auditHook?.({
+      granted: true,
+      actorId: actor.id,
+      role: actor.role,
+      permission,
+      actorTenantId: actor.tenantId,
+      reason: "",
+      timestamp: new Date().toISOString(),
+    });
     return ok(undefined);
   }
+  const reason = `Actor "${actor.id}" (role=${actor.role}) does not have permission "${permission}"`;
+  auditHook?.({
+    granted: false,
+    actorId: actor.id,
+    role: actor.role,
+    permission,
+    actorTenantId: actor.tenantId,
+    reason,
+    timestamp: new Date().toISOString(),
+  });
   return err(
-    new AuthError(
-      "FORBIDDEN",
-      `Actor "${actor.id}" (role=${actor.role}) does not have permission "${permission}"`,
-      { actorId: actor.id, role: actor.role, permission },
-    ),
+    new AuthError("FORBIDDEN", reason, { actorId: actor.id, role: actor.role, permission }),
   );
 }
 
 /**
  * Authorize an actor for a permission scoped to a tenant.
  * Cross-tenant access is always denied unless the actor has admin role.
+ * Optionally records the decision via audit hook.
  */
 export function authorizeTenant(
   actor: Actor,
   permission: Permission,
   targetTenantId: string,
+  auditHook?: AuthAuditHook,
 ): Result<void, AuthError> {
   // Admin can cross tenant boundaries
   if (actor.role !== "admin" && actor.tenantId !== targetTenantId) {
+    const reason = `Actor "${actor.id}" (role=${actor.role}, tenant=${actor.tenantId}) cannot access tenant "${targetTenantId}"`;
+    auditHook?.({
+      granted: false,
+      actorId: actor.id,
+      role: actor.role,
+      permission,
+      targetTenantId,
+      actorTenantId: actor.tenantId,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
     return err(
-      new AuthError("FORBIDDEN", `Actor "${actor.id}" cannot access tenant "${targetTenantId}"`, {
+      new AuthError("FORBIDDEN", reason, {
         actorId: actor.id,
-        actorTenant: actor.tenantId,
-        targetTenant: targetTenantId,
+        role: actor.role,
+        tenantId: actor.tenantId,
+        targetTenantId,
         permission,
       }),
     );
   }
-  return authorize(actor, permission);
+  // Delegate to authorize for permission check, wrapping the hook with tenant context
+  const tenantHook: AuthAuditHook | undefined = auditHook
+    ? (decision) => {
+        auditHook({ ...decision, targetTenantId });
+      }
+    : undefined;
+  return authorize(actor, permission, tenantHook);
 }
 
 // ── Role resolution from groups/claims ──────────────────────────────────────

@@ -303,3 +303,24 @@ export function createPluginCore(config?: PluginCoreConfig) {
     doctor,
   };
 }
+
+// Auth-audit bridge: wires RBAC decisions to the audit logger
+export { createAuthAuditHook } from "./auth-audit-bridge.js";
+
+// Tenant context: multi-tenant scoping for plugin operations
+export {
+  createTenantContext,
+  createTenantAuditLogger,
+  type TenantContext,
+  type CreateTenantContextConfig,
+} from "./tenant-context.js";
+
+// Auth middleware: OIDC/API key authentication and RBAC for HTTP/MCP handlers
+export {
+  AuthMiddleware,
+  AuthMiddlewareError,
+  createAuthMiddleware,
+  parseGroupRoleMapping,
+  type AuthMiddlewareConfig,
+  type AuthenticatedRequest,
+} from "./auth-middleware.js";

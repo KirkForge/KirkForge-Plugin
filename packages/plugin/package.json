@@ -15,7 +15,10 @@
     "@55ndeep/core-events": "^1.0.0",
     "@55ndeep/correction-core": "^1.0.0",
     "@55ndeep/orchestrator": "^1.0.0",
-    "@55ndeep/memory-palace": "^1.0.0"
+    "@55ndeep/memory-palace": "^1.0.0",
+    "@55ndeep/core-rbac": "^1.0.0",
+    "@55ndeep/core-tenancy": "^1.0.0",
+    "@55ndeep/core-enterprise": "^1.0.0"
   },
   "devDependencies": {},
   "private": false,

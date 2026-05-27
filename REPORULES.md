@@ -93,13 +93,13 @@ git push
 
 ## Auth
 
-GitHub PAT is in `/home/kirk/Madlab/Toolbox_meatbag/.github_pat_classic`. Use it for HTTPS auth:
+GitHub PAT should be read from a secure local file (never committed to the repo). Use it for HTTPS auth:
 
 ```sh
-git clone https://$(cat /home/kirk/Madlab/Toolbox_meatbag/.github_pat_classic)@github.com/KirkForge/<repo>.git
+git clone https://$(cat ~/.config/github_pat)@github.com/KirkForge/<repo>.git
 ```
 
-Never hardcode the PAT in scripts. Always read from the file.
+Never hardcode the PAT in scripts. Always read from the file. Never reference absolute developer-specific paths in product documentation or source code.
 
 ## Codex Agent Instructions
 

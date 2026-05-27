@@ -462,7 +462,12 @@ function validatePolicy(raw: unknown): Result<Policy, ValidationError> {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-import { createHash } from "node:crypto";
+import {
+  createHash,
+  generateKeyPairSync,
+  sign as cryptoSign,
+  verify as cryptoVerify,
+} from "node:crypto";
 
 function computeHash(content: string): string {
   return createHash("sha256").update(content, "utf-8").digest("hex").slice(0, 16);
@@ -491,4 +496,167 @@ function deepMergePolicy(base: Policy, override: Partial<Policy>): Policy {
     result.execution = { ...result.execution, ...override.execution };
   }
   return result;
+}
+
+// ── Signed policy bundle verification ──────────────────────────────────────
+//
+// Policy bundles can be signed to prevent tampering. The signature is an
+// Ed25519 or HMAC-SHA256 over the canonical JSON representation of the policy.
+// This enables enterprise deployments to distribute policy files with
+// integrity guarantees.
+
+export interface SignedPolicyBundle {
+  /** The policy content. */
+  policy: Policy;
+  /** Hash of the canonical policy JSON (computed by PolicyEngine). */
+  hash: string;
+  /** Signature type. */
+  signatureType: "ed25519" | "hmac-sha256";
+  /** Base64-encoded signature. */
+  signature: string;
+  /** Key ID or identifier used to verify the signature. */
+  keyId: string;
+  /** ISO timestamp when the bundle was signed. */
+  signedAt: string;
+}
+
+export class PolicySignatureError extends NDeepError {
+  constructor(message: string, cause?: string) {
+    super("POLICY_SIGNATURE_ERROR", message, { cause });
+    this.name = "PolicySignatureError";
+  }
+}
+
+/**
+ * Verify a signed policy bundle.
+ *
+ * For HMAC-SHA256: pass the shared secret as `verificationKey`.
+ * For Ed25519: pass the public key as `verificationKey` (base64-encoded).
+ *
+ * Returns ok(policy) if signature verification succeeds, or err with details.
+ */
+export function verifySignedPolicy(
+  bundle: SignedPolicyBundle,
+  verificationKey: string,
+): Result<Policy, PolicySignatureError> {
+  // 1. Verify the hash matches the policy content
+  const canonicalJson = JSON.stringify(bundle.policy);
+  const expectedHash = computeHash(canonicalJson);
+
+  if (bundle.hash !== expectedHash) {
+    return err(
+      new PolicySignatureError(
+        `Policy hash mismatch: expected ${expectedHash}, got ${bundle.hash}. ` +
+          `The policy content may have been tampered with after signing.`,
+      ),
+    );
+  }
+
+  // 2. Verify the signature
+  const payload = `${bundle.hash}:${bundle.signatureType}:${bundle.keyId}:${bundle.signedAt}`;
+
+  if (bundle.signatureType === "hmac-sha256") {
+    const expected = createHash("sha256").update(payload).update(verificationKey).digest("base64");
+    if (bundle.signature !== expected) {
+      return err(
+        new PolicySignatureError(
+          "HMAC-SHA256 signature verification failed. The policy may have been modified or the wrong key was used.",
+        ),
+      );
+    }
+  } else if (bundle.signatureType === "ed25519") {
+    try {
+      const publicKeyPem = verificationKey;
+      const signatureBuffer = Buffer.from(bundle.signature, "base64");
+      const payloadBuffer = Buffer.from(payload, "utf-8");
+      const verified = cryptoVerify(null, payloadBuffer, publicKeyPem, signatureBuffer);
+      if (!verified) {
+        return err(
+          new PolicySignatureError(
+            "Ed25519 signature verification failed. The policy may have been modified or the wrong public key was used.",
+          ),
+        );
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      return err(
+        new PolicySignatureError(`Ed25519 signature verification error: ${message}`, message),
+      );
+    }
+  } else {
+    return err(new PolicySignatureError(`Unknown signature type: ${bundle.signatureType}`));
+  }
+
+  return ok(bundle.policy);
+}
+
+/**
+ * Sign a policy bundle with HMAC-SHA256.
+ * This is used by the policy administrator to create signed bundles.
+ */
+export function signPolicyHmac(
+  policy: Policy,
+  hash: string,
+  secretKey: string,
+  keyId: string = "default",
+): SignedPolicyBundle {
+  const signedAt = new Date().toISOString();
+  const payload = `${hash}:hmac-sha256:${keyId}:${signedAt}`;
+  const signature = createHash("sha256").update(payload).update(secretKey).digest("base64");
+
+  return {
+    policy,
+    hash,
+    signatureType: "hmac-sha256",
+    signature,
+    keyId,
+    signedAt,
+  };
+}
+
+/**
+ * Sign a policy bundle with Ed25519.
+ * Uses node:crypto generateKeyPairSync for key generation and
+ * crypto.sign for signature creation.
+ *
+ * The verificationKey parameter in verifySignedPolicy should be the
+ * PEM-encoded public key. The privateKeyPem parameter here is the
+ * PEM-encoded private key.
+ */
+export function signPolicyEd25519(
+  policy: Policy,
+  hash: string,
+  privateKeyPem: string,
+  keyId: string = "default",
+): SignedPolicyBundle {
+  const signedAt = new Date().toISOString();
+  const payload = `${hash}:ed25519:${keyId}:${signedAt}`;
+  const signature = cryptoSign(null, Buffer.from(payload, "utf-8"), privateKeyPem);
+  return {
+    policy,
+    hash,
+    signatureType: "ed25519",
+    signature: signature.toString("base64"),
+    keyId,
+    signedAt,
+  };
+}
+
+/**
+ * Generate an Ed25519 key pair for policy signing.
+ * Returns { publicKeyPem, privateKeyPem } for use with
+ * signPolicyEd25519 and verifySignedPolicy.
+ */
+export function generatePolicySigningKey(): {
+  publicKeyPem: string;
+  privateKeyPem: string;
+} {
+  const pair = generateKeyPairSync("ed25519", {
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+  });
+  return {
+    publicKeyPem: pair.publicKey,
+    privateKeyPem: pair.privateKey,
+  };
 }

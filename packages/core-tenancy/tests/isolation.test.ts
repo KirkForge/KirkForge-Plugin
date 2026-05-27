@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { TenantRegistry, tenantIdFromPath } from "../src/index.js";
+import { TenantRegistry, tenantIdFromPath, isSafeResourceName } from "../src/index.js";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -112,22 +112,41 @@ describe("Tenant isolation — adversarial tests", () => {
     expect(h.tenantId).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it("path traversal via relative resource names is a documented risk requiring caller-side validation", () => {
+  it("path traversal via relative resource names is BLOCKED by resolvePath", () => {
     const h = registry.register("/workspace/safe-zone");
-    // resolvePath uses join() which normalizes but does NOT prevent traversal.
-    // Path traversal with "../../../etc/passwd" escapes the tenant dir.
-    // This is a known behavior: callers MUST use safeRelativePath() from
-    // orchestrator/path-safety to validate resource names before resolvePath().
-    // The tenant isolation layer validates tenant IDs (SHA-256 hashes) but
-    // resource name validation is the caller's responsibility.
-    const maliciousPath = registry.resolvePath(h.tenantId, "../../../etc/passwd");
-    // Verify the path DID escape (documenting the known risk)
-    expect(maliciousPath).toContain("etc/passwd");
+    // resolvePath now enforces isSafeResourceName — path traversal is BLOCKED.
+    // Resource names with separators, .., null bytes, absolute paths, or
+    // leading dots are rejected before path construction.
+    expect(() => registry.resolvePath(h.tenantId, "../../../etc/passwd")).toThrow(
+      /unsafe resource name/i,
+    );
+    expect(() => registry.resolvePath(h.tenantId, "../secret")).toThrow(/unsafe resource name/i);
+    expect(() => registry.resolvePath(h.tenantId, "sub/dir")).toThrow(/unsafe resource name/i);
+    expect(() => registry.resolvePath(h.tenantId, ".env")).toThrow(/unsafe resource name/i);
     // Verify safe names stay within tenant storage
     const safeName = "memory.db";
     const safePath = registry.resolvePath(h.tenantId, safeName);
     expect(safePath).toContain(h.tenantId);
     expect(safePath).toContain("memory.db");
+  });
+
+  it("isSafeResourceName rejects traversal and dangerous names", () => {
+    expect(isSafeResourceName("memory.db")).toBe(true);
+    expect(isSafeResourceName("events.jsonl")).toBe(true);
+    expect(isSafeResourceName("config.json")).toBe(true);
+    // Rejected: path separators
+    expect(isSafeResourceName("../etc/passwd")).toBe(false);
+    expect(isSafeResourceName("sub/dir")).toBe(false);
+    // Rejected: .. segments
+    expect(isSafeResourceName("..")).toBe(false);
+    // Rejected: null bytes
+    expect(isSafeResourceName("file\0.txt")).toBe(false);
+    // Rejected: absolute paths
+    expect(isSafeResourceName("/etc/passwd")).toBe(false);
+    // Rejected: leading dots (hidden files / traversal)
+    expect(isSafeResourceName(".env")).toBe(false);
+    // Rejected: empty string
+    expect(isSafeResourceName("")).toBe(false);
   });
 
   it("concurrent tenant registrations are idempotent", () => {
@@ -142,5 +161,128 @@ describe("Tenant isolation — adversarial tests", () => {
     // All storage dirs should be identical
     const dirs = new Set(handles.map((h) => h.storageDir));
     expect(dirs.size).toBe(1);
+  });
+});
+
+// ── Memory store tenant isolation ─────────────────────────────────────────
+
+describe("Memory store tenant isolation", () => {
+  let tmpDir: string;
+  let registry: TenantRegistry;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-mem-isolation-"));
+    registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("each tenant gets a separate memory database path", () => {
+    const h1 = registry.register("/workspace/tenant-alpha");
+    const h2 = registry.register("/workspace/tenant-beta");
+
+    const db1 = registry.resolvePath(h1.tenantId, "memory.db");
+    const db2 = registry.resolvePath(h2.tenantId, "memory.db");
+
+    // Paths must be different
+    expect(db1).not.toBe(db2);
+    // Each path must contain its own tenant ID
+    expect(db1).toContain(h1.tenantId);
+    expect(db2).toContain(h2.tenantId);
+    // Alpha path must NOT contain beta's tenant ID
+    expect(db1).not.toContain(h2.tenantId);
+  });
+
+  it("writing to one tenant's storage does not appear in another's", () => {
+    const h1 = registry.register("/workspace/writer");
+    const h2 = registry.register("/workspace/reader");
+
+    mkdirSync(h1.storageDir, { recursive: true });
+    mkdirSync(h2.storageDir, { recursive: true });
+
+    writeFileSync(join(h1.storageDir, "memory.db"), "alpha-data", "utf-8");
+
+    // Reader tenant should not see writer's data
+    expect(existsSync(join(h2.storageDir, "memory.db"))).toBe(false);
+    // Writer should see its own data
+    expect(readFileSync(join(h1.storageDir, "memory.db"), "utf-8")).toBe("alpha-data");
+  });
+
+  it("tenant cannot access another tenant's events log", () => {
+    const h1 = registry.register("/workspace/tenant-a");
+    const h2 = registry.register("/workspace/tenant-b");
+
+    mkdirSync(h1.storageDir, { recursive: true });
+
+    const eventsPath = registry.resolvePath(h1.tenantId, "events.jsonl");
+    writeFileSync(eventsPath, '{"kind":"verify.start","tenantId":"a"}\n', "utf-8");
+
+    // Tenant B's events path must be different
+    const bEventsPath = registry.resolvePath(h2.tenantId, "events.jsonl");
+    expect(bEventsPath).not.toBe(eventsPath);
+    expect(bEventsPath).toContain(h2.tenantId);
+    expect(bEventsPath).not.toContain(h1.tenantId);
+  });
+
+  it("evicted tenant's data files remain but are inaccessible via registry", () => {
+    const h1 = registry.register("/workspace/evicted");
+    mkdirSync(h1.storageDir, { recursive: true });
+    writeFileSync(join(h1.storageDir, "memory.db"), "secret", "utf-8");
+
+    registry.evictFromIndex(h1.tenantId);
+
+    // The registry no longer knows about this tenant
+    expect(registry.get(h1.tenantId)).toBeUndefined();
+
+    // But the data file still exists on disk (not auto-cleaned)
+    expect(existsSync(join(h1.storageDir, "memory.db"))).toBe(true);
+  });
+});
+
+// ── Event and audit tenant scope ────────────────────────────────────────
+
+describe("Event and audit tenant scope", () => {
+  let registry: TenantRegistry;
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-event-isolation-"));
+    registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("resolvePath produces different paths for audit logs per tenant", () => {
+    const h1 = registry.register("/workspace/audit-alpha");
+    const h2 = registry.register("/workspace/audit-beta");
+
+    const audit1 = registry.resolvePath(h1.tenantId, "audit.jsonl");
+    const audit2 = registry.resolvePath(h2.tenantId, "audit.jsonl");
+
+    expect(audit1).not.toBe(audit2);
+    expect(audit1).toContain(h1.tenantId);
+    expect(audit2).toContain(h2.tenantId);
+  });
+
+  it("resolvePath produces different paths for config per tenant", () => {
+    const h1 = registry.register("/workspace/config-a");
+    const h2 = registry.register("/workspace/config-b");
+
+    const config1 = registry.resolvePath(h1.tenantId, "config.json");
+    const config2 = registry.resolvePath(h2.tenantId, "config.json");
+
+    expect(config1).not.toBe(config2);
+  });
+
+  it("tenant ID cannot be reverse-engineered from label or path", () => {
+    const h = registry.register("/workspace/top-secret-project-name");
+    // SHA-256 hash should make the ID opaque
+    expect(h.tenantId).not.toContain("secret");
+    expect(h.tenantId).not.toContain("project");
+    expect(h.tenantId).toMatch(/^[0-9a-f]{16}$/);
   });
 });
