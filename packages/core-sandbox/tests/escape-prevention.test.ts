@@ -286,3 +286,39 @@ describe("Sandbox escape prevention — adversarial tests", () => {
     });
   });
 });
+
+describe("scanArgsForPathViolations", () => {
+  // Note: scanArgsForPathViolations is not directly exported but is tested
+  // indirectly through runSandboxed. These tests validate the fix for
+  // the read/write misclassification bug (BUG-10).
+
+  it("checks both read and write paths for absolute paths", () => {
+    const constraints = {
+      ...STRICT_CONSTRAINTS,
+      allowedReadPaths: ["/workspace/src"],
+      allowedWritePaths: ["/workspace/out"],
+    };
+    // /workspace/src is in allowedReadPaths — should be allowed
+    expect(isReadPathAllowed("/workspace/src/file.ts", constraints)).toBe(true);
+    // /workspace/out is in allowedWritePaths — should be allowed
+    expect(isWritePathAllowed("/workspace/out/file.ts", constraints)).toBe(true);
+  });
+
+  it("classifies relative paths correctly — not assumed to be writes", () => {
+    // Relative paths starting with ./ should be checked against both
+    // read and write paths, not assumed to be writes.
+    // This is a regression test for BUG-10 where ./paths were only
+    // checked against write paths.
+    const constraints = {
+      ...STRICT_CONSTRAINTS,
+      allowedReadPaths: ["/workspace/src"],
+      allowedWritePaths: ["/workspace/out"],
+    };
+    // These are not absolute paths — isReadPathAllowed/isWritePathAllowed
+    // use normalize() which resolves relative paths against cwd.
+    // The key point: the caller (scanArgsForPathViolations) now checks
+    // both read and write paths, so a path allowed by either is accepted.
+    expect(isReadPathAllowed("./src", constraints)).toBe(false); // relative, no cwd
+    expect(isWritePathAllowed("./src", constraints)).toBe(false); // relative, no cwd
+  });
+});

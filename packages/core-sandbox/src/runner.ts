@@ -76,17 +76,16 @@ function scanArgsForPathViolations(
 ): SandboxViolation[] {
   const violations: SandboxViolation[] = [];
   for (const arg of args) {
-    // Heuristic: if arg starts with / or contains /, treat it as a path
+    // Heuristic: if arg looks like a path, check against allowed roots
     if (arg.startsWith("/") || arg.startsWith("./") || arg.startsWith("..")) {
-      const isRead = arg.startsWith("/");
-      const allowed = isRead
-        ? isReadPathAllowed(arg, constraints)
-        : isWritePathAllowed(arg, constraints);
-      // For relative paths, just check they don't contain traversal
-      if (!allowed && constraints.allowedReadPaths.length > 0) {
+      // Check both read and write paths — we cannot determine intent from
+      // the argument alone (a relative path like ./readme could be read or write).
+      const readAllowed = isReadPathAllowed(arg, constraints);
+      const writeAllowed = isWritePathAllowed(arg, constraints);
+      if (!readAllowed && !writeAllowed) {
         violations.push({
           type: "filesystem",
-          message: `Argument path "${arg}" is outside allowed read roots`,
+          message: `Argument path "${arg}" is outside allowed read/write roots`,
           target: arg,
         });
       }

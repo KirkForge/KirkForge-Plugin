@@ -306,6 +306,8 @@ interface TimestampBucket {
 
 export class RateLimiter {
   private windows = new Map<string, TimestampBucket[]>();
+  private lastCleanup = 0;
+  private static CLEANUP_INTERVAL_MS = 60_000; // 1 minute
 
   /**
    * Check if a request is allowed under the rate limit.
@@ -319,6 +321,13 @@ export class RateLimiter {
     // Remove expired buckets
     buckets = buckets.filter((b) => b.timestamp > windowStart);
 
+    // Update stored buckets (prunes expired entries for this key)
+    if (buckets.length === 0) {
+      this.windows.delete(key);
+    } else {
+      this.windows.set(key, buckets);
+    }
+
     const currentCount = buckets.reduce((sum, b) => sum + b.count, 0);
     if (currentCount >= config.maxRequests) {
       return err(new QuotaExceededError(`rate:${key}`, config.maxRequests, currentCount));
@@ -327,6 +336,13 @@ export class RateLimiter {
     // Record this request
     buckets.push({ timestamp: now, count: 1 });
     this.windows.set(key, buckets);
+
+    // Periodic cleanup of abandoned keys to prevent memory leak
+    if (now - this.lastCleanup > RateLimiter.CLEANUP_INTERVAL_MS) {
+      this._cleanupStaleKeys(now);
+      this.lastCleanup = now;
+    }
+
     return ok(undefined);
   }
 
@@ -340,5 +356,27 @@ export class RateLimiter {
   /** Reset rate limit for a specific key. */
   reset(key: string): void {
     this.windows.delete(key);
+  }
+
+  /**
+   * Manually trigger cleanup of stale keys.
+   * Removes keys where all buckets are older than 1 hour.
+   */
+  cleanup(): void {
+    this._cleanupStaleKeys(Date.now());
+  }
+
+  private _cleanupStaleKeys(now: number): void {
+    for (const [key, buckets] of this.windows) {
+      // Remove keys where all buckets are older than 1 hour.
+      // Most rate limit windows are seconds to minutes, so 1 hour is a
+      // conservative threshold that safely covers all typical windows.
+      const recent = buckets.filter((b) => b.timestamp > now - 3_600_000);
+      if (recent.length === 0) {
+        this.windows.delete(key);
+      } else if (recent.length < buckets.length) {
+        this.windows.set(key, recent);
+      }
+    }
   }
 }

@@ -746,7 +746,10 @@ export class WormAuditSink implements AuditSink {
 
       // Enforce max segments (WORM: refuse to delete old)
       if (this.maxSegments > 0) {
-        if (!this._enforceMaxSegments()) {
+        // Only refuse when we need to CREATE a new segment beyond the limit.
+        // Appending to an existing current segment is always allowed — it is
+        // already counted within maxSegments and still has room.
+        if (!existsSync(this.currentSegmentPath) && !this._enforceMaxSegments()) {
           // WORM: cannot delete old segments — refuse new writes to preserve
           // audit evidence. Return false so callers know the write was rejected.
           this.buffer = [];

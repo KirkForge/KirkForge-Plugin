@@ -245,3 +245,47 @@ describe("QuotaManager auto-reset", () => {
     Date.now = originalDateNow;
   });
 });
+
+
+describe("RateLimiter memory cleanup", () => {
+  it("removes stale keys via cleanup when buckets are old", () => {
+    const limiter = new RateLimiter();
+    const config: RateLimitConfig = { maxRequests: 5, windowMs: 60000 };
+    const twoHoursAgo = Date.now() - 2 * 3600_000;
+
+    // Create a key with an old bucket
+    limiter.check("old-key", config, twoHoursAgo);
+
+    // Force cleanup by resetting lastCleanup and triggering a check
+    (limiter as any).lastCleanup = 0;
+    limiter.check("new-key", config); // triggers periodic cleanup
+
+    // old-key should be gone — its bucket is older than 1 hour
+    expect(limiter.getCurrentCount("old-key", 60000)).toBe(0);
+  });
+
+  it("preserves keys with recent buckets during cleanup", () => {
+    const limiter = new RateLimiter();
+    const config: RateLimitConfig = { maxRequests: 5, windowMs: 60000 };
+
+    limiter.check("recent-key", config);
+
+    // Force cleanup by resetting lastCleanup and triggering a check
+    (limiter as any).lastCleanup = 0;
+    limiter.check("trigger", config); // triggers periodic cleanup
+
+    // recent-key should survive — its bucket is within the last hour
+    expect(limiter.getCurrentCount("recent-key", 60000)).toBe(1);
+  });
+
+  it("deletes empty key entries on check when buckets expire", () => {
+    const limiter = new RateLimiter();
+    const shortConfig: RateLimitConfig = { maxRequests: 5, windowMs: 100 };
+
+    limiter.check("key-expired", shortConfig, 1000);
+    // Advance well past the window — old buckets are filtered and key is deleted
+    const result = limiter.check("key-expired", shortConfig, 5000);
+    // The old bucket was filtered out, request is allowed again
+    expect(result.ok).toBe(true);
+  });
+});
