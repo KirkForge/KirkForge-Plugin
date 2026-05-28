@@ -14,6 +14,8 @@ import {
 } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { createSocket } from "node:dgram";
+import { connect as tlsConnect, type TLSSocket } from "node:tls";
+import { createConnection as netCreateConnection, type Socket } from "node:net";
 import { execFileSync } from "node:child_process";
 
 // ── Audit sink for 55NDeep ──────────────────────────────────────────────────
@@ -117,16 +119,29 @@ export interface AuditSinkConfig {
   maxFileSizeBytes?: number;
   /** Maximum rotated files to keep (file sink only). Default: 10. */
   maxRotatedFiles?: number;
-  /** Syslog transport protocol. Default: "udp". */
-  syslogTransport?: "udp" | "tcp";
+  /** Syslog transport protocol. Default: "udp". Supports "tls" for RFC 5425. */
+  syslogTransport?: "udp" | "tcp" | "tls";
   /** Syslog host. Default: "localhost". */
   syslogHost?: string;
-  /** Syslog port. Default: 514. */
+  /** Syslog port. Default: 514 (6514 for TLS). */
   syslogPort?: number;
   /** Syslog facility code (0–23). Default: 1. */
   syslogFacility?: number;
   /** Syslog application name. Default: "55ndeep". */
   syslogAppName?: string;
+  /** TLS options for syslog over TLS (RFC 5425). Used when syslogTransport is "tls". */
+  syslogTls?: {
+    /** Path to CA certificate for server verification. */
+    ca?: string;
+    /** Path to client certificate for mTLS. */
+    cert?: string;
+    /** Path to client private key for mTLS. */
+    key?: string;
+    /** Whether to reject unauthorized server certificates. Default: true. */
+    rejectUnauthorized?: boolean;
+    /** Server name for SNI. Default: syslogHost. */
+    servername?: string;
+  };
 }
 
 export interface FileAuditSinkConfig {
@@ -138,16 +153,6 @@ export interface FileAuditSinkConfig {
   maxFileSizeBytes?: number;
   /** Maximum rotated files to keep (file sink only). Default: 10. */
   maxRotatedFiles?: number;
-  /** Syslog transport protocol. Default: "udp". */
-  syslogTransport?: "udp" | "tcp";
-  /** Syslog host. Default: "localhost". */
-  syslogHost?: string;
-  /** Syslog port. Default: 514. */
-  syslogPort?: number;
-  /** Syslog facility code (0–23). Default: 1. */
-  syslogFacility?: number;
-  /** Syslog application name. Default: "55ndeep". */
-  syslogAppName?: string;
 }
 
 // ── File audit sink with rotation ────────────────────────────────────────────
@@ -419,6 +424,7 @@ export function createAuditSink(config: AuditSinkConfig): AuditSink {
         facility: config.syslogFacility,
         appName: config.syslogAppName,
         flushInterval: config.flushInterval,
+        tls: config.syslogTls,
       });
     case "memory":
       return new MemoryAuditSink();
@@ -441,8 +447,9 @@ export function chainHashOf(prevHash: string, event: AuditEvent): string {
 // ── Syslog audit sink (CEF/SIEM integration) ──────────────────────────────
 
 export interface SyslogAuditSinkConfig {
-  /** Syslog transport: "udp" or "tcp". Default: "udp". */
-  transport?: "udp" | "tcp";
+  /** Syslog transport: "udp", "tcp", or "tls". Default: "udp".
+   *  "tls" uses RFC 5425 TLS-protected syslog for enterprise SIEM integration. */
+  transport?: "udp" | "tcp" | "tls";
   /** Remote syslog host. Default: "localhost". */
   host?: string;
   /** Remote syslog port. Default: 514. */
@@ -453,6 +460,19 @@ export interface SyslogAuditSinkConfig {
   appName?: string;
   /** Buffer size before forcing flush. Default: 50. */
   flushInterval?: number;
+  /** TLS options for "tls" transport. Required when transport is "tls". */
+  tls?: {
+    /** Path to CA certificate for server verification. */
+    ca?: string;
+    /** Path to client certificate for mTLS. */
+    cert?: string;
+    /** Path to client private key for mTLS. */
+    key?: string;
+    /** Whether to reject unauthorized server certificates. Default: true. */
+    rejectUnauthorized?: boolean;
+    /** Server name for SNI. Default: host. */
+    servername?: string;
+  };
 }
 
 /**
@@ -471,7 +491,7 @@ export interface SyslogAuditSinkConfig {
  */
 export class SyslogAuditSink implements AuditSink {
   readonly name = "syslog";
-  private transport: "udp" | "tcp";
+  private transport: "udp" | "tcp" | "tls";
   private host: string;
   private port: number;
   private facility: number;
@@ -480,14 +500,18 @@ export class SyslogAuditSink implements AuditSink {
   private flushSize: number;
   private lastHash: string;
   private socket: ReturnType<typeof import("node:dgram").createSocket> | null = null;
+  private tlsSocket: TLSSocket | Socket | null = null;
+  private tlsConfig: SyslogAuditSinkConfig["tls"];
+  private reconnecting = false;
 
   constructor(config: SyslogAuditSinkConfig = {}) {
     this.transport = config.transport ?? "udp";
     this.host = config.host ?? "localhost";
-    this.port = config.port ?? 514;
+    this.port = config.port ?? (config.transport === "tls" ? 6514 : 514);
     this.facility = config.facility ?? 1; // user-level
     this.appName = config.appName ?? "55ndeep";
     this.flushSize = config.flushInterval ?? 50;
+    this.tlsConfig = config.tls;
     this.lastHash = initialHash();
   }
 
@@ -515,6 +539,14 @@ export class SyslogAuditSink implements AuditSink {
 
   async close(): Promise<void> {
     await this.flush();
+    if (this.tlsSocket) {
+      try {
+        this.tlsSocket.destroy();
+      } catch {
+        // best-effort
+      }
+      this.tlsSocket = null;
+    }
     if (this.socket) {
       try {
         this.socket.close();
@@ -563,9 +595,12 @@ export class SyslogAuditSink implements AuditSink {
   }
 
   private async send(message: string): Promise<boolean> {
-    const data = Buffer.from(message, "utf-8");
+    const data = Buffer.from(message + "\n", "utf-8");
     if (this.transport === "udp") {
       return this.sendUdp(data);
+    }
+    if (this.transport === "tls") {
+      return this.sendTls(data);
     }
     return this.sendTcp(data);
   }
@@ -584,11 +619,87 @@ export class SyslogAuditSink implements AuditSink {
     });
   }
 
-  private async sendTcp(_data: Buffer): Promise<boolean> {
-    // TCP syslog requires a persistent connection — for now, fall back to UDP behavior
-    // with a note that production TCP should use a connection pool.
-    // This is a placeholder for enterprise deployments that need reliable delivery.
-    return this.sendUdp(_data);
+  private async sendTcp(data: Buffer): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        const socket = netCreateConnection({ host: this.host, port: this.port }, () => {
+          socket.write(data, (err) => {
+            if (err) {
+              socket.destroy();
+              resolve(false);
+            } else {
+              socket.end(() => {
+                resolve(true);
+              });
+            }
+          });
+        });
+        socket.on("error", () => resolve(false));
+        socket.setTimeout(5000, () => {
+          socket.destroy();
+          resolve(false);
+        });
+      } catch {
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Send audit event over TLS-protected syslog connection (RFC 5425).
+   * Establishes a TLS connection to the syslog server, transmits the message,
+   * and closes the connection. Supports mutual TLS (mTLS) when cert/key are
+   * provided in the TLS config.
+   */
+  private async sendTls(data: Buffer): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        // readFileSync is already imported at module scope
+
+        const tlsOptions: import("node:tls").ConnectionOptions = {
+          host: this.host,
+          port: this.port,
+          rejectUnauthorized: this.tlsConfig?.rejectUnauthorized ?? true,
+          servername: this.tlsConfig?.servername ?? this.host,
+        };
+
+        if (this.tlsConfig?.ca) {
+          tlsOptions.ca = readFileSync(this.tlsConfig.ca, "utf-8");
+        }
+        if (this.tlsConfig?.cert) {
+          tlsOptions.cert = readFileSync(this.tlsConfig.cert, "utf-8");
+        }
+        if (this.tlsConfig?.key) {
+          tlsOptions.key = readFileSync(this.tlsConfig.key, "utf-8");
+        }
+
+        const socket = tlsConnect(tlsOptions, () => {
+          if (!socket.authorized && (this.tlsConfig?.rejectUnauthorized ?? true)) {
+            socket.destroy();
+            resolve(false);
+            return;
+          }
+          socket.write(data, (err) => {
+            if (err) {
+              socket.destroy();
+              resolve(false);
+            } else {
+              socket.end(() => {
+                resolve(true);
+              });
+            }
+          });
+        });
+
+        socket.on("error", () => resolve(false));
+        socket.setTimeout(5000, () => {
+          socket.destroy();
+          resolve(false);
+        });
+      } catch {
+        resolve(false);
+      }
+    });
   }
 }
 

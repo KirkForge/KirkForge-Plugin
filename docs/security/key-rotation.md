@@ -138,3 +138,101 @@ If a key is suspected compromised:
 - `core-rbac/src/jwt-verify.ts` — JWKS key rotation handling
 - `core-policy/src/index.ts` — `signPolicyHmac()`, `verifySignedPolicy()`
 - `core-events/src/audit.ts` — `WormAuditSink`, chain hash integrity
+
+## Per-Tenant Encryption at Rest (New in v8)
+
+### Architecture
+
+Per-tenant encryption is now wired into the data flow via `TenantEncryptionAdapter`
+(`core-tenancy/src/tenant-encryption.ts`). When enabled, each tenant's memory
+store data (descriptions, properties, tags) is encrypted with a unique DEK
+derived from the master KEK using HMAC-SHA256.
+
+**Data flow:**
+
+```
+Application
+  → TenantRegistry.createMemoryStore(tenantId, { keyProvider })
+    → TenantEncryptionAdapter(innerAdapter, keyProvider, tenantId)
+      → write: TenantKeyProvider.encryptForTenant(tenantId, plaintext)
+        → HMAC-SHA256 KEK derivation → AES-256-GCM encryption
+          → Inner adapter stores: v{version}:{iv}:{tag}:{ciphertext}
+      → read: TenantKeyProvider.decryptForTenant(tenantId, ciphertext)
+        → Version-prefixed decryption with active DEK versions
+```
+
+### Enabling Per-Tenant Encryption
+
+Set the `55NDEEP_TENANT_KEK` environment variable with a 32-byte hex-encoded
+master key (64 hex characters). This must be set **before** starting the daemon
+in enterprise mode.
+
+```bash
+# Generate a master KEK
+openssl rand -hex 32
+
+# Set in environment
+export 55NDEEP_TENANT_KEK=<64-hex-char-key>
+
+# Start daemon
+55ndeep serve
+```
+
+In enterprise mode, the bootstrap will:
+
+1. Load the master KEK from `55NDEEP_TENANT_KEK` via the secrets chain.
+2. Initialize a `TenantKeyProvider` with the master key.
+3. Wire `TenantEncryptionAdapter` into each tenant's `MemoryStore`.
+
+If the key is missing or invalid, the daemon logs a warning and proceeds with
+unencrypted storage. **Production deployments must set this key.**
+
+### Key Rotation for Per-Tenant Encryption
+
+The `TenantKeyProvider` supports online key rotation without re-encryption:
+
+```typescript
+const keyProvider = new TenantKeyProvider({ masterKey: Buffer.from(kekHex, "hex") });
+
+// Rotate a tenant's DEK — new writes use v2, old data remains readable with v1
+keyProvider.rotateKey("tenant-abc123");
+
+// New writes are encrypted with v2
+const ciphertext = keyProvider.encryptForTenant("tenant-abc123", "sensitive data");
+
+// Old v1 data is still decryptable (activeKeyVersions = 2 by default)
+keyProvider.decryptForTenant("tenant-abc123", "v1:...:...:...");
+```
+
+**Master KEK rotation** (full re-encryption):
+
+1. Generate a new master KEK: `openssl rand -hex 32`
+2. Initialize both old and new `TenantKeyProvider` instances.
+3. For each tenant, decrypt all data with the old provider and re-encrypt
+   with the new provider.
+4. Update `55NDEEP_TENANT_KEK` in the deployment environment.
+5. Restart the daemon.
+
+### Ciphertext Format
+
+Per-tenant encrypted data uses the versioned format from `TenantKeyProvider`:
+
+```
+v{version}:{iv_base64}:{tag_base64}:{ciphertext_base64}
+```
+
+- `version`: Monotonically increasing integer, incremented on `rotateKey()`.
+- `iv`: 12-byte IV for AES-256-GCM (base64).
+- `tag`: 16-byte authentication tag (base64).
+- `ciphertext`: AES-256-GCM encrypted payload (base64).
+
+Legacy unencrypted data is handled gracefully: if decryption fails (no version
+prefix), the adapter returns the raw object, enabling smooth migration from
+unencrypted to encrypted storage.
+
+### Related
+
+- `core-tenancy/src/tenant-encryption.ts` — `TenantEncryptionAdapter`
+- `core-secrets/src/index.ts` — `TenantKeyProvider`, `encryptForTenant`, `decryptForTenant`
+- `core-tenancy/src/index.ts` — `TenantRegistry.createMemoryStore({ keyProvider })`
+- `apps/cli/src/bootstrap.ts` — Per-tenant encryption wiring in enterprise mode

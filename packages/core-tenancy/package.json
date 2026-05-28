@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@55ndeep/core-types": "*",
-    "@55ndeep/memory-palace": "*"
+    "@55ndeep/memory-palace": "*",
+    "@55ndeep/core-secrets": "*"
   },
   "devDependencies": {},
   "files": [

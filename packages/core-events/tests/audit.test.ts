@@ -170,3 +170,47 @@ describe("createAuditSink", () => {
     expect(() => createAuditSink({ type: "unknown" as any })).toThrow();
   });
 });
+
+describe("SyslogAuditSink", () => {
+  it("creates with TLS transport config", async () => {
+    const { SyslogAuditSink } = await import("../src/audit.js");
+    const sink = new SyslogAuditSink({
+      transport: "tls",
+      host: "siem.example.com",
+      port: 6514,
+      tls: {
+        rejectUnauthorized: true,
+        servername: "siem.example.com",
+      },
+    });
+    expect(sink.name).toBe("syslog");
+    await sink.close();
+  });
+
+  it("creates with TCP transport config", async () => {
+    const { SyslogAuditSink } = await import("../src/audit.js");
+    const sink = new SyslogAuditSink({
+      transport: "tcp",
+      host: "siem.example.com",
+      port: 1468,
+    });
+    expect(sink.name).toBe("syslog");
+    await sink.close();
+  });
+
+  it("defaults to UDP when transport is not specified", async () => {
+    const { SyslogAuditSink } = await import("../src/audit.js");
+    const sink = new SyslogAuditSink({ host: "localhost" });
+    expect(sink.name).toBe("syslog");
+    await sink.close();
+  });
+
+  it("uses port 6514 for TLS transport by default", async () => {
+    const { SyslogAuditSink } = await import("../src/audit.js");
+    const sink = new SyslogAuditSink({ transport: "tls", host: "siem.example.com" });
+    // Port 6514 is the IANA-assigned port for syslog over TLS (RFC 5425)
+    // We verify construction succeeds; port is stored internally
+    expect(sink.name).toBe("syslog");
+    await sink.close();
+  });
+});

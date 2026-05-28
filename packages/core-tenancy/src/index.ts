@@ -3,6 +3,7 @@ import { resolve, join, isAbsolute } from "node:path";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { ok, err, type Result } from "@55ndeep/core-types";
+import type { TenantKeyProvider } from "@55ndeep/core-secrets";
 import { MemoryStore, type MemoryAdapter } from "@55ndeep/memory-palace";
 
 // ---------------------------------------------------------------------------
@@ -176,17 +177,45 @@ export class TenantRegistry {
    */
   async createMemoryStore(
     tenantId: string,
-    adapterFactory?: (dbPath: string) => MemoryAdapter,
+    options?: {
+      adapterFactory?: (dbPath: string) => MemoryAdapter;
+      /** Per-tenant encryption provider. When provided, all data at rest is
+       *  encrypted with the tenant's DEK derived from TenantKeyProvider.
+       *  In enterprise mode, this is required for compliance. */
+      keyProvider?: TenantKeyProvider;
+    },
   ): Promise<Result<MemoryStore, Error>> {
     try {
       const dbPath = this.resolvePath(tenantId, "memory.db");
-      if (adapterFactory) {
-        const adapter = adapterFactory(dbPath);
-        return ok(new MemoryStore(adapter));
+      let adapter: MemoryAdapter;
+
+      if (options?.adapterFactory) {
+        adapter = options.adapterFactory(dbPath);
+      } else {
+        // Default: use MemoryStore.create which auto-selects SqliteAdapter
+        // with InMemoryAdapter fallback
+        const store = await MemoryStore.create(dbPath);
+        if (options?.keyProvider) {
+          const { TenantEncryptionAdapter } = await import("./tenant-encryption.js");
+          // TenantEncryptionAdapter wraps the inner adapter after store creation.
+          // We re-create the store with the encrypted adapter wrapping the same inner adapter.
+          const innerAdapter = store.adapter;
+          const encryptedAdapter = new TenantEncryptionAdapter(
+            innerAdapter,
+            options.keyProvider,
+            tenantId,
+          );
+          return ok(new MemoryStore(encryptedAdapter));
+        }
+        return ok(store);
       }
-      // Default: use MemoryStore.create which auto-selects SqliteAdapter
-      // with InMemoryAdapter fallback
-      return ok(await MemoryStore.create(dbPath));
+
+      if (options?.keyProvider) {
+        const { TenantEncryptionAdapter } = await import("./tenant-encryption.js");
+        adapter = new TenantEncryptionAdapter(adapter, options.keyProvider, tenantId);
+      }
+
+      return ok(new MemoryStore(adapter));
     } catch (cause) {
       return err(
         new Error(
@@ -214,3 +243,9 @@ export class TenantRegistry {
 export function tenantIdFromPath(workspacePath: string): string {
   return createHash("sha256").update(resolve(workspacePath)).digest("hex").slice(0, 16);
 }
+
+// ---------------------------------------------------------------------------
+// Per-tenant encryption
+// ---------------------------------------------------------------------------
+
+export { TenantEncryptionAdapter } from "./tenant-encryption.js";

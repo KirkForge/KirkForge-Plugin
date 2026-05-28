@@ -3,8 +3,8 @@ import { Logger } from "@55ndeep/core-logging";
 import { ConfigService } from "@55ndeep/core-config";
 import { buildModelConfigAsync } from "@55ndeep/model-config";
 import { Orchestrator } from "@55ndeep/orchestrator";
-import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
-import { createSecretsManager } from "@55ndeep/core-secrets";
+import { MemoryStore } from "@55ndeep/memory-palace";
+import { createSecretsManager, TenantKeyProvider } from "@55ndeep/core-secrets";
 import { initTelemetry, shutdownTelemetry, isTracingEnabled } from "@55ndeep/core-telemetry";
 import type { SecretsManager } from "@55ndeep/core-secrets";
 import {
@@ -246,24 +246,51 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   }
 
   // ── Memory ───────────────────────────────────────────────────────────
-  const memoryPath = configService.get().memory.path || ".55ndeep/memory.json";
-  const memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
-  let memoryAdapter: FileAdapter;
+  const _memoryPath = configService.get().memory.path || ".55ndeep/memory.json";
+  const _memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
 
   // ── Tenant registry (single instance used by both memory and returned) ──
   const tenantRegistry = new TenantRegistry();
   const workspacePath = opts.workspace ?? process.cwd();
-  tenantRegistry.register(workspacePath);
+  const tenantHandle = tenantRegistry.register(workspacePath);
 
-  if (memoryBackend === "sqlite" && enterpriseConfig.enabled) {
-    // In enterprise mode with sqlite backend, use tenant-scoped storage
-    const handle = tenantRegistry.register(workspacePath);
-    memoryAdapter = new FileAdapter(handle.storageDir + "/memory.json");
-    logger.info(`[bootstrap] Memory: SQLite tenant-scoped (${handle.tenantId})`);
-  } else {
-    memoryAdapter = new FileAdapter(memoryPath);
+  // ── Per-tenant encryption ────────────────────────────────────────────
+  // In enterprise mode, derive per-tenant DEKs from the master KEK for
+  // encryption at rest. The master key is loaded from the secrets chain
+  // (Vault → AWS → GCP → env) or from 55NDEEP_TENANT_KEK env var.
+  let keyProvider: TenantKeyProvider | undefined;
+  const masterKeyHex = process.env["55NDEEP_TENANT_KEK"];
+  if (enterpriseConfig.enabled && masterKeyHex) {
+    const masterKey = Buffer.from(masterKeyHex, "hex");
+    if (masterKey.length === 32) {
+      keyProvider = new TenantKeyProvider({ masterKey });
+      logger.info(
+        `[bootstrap] Per-tenant encryption ENABLED (KEK loaded, ${masterKeyHex.slice(0, 8)}…)`,
+      );
+    } else {
+      logger.warn(
+        `[bootstrap] Per-tenant encryption: 55NDEEP_TENANT_KEK must be 32 bytes (64 hex chars), got ${masterKey.length} bytes. Encryption DISABLED.`,
+      );
+    }
+  } else if (enterpriseConfig.enabled) {
+    logger.warn(
+      "[bootstrap] Enterprise mode: no 55NDEEP_TENANT_KEK set. Per-tenant encryption DISABLED. Set a 32-byte hex key for production.",
+    );
   }
-  const memoryStore = new MemoryStore(memoryAdapter);
+
+  const memoryResult = await tenantRegistry.createMemoryStore(tenantHandle.tenantId, {
+    keyProvider,
+  });
+  if (!memoryResult.ok) {
+    throw new Error(`Failed to create memory store: ${memoryResult.error.message}`);
+  }
+  const memoryStore = memoryResult.value;
+
+  if (keyProvider) {
+    logger.info(`[bootstrap] Memory: encrypted per-tenant (${tenantHandle.tenantId})`);
+  } else {
+    logger.info(`[bootstrap] Memory: unencrypted (${tenantHandle.tenantId})`);
+  }
 
   // ── Quota manager ───────────────────────────────────────────────────
   const quotaManager = new QuotaManager();
@@ -308,7 +335,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
       await shutdownTelemetry();
       logger.info("[bootstrap] Telemetry flushed");
     }
-    await memoryAdapter.persist();
+    await memoryStore.adapter.persist?.();
     logger.info("[bootstrap] Memory persisted");
   };
 
@@ -327,7 +354,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   process.on("exit", () => {
     // Synchronous best-effort for normal exit
     try {
-      memoryAdapter.persist();
+      memoryStore.adapter.persist?.();
     } catch {}
   });
 
