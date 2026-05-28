@@ -11,7 +11,7 @@ FAIL=0
 echo "=== Test Suite ==="
 
 printf "  %-40s " "core-types+logging+tenancy"
-$V run packages/core-types/tests/result.test.ts packages/core-logging/tests/index.test.ts packages/core-tenancy/tests/index.test.ts packages/core-tenancy/tests/isolation.test.ts packages/core-telemetry/tests/index.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
+$V run packages/core-types/tests/result.test.ts packages/core-logging/tests/index.test.ts packages/core-tenancy/tests/index.test.ts packages/core-tenancy/tests/isolation.test.ts packages/core-tenancy/tests/tenant-encryption.test.ts packages/core-telemetry/tests/index.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
 
 printf "  %-40s " "core-secrets+rbac+policy"
 $V run packages/core-secrets/tests/sigv4.test.ts packages/core-secrets/tests/redaction.test.ts packages/core-secrets/tests/tenant-key.test.ts packages/core-rbac/tests/index.test.ts packages/core-rbac/tests/jwt-verify.test.ts packages/core-policy/tests/index.test.ts packages/core-policy/tests/signed-policy.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
@@ -35,7 +35,7 @@ printf "  %-40s " "cli+e2e"
 $V run apps/cli/tests/cli-commands.test.ts apps/cli/tests/doctor.test.ts apps/cli/tests/observe.test.ts e2e/smoke.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
 
 printf "  %-40s " "load-baseline"
-$V run tests/load/memory-palace-load.test.ts tests/load/slo-monitor-load.test.ts tests/load/enterprise-load.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
+CI=1 $V run tests/load/memory-palace-load.test.ts tests/load/slo-monitor-load.test.ts tests/load/enterprise-load.test.ts $R > $L 2>&1 && echo "PASS" || { echo "FAIL"; tail -10 $L; FAIL=1; }
 
 echo ""
 [ "$FAIL" -eq 0 ] && echo "ALL TESTS PASSED" || echo "SOME TESTS FAILED"

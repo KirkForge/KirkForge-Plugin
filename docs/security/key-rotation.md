@@ -149,6 +149,7 @@ store data is encrypted with a unique DEK derived from the master KEK using
 HMAC-SHA256.
 
 **What is encrypted:**
+
 - `description` — encrypted as a single ciphertext string
 - `properties` — serialized to JSON, then encrypted and stored as `{ _enc: "v{version}:..." }`
 - `kind`, `taskId`, `timestamp`, `runId` — NOT encrypted (needed for inner adapter queries)
@@ -238,6 +239,7 @@ v{version}:{iv_base64}:{tag_base64}:{ciphertext_base64}
 - `ciphertext`: AES-256-GCM encrypted payload (base64).
 
 **Stored field format:**
+
 - `description`: stored as ciphertext string directly
 - `properties`: stored as `{ _enc: "v{version}:..." }` to avoid JSON.parse on ciphertext
 - `tags`: stored as plaintext array for query support
@@ -254,4 +256,3 @@ rather than silently returning garbage data.
 - `core-secrets/src/index.ts` — `TenantKeyProvider`, `encryptForTenant`, `decryptForTenant`
 - `core-tenancy/src/index.ts` — `TenantRegistry.createMemoryStore({ keyProvider })`
 - `apps/cli/src/bootstrap.ts` — Per-tenant encryption wiring in enterprise mode
-

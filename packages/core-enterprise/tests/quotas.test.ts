@@ -172,7 +172,11 @@ describe("QuotaManager auto-reset", () => {
     Date.now = () => baseTime;
 
     // Record some hourly usage
-    mgr.recordUsage("t1", { hourlyToolInvocations: 50, hourlyVerifyRuns: 30, hourlyCorrections: 10 });
+    mgr.recordUsage("t1", {
+      hourlyToolInvocations: 50,
+      hourlyVerifyRuns: 30,
+      hourlyCorrections: 10,
+    });
     const usage0 = mgr.getUsage("t1");
     expect(usage0.hourlyToolInvocations).toBe(50);
     expect(usage0.hourlyVerifyRuns).toBe(30);
@@ -245,7 +249,6 @@ describe("QuotaManager auto-reset", () => {
     Date.now = originalDateNow;
   });
 });
-
 
 describe("RateLimiter memory cleanup", () => {
   it("removes stale keys via cleanup when buckets are old", () => {

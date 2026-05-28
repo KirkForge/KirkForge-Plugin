@@ -57,6 +57,7 @@
 ### BUG-6 (Low): API key length leak via timing — ✅ RESOLVED
 
 **File:** `packages/core-rbac/src/index.ts` (`actorFromApiKey`)
+
 ### BUG-10 (Critical): TenantEncryptionAdapter JSON.parse on ciphertext — ✅ RESOLVED
 
 **File:** `packages/core-tenancy/src/tenant-encryption.ts`
@@ -116,41 +117,41 @@
 
 ## Remaining hardening (post enterprise-beta)
 
-| Item                             | Severity | Status      | Notes                                                                      |
-| -------------------------------- | -------- | ----------- | -------------------------------------------------------------------------- |
+| Item                             | Severity | Status      | Notes                                                                          |
+| -------------------------------- | -------- | ----------- | ------------------------------------------------------------------------------ |
 | Per-tenant encryption keys       | Medium   | ✅ Resolved | TenantEncryptionAdapter wired; KEK from env; 3 logic bugs fixed (BUG-10/11/12) |
-| WORM maxSegments append block    | Medium   | ✅ Resolved | Appends to current segment now allowed                                     |
-| Sandbox path classification      | Medium   | ✅ Resolved | Both read/write paths checked for args                                     |
-| Key rotation workflow docs       | Low      | ✅ Resolved | Per-tenant KEK rotation guide with online rotation                         |
-| Docker sandbox integration in CI | Medium   | Planned     | Requires Docker-in-Docker in CI                                            |
-| External security audit          | High     | Planned     | Schedule third-party pentest                                               |
-| SyslogAuditSink TLS support      | Medium   | ✅ Resolved | RFC 5425 TLS syslog with mTLS; TCP transport                               |
-| SqliteAdapter load test          | Low      | ✅ Resolved | Load test validates 1K writes, queries, backup                             |
-| RateLimiter memory leak          | Low      | ✅ Resolved | Periodic cleanup removes stale keys; empty keys deleted on check           |
+| WORM maxSegments append block    | Medium   | ✅ Resolved | Appends to current segment now allowed                                         |
+| Sandbox path classification      | Medium   | ✅ Resolved | Both read/write paths checked for args                                         |
+| Key rotation workflow docs       | Low      | ✅ Resolved | Per-tenant KEK rotation guide with online rotation                             |
+| Docker sandbox integration in CI | Medium   | Planned     | Requires Docker-in-Docker in CI                                                |
+| External security audit          | High     | Planned     | Schedule third-party pentest                                                   |
+| SyslogAuditSink TLS support      | Medium   | ✅ Resolved | RFC 5425 TLS syslog with mTLS; TCP transport                                   |
+| SqliteAdapter load test          | Low      | ✅ Resolved | Load test validates 1K writes, queries, backup                                 |
+| RateLimiter memory leak          | Low      | ✅ Resolved | Periodic cleanup removes stale keys; empty keys deleted on check               |
 
 ---
 
 ## Risk register (updated 2026-05-27)
 
-| Risk                          | Severity | Likelihood | Status       | Notes                                               |
-| ----------------------------- | -------- | ---------- | ------------ | --------------------------------------------------- |
-| JWT fallback bypass           | Critical | Medium     | ✅ Resolved  | Fallback removed; JWKS failure = deny               |
-| Quota lockout                 | High     | High       | ✅ Resolved  | Auto-reset on hour/day boundaries                   |
-| Cross-tenant data leakage     | Critical | Low        | ✅ Mitigated | Tenant isolation enforced end-to-end                |
-| WORM segment deletion         | Medium   | Low        | ✅ Resolved  | Refuses writes at max, never deletes                |
-| Dual TenantRegistry           | Medium   | Low        | ✅ Resolved  | Single instance in bootstrap                        |
-| Ed25519 null algorithm        | Medium   | Low        | ✅ Resolved  | PEM validation before verify; null is correct       |
-| API key length leak           | Low      | Low        | ✅ Resolved  | Padded buffers before timingSafeEqual               |
-| No RBAC/SSO                   | Critical | —          | ✅ Resolved  | OIDC + API key + deny-by-default                    |
-| No policy engine              | Critical | —          | ✅ Resolved  | Deny-by-default policy with signed bundles          |
-| No sandboxing                 | High     | —          | ✅ Resolved  | Process runner + Docker runner                      |
-| No immutable audit trail      | High     | —          | ✅ Resolved  | WORM sink with chain-hash + tamper detection        |
-| RateLimiter memory leak       | Low      | Low        | ✅ Resolved  | Periodic cleanup; empty keys deleted on check       |
-| WORM maxSegments append block | Medium   | Low        | ✅ Resolved  | Appends to current segment now allowed              |
-| Sandbox path classification   | Medium   | Low        | ✅ Resolved  | Both read/write paths checked for args              |
-| Non-default durable store     | Medium   | —          | ✅ Resolved  | Enterprise mode requires SQLite                     |
+| Risk                          | Severity | Likelihood | Status       | Notes                                                        |
+| ----------------------------- | -------- | ---------- | ------------ | ------------------------------------------------------------ |
+| JWT fallback bypass           | Critical | Medium     | ✅ Resolved  | Fallback removed; JWKS failure = deny                        |
+| Quota lockout                 | High     | High       | ✅ Resolved  | Auto-reset on hour/day boundaries                            |
+| Cross-tenant data leakage     | Critical | Low        | ✅ Mitigated | Tenant isolation enforced end-to-end                         |
+| WORM segment deletion         | Medium   | Low        | ✅ Resolved  | Refuses writes at max, never deletes                         |
+| Dual TenantRegistry           | Medium   | Low        | ✅ Resolved  | Single instance in bootstrap                                 |
+| Ed25519 null algorithm        | Medium   | Low        | ✅ Resolved  | PEM validation before verify; null is correct                |
+| API key length leak           | Low      | Low        | ✅ Resolved  | Padded buffers before timingSafeEqual                        |
+| No RBAC/SSO                   | Critical | —          | ✅ Resolved  | OIDC + API key + deny-by-default                             |
+| No policy engine              | Critical | —          | ✅ Resolved  | Deny-by-default policy with signed bundles                   |
+| No sandboxing                 | High     | —          | ✅ Resolved  | Process runner + Docker runner                               |
+| No immutable audit trail      | High     | —          | ✅ Resolved  | WORM sink with chain-hash + tamper detection                 |
+| RateLimiter memory leak       | Low      | Low        | ✅ Resolved  | Periodic cleanup; empty keys deleted on check                |
+| WORM maxSegments append block | Medium   | Low        | ✅ Resolved  | Appends to current segment now allowed                       |
+| Sandbox path classification   | Medium   | Low        | ✅ Resolved  | Both read/write paths checked for args                       |
+| Non-default durable store     | Medium   | —          | ✅ Resolved  | Enterprise mode requires SQLite                              |
 | Per-tenant encryption keys    | Medium   | Low        | ✅ Resolved  | Adapter logic bugs fixed (JSON.parse, tags, silent fallback) |
-| External security audit       | High     | —          | Planned      | Schedule third-party pentest                        |
+| External security audit       | High     | —          | Planned      | Schedule third-party pentest                                 |
 
 ---
 

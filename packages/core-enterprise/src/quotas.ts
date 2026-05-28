@@ -148,7 +148,11 @@ export class QuotaManager {
       case "observation":
         if (usage.observationCount >= quota.maxObservations) {
           return err(
-            new QuotaExceededError("maxObservations", quota.maxObservations, usage.observationCount),
+            new QuotaExceededError(
+              "maxObservations",
+              quota.maxObservations,
+              usage.observationCount,
+            ),
           );
         }
         break;

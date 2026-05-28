@@ -204,14 +204,14 @@ describe("Ed25519 verifySignedPolicy", () => {
     const bundle = signPolicyEd25519(policy, hash, keys.privateKeyPem, "ed25519-key-1");
 
     const result = verifySignedPolicy(bundle, "not-a-valid-pem-key");
-   expect(result.ok).toBe(false);
-   if (!result.ok && result.error.message.includes("Ed25519 signature verification error")) {
-     expect(result.error.message).toContain("Ed25519 signature verification error");
-   } else if (!result.ok) {
-     // Early validation: non-PEM key rejected before signature check
-     expect(result.error.message).toContain("Ed25519 verification key");
-   }
- });
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.error.message.includes("Ed25519 signature verification error")) {
+      expect(result.error.message).toContain("Ed25519 signature verification error");
+    } else if (!result.ok) {
+      // Early validation: non-PEM key rejected before signature check
+      expect(result.error.message).toContain("Ed25519 verification key");
+    }
+  });
 
   it("rejects an Ed25519 bundle with corrupted signature", () => {
     const engine = new PolicyEngine();
