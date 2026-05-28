@@ -16,7 +16,7 @@ import {
 import { PolicyEngine, DEFAULT_POLICY } from "@55ndeep/core-policy";
 import { QuotaManager, RateLimiter } from "@55ndeep/core-enterprise";
 import { WormAuditSink, chainHashOf, initialHash } from "@55ndeep/core-events";
-import { mkdtempSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 

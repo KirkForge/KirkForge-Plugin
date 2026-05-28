@@ -22,7 +22,7 @@ function sha256(input: string): string {
 }
 
 function makeEventId(event: NDeepEvent): string {
-  const payload = "value" in event ? event.value : "reason" in event ? (event as any).reason : "";
+  const payload = "value" in event ? (event as { value: unknown }).value : "";
   // Include timestamp to distinguish events with identical kind/stream/sequence
   const ts = "timestamp" in event ? event.timestamp : new Date().toISOString();
   return sha256(

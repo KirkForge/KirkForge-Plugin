@@ -18,7 +18,7 @@ import { executeArtifact } from "./artifact-mode.js";
 export { parseJsonlArtifacts } from "./artifact-mode.js";
 export type { JsonlArtifact, ParsedArtifact, ParseResult } from "./artifact-mode.js";
 import { detectTaskProfile, profileForLanguage } from "./task-profile.js";
-import type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
+import type { TaskInput, DelegationResult, OrchestratorResult, OrchestratorStats, HealthCheckResult, ArtifactBlockedSignalValue, ArtifactUnterminatedSignalValue, ArtifactTruncatedSignalValue, ArtifactEmittedSignalValue } from "./types.js";
 import { computeFinalVerdict } from "./truth-model.js";
 import { SloMonitor, AuthPolicySloMonitor, type SloReport } from "./slo-monitor.js";
 import { ClassifierMemory } from "./classifier-persistence.js";
@@ -51,6 +51,7 @@ export { decideCorrection } from "./correction-loop.js";
 export { buildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
 export type { CorrectionConfig, CorrectionDecision } from "@55ndeep/correction-core";
 export type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
+export type { OrchestratorStats, HealthCheckResult } from "./types.js";
 export type {
   DecompositionResult,
   SubtaskExecutionResult,
@@ -158,7 +159,7 @@ export class Orchestrator {
   private decomposeProvider: string;
   private maxRetries: number;
   private retryBaseDelayMs: number;
-  private stats = { totalDelegations: 0, totalTokens: 0 };
+  private stats: OrchestratorStats = { totalDelegations: 0, totalTokens: 0 };
   private _shuttingDown = false;
   private _classifierLoaded = false;
   private _busy = false;
@@ -671,7 +672,7 @@ export class Orchestrator {
     return packet;
   }
 
-  getStats() {
+  getStats(): OrchestratorStats {
     return { ...this.stats };
   }
 
@@ -1471,7 +1472,7 @@ export class Orchestrator {
     this._authPolicySlo.record({ timestamp: Date.now(), type: "policy.allow", actorId, tenantId });
   }
 
-  healthCheck() {
+  healthCheck(): HealthCheckResult {
     return {
       status: this._shuttingDown ? "shutting_down" : ("healthy" as const),
       stats: { ...this.stats },
@@ -1970,6 +1971,7 @@ export class Orchestrator {
     result.value.providerResolved = this.providerKey;
     for (const sig of result.value.signals) {
       if (sig.kind === "artifact.blocked") {
+        const bv = sig.value as ArtifactBlockedSignalValue;
         await this.sharedEventBus.emit({
           kind: "artifact.blocked",
           schemaVersion: "v3",
@@ -1977,25 +1979,24 @@ export class Orchestrator {
           streamId: sig.id,
           taskId: sig.taskId,
           value: {
-            blockedPaths: (sig.value as { blockedPaths: Array<{ path: string; reason: string }> })
-              .blockedPaths,
-            ...((sig.value as any).parseWarnings
-              ? { parseWarnings: (sig.value as any).parseWarnings }
-              : {}),
+            blockedPaths: bv.blockedPaths,
+            ...(bv.parseWarnings ? { parseWarnings: bv.parseWarnings } : {}),
           },
           timestamp: sig.ts,
         });
       } else if (sig.kind === "artifact.unterminated") {
+        const uv = sig.value as ArtifactUnterminatedSignalValue;
         await this.sharedEventBus.emit({
           kind: "artifact.unterminated",
           schemaVersion: "v3",
           sequence: 0,
           streamId: sig.id,
           taskId: sig.taskId,
-          value: { warnings: (sig.value as { warnings: string[] }).warnings },
+          value: { warnings: uv.warnings },
           timestamp: sig.ts,
         });
       } else if (sig.kind === "artifact.truncated") {
+        const tv = sig.value as ArtifactTruncatedSignalValue;
         await this.sharedEventBus.emit({
           kind: "artifact.truncated",
           schemaVersion: "v3",
@@ -2003,24 +2004,13 @@ export class Orchestrator {
           streamId: sig.id,
           taskId: sig.taskId,
           value: {
-            finishReason: (sig.value as { finishReason: string }).finishReason,
-            warnings: (sig.value as { warnings: string[] }).warnings,
+            finishReason: tv.finishReason,
+            warnings: tv.warnings,
           },
           timestamp: sig.ts,
         });
       } else if (sig.kind === "artifact.emitted") {
-        const av = sig.value as {
-          filesWritten: number;
-          totalBytes: number;
-          files: Array<{
-            path: string;
-            sha256: string;
-            bytes: number;
-            beforeHash: string | null;
-            existed: boolean;
-          }>;
-          language: string;
-        };
+        const ev = sig.value as ArtifactEmittedSignalValue;
         await this.sharedEventBus.emit({
           kind: "artifact.emitted",
           schemaVersion: "v3",
@@ -2028,10 +2018,10 @@ export class Orchestrator {
           streamId: sig.id,
           taskId: sig.taskId,
           value: {
-            filesWritten: av.filesWritten,
-            totalBytes: av.totalBytes,
-            files: av.files,
-            language: av.language,
+            filesWritten: ev.filesWritten,
+            totalBytes: ev.totalBytes,
+            files: ev.files,
+            language: ev.language,
           },
           timestamp: sig.ts,
         });

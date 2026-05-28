@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Orchestrator } from "./index.js";
+import type { OrchestratorStats, HealthCheckResult } from "./types.js";
 import type { Logger } from "@55ndeep/core-logging";
 import {
   type Actor,
@@ -498,8 +499,8 @@ export class HealthServer {
   }
   // ── Prometheus text format /metrics ───────────────────────────────────────
   private _handleMetricsPrometheus(res: ServerResponse): void {
-    const stats = this.orchestrator.getStats() as any;
-    const health = this.orchestrator.healthCheck() as any;
+    const stats: OrchestratorStats = this.orchestrator.getStats();
+    const health: HealthCheckResult = this.orchestrator.healthCheck();
     const lines: string[] = [];
     const num = (v: unknown): number => (typeof v === "number" ? v : 0);
     const escapePromLabel = (v: string): string =>

@@ -1,5 +1,11 @@
 import type { DelegationMode, DelegationDecision } from "@55ndeep/core-types";
 import type { Actor } from "@55ndeep/core-rbac";
+import type {
+  ArtifactBlockedEvent,
+  ArtifactUnterminatedEvent,
+  ArtifactTruncatedEvent,
+  ArtifactEmittedEvent,
+} from "@55ndeep/core-types";
 
 export interface TaskInput {
   taskId?: string;
@@ -107,3 +113,38 @@ export interface DecompositionExecutionResult {
   totalTokens: number;
   totalDurationMs: number;
 }
+
+// ── Typed stats and health-check result interfaces ────────────────────────
+
+/** Stats returned by `Orchestrator.getStats()`. */
+export interface OrchestratorStats {
+  totalDelegations: number;
+  totalTokens: number;
+  totalErrors?: number;
+  activeTasks?: number;
+  memoryEntries?: number;
+  memorySizeBytes?: number;
+}
+
+/** Health-check result returned by `Orchestrator.healthCheck()`. */
+export interface HealthCheckResult {
+  status: "healthy" | "shutting_down";
+  stats: OrchestratorStats;
+  eventBus: {
+    running: boolean;
+    inflight: number;
+    bufferSize: number;
+  };
+  memory: string;
+  providers: number;
+}
+
+// ── Signal value type helpers ─────────────────────────────────────────────
+
+/** Type-safe extraction of signal values from DelegationResult signals. */
+export type SignalValueOf<T> = T extends { value: infer V } ? V : never;
+
+export type ArtifactBlockedSignalValue = ArtifactBlockedEvent["value"];
+export type ArtifactUnterminatedSignalValue = ArtifactUnterminatedEvent["value"];
+export type ArtifactTruncatedSignalValue = ArtifactTruncatedEvent["value"];
+export type ArtifactEmittedSignalValue = ArtifactEmittedEvent["value"];

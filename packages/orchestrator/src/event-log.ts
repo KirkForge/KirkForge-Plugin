@@ -82,7 +82,7 @@ export class EventLogger {
     ];
 
     for (const kind of eventKinds) {
-      this.eventBus.on(kind as any, async (event) => {
+      this.eventBus.on(kind as Parameters<typeof this.eventBus.on>[0], async (event) => {
         try {
           this._append(event);
         } catch (e) {

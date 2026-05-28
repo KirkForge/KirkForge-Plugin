@@ -821,7 +821,7 @@ export class MemoryStore {
         run.filesEmitted = emissions.length;
         run.totalBytesEmitted = emissions.reduce((s, e) => s + e.bytes, 0);
         this.adapter.writeRunAndEmissions(
-          run as any,
+          run as RunRow,
           emissions.map((e, i) => ({
             id: ids[i]!,
             runId: run.runId,
