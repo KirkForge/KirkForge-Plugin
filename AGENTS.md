@@ -1,3 +1,6 @@
+
+**See also**: [REPORULES.md](../REPORULES.md) — multi-machine sync, git identity, PAT handling, and new-repo bootstrap.
+
 # ⚠️ Mandatory Rules — Read Before Editing
 
 - **Never commit**: `node_modules/`, `.venv/`, `__pycache__/`, `*.pyc`, `dist/`, `.next/`, `coverage/`, `.mypy_cache/`, `.pytest_cache/`, `.DS_Store`, `*.log`, `.env`, `*.pem`, `*.key`
