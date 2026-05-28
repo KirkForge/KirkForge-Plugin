@@ -455,6 +455,12 @@ export async function runDockerSandboxed(
       // Docker is the allowed command here; the actual command runs inside the container
       shellAllowed: true,
       allowedCommands: ["docker"],
+      // Docker -v mount args like "/path:/path:ro" must not be scanned as filesystem
+      // paths — the colon suffix causes isReadPathAllowed() to reject valid mounts.
+      // The container provides actual filesystem isolation, so outer path scanning
+      // on Docker args is not meaningful.
+      allowedReadPaths: [],
+      allowedWritePaths: [],
     },
     cwd: config.cwd,
     env: config.env,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runSandboxed, SandboxExecutionError, DEFAULT_CONSTRAINTS } from "../src/runner.js";
+import { runSandboxed, runDockerSandboxed, SandboxExecutionError, DEFAULT_CONSTRAINTS } from "../src/runner.js";
 
 describe("runSandboxed", () => {
   const allowedConstraints = {
@@ -186,6 +186,42 @@ describe("runSandboxed", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.durationMs).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe("runDockerSandboxed path mount validation", () => {
+  // Regression: Docker -v args like "/path:/path:ro" should not trigger
+  // path-violation checks that compare the mount arg against allowedReadPaths.
+  // The mount arg "/workspace/src:/workspace/src:ro" contains colons and ":ro"
+  // which won't match "/workspace/src" in isReadPathAllowed().
+
+  const dockerConstraints = {
+    ...DEFAULT_CONSTRAINTS,
+    shellAllowed: true,
+    allowedCommands: ["docker"],
+    maxTimeMs: 10000,
+    allowedReadPaths: ["/workspace/src"],
+    allowedWritePaths: ["/workspace/data"],
+  };
+
+  it("allows Docker run with read mount args that include :ro suffix", async () => {
+    // runDockerSandboxed builds -v args like "/workspace/src:/workspace/src:ro"
+    // and passes them through runSandboxed which scans args for path violations.
+    // The full mount arg should NOT be flagged because the container runner
+    // allows Docker as the command.
+    const result = await runDockerSandboxed({
+      command: "echo",
+      args: ["hello"],
+      image: "alpine:latest",
+      constraints: dockerConstraints,
+    });
+    // We don't assert success because Docker may not be available in CI,
+    // but we assert it doesn't reject for filesystem path violations.
+    if (!result.ok) {
+      const violations = result.error.violations ?? [];
+      const fsViolations = violations.filter((v: any) => v.type === "filesystem");
+      expect(fsViolations).toHaveLength(0);
     }
   });
 });
