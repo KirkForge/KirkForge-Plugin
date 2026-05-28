@@ -535,7 +535,7 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   // Vault tokens (s.xxxxx or hvs.xxxxx)
   { pattern: /(?:s\.|hvs\.)[A-Za-z0-9]{24}/g, label: "vault_token" },
   // Connection strings with passwords
-  { pattern: /:\/\/([^:]+):([^@]+)@/g, label: "connection_string_password" },
+  { pattern: /:\/\/[^:]+:[^@]+@/g, label: "connection_string_password" },
   // Private key blocks
   {
     pattern:

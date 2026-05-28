@@ -502,12 +502,14 @@ export class HealthServer {
     const health = this.orchestrator.healthCheck() as any;
     const lines: string[] = [];
     const num = (v: unknown): number => (typeof v === "number" ? v : 0);
+    const escapePromLabel = (v: string): string =>
+      v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n");
     const gauge = (name: string, help: string, value: number, labels?: Record<string, string>) => {
       lines.push(`# HELP ${name} ${help}`);
       lines.push(`# TYPE ${name} gauge`);
       const labelStr = labels
         ? `{${Object.entries(labels)
-            .map(([k, v]) => `${k}="${v}"`)
+            .map(([k, v]) => `${k}="${escapePromLabel(v)}"`)
             .join(",")}}`
         : "";
       lines.push(`${name}${labelStr} ${value}`);
@@ -522,7 +524,7 @@ export class HealthServer {
       lines.push(`# TYPE ${name} counter`);
       const labelStr = labels
         ? `{${Object.entries(labels)
-            .map(([k, v]) => `${k}="${v}"`)
+            .map(([k, v]) => `${k}="${escapePromLabel(v)}"`)
             .join(",")}}`
         : "";
       lines.push(`${name}${labelStr} ${value}`);

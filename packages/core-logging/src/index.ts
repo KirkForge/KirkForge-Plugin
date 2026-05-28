@@ -133,7 +133,7 @@ export class Logger {
     }));
     const child = new Logger({ level: this._level, format: "json" });
     // Override transports with enriched wrappers
-    (child as any)._transports = childTransports;
+    (child as unknown as LoggerInternals)._transports = childTransports;
     // Keep level in sync with parent
     Object.defineProperty(child, "_level", {
       get: () => this._level,
@@ -185,7 +185,7 @@ export function getTraceContext(): { traceId: string; spanId: string } | null {
  * ```
  */
 export function withTraceContext(logger: Logger): Logger {
-  const enrichedTransports: LogTransport[] = (logger as any)._transports.map((t: LogTransport) => ({
+  const enrichedTransports: LogTransport[] = (logger as unknown as LoggerInternals)._transports.map((t: LogTransport) => ({
     write(entry: LogEntry): void {
       const tc = getTraceContext();
       const enriched: LogEntry = tc ? { ...entry, context: { ...entry.context, ...tc } } : entry;
@@ -196,7 +196,7 @@ export function withTraceContext(logger: Logger): Logger {
   }));
 
   const enriched = new Logger({ level: logger.level, format: "json" });
-  (enriched as any)._transports = enrichedTransports;
+  (enriched as unknown as LoggerInternals)._transports = enrichedTransports;
   Object.defineProperty(enriched, "_level", {
     get: () => logger.level,
     set: (v: LogLevel) => {

@@ -211,7 +211,7 @@ export class FileAuditSink implements AuditSink {
       }
       // Current file becomes .1
       renameSync(this.filePath, `${this.filePath}.1`);
-    } catch {
+    } catch (_e) {
       // Rotation failure is not fatal — we continue appending to the current file.
     }
   }
@@ -233,7 +233,7 @@ export class FileAuditSink implements AuditSink {
       appendFileSync(this.filePath, content, "utf-8");
       this.buffer = [];
       return true;
-    } catch {
+    } catch (_e) {
       return false;
     }
   }
@@ -284,7 +284,7 @@ export class HttpAuditSink implements AuditSink {
         signal: AbortSignal.timeout(5000),
       });
       return res.ok;
-    } catch {
+    } catch (_e) {
       // Re-buffer for retry
       this.buffer.unshift(...events);
       return false;
@@ -542,7 +542,7 @@ export class SyslogAuditSink implements AuditSink {
     if (this.tlsSocket) {
       try {
         this.tlsSocket.destroy();
-      } catch {
+      } catch (_e) {
         // best-effort
       }
       this.tlsSocket = null;
@@ -550,7 +550,7 @@ export class SyslogAuditSink implements AuditSink {
     if (this.socket) {
       try {
         this.socket.close();
-      } catch {
+      } catch (_e) {
         // best-effort
       }
       this.socket = null;
@@ -613,7 +613,7 @@ export class SyslogAuditSink implements AuditSink {
           sock.close();
           resolve(!err);
         });
-      } catch {
+      } catch (_e) {
         resolve(false);
       }
     });
@@ -639,7 +639,7 @@ export class SyslogAuditSink implements AuditSink {
           socket.destroy();
           resolve(false);
         });
-      } catch {
+      } catch (_e) {
         resolve(false);
       }
     });
@@ -696,7 +696,7 @@ export class SyslogAuditSink implements AuditSink {
           socket.destroy();
           resolve(false);
         });
-      } catch {
+      } catch (_e) {
         resolve(false);
       }
     });
@@ -782,7 +782,7 @@ export class WormAuditSink implements AuditSink {
         this.currentSegment = 0;
         this.currentSegmentPath = this._segmentPath(0);
       }
-    } catch {
+    } catch (_e) {
       this.currentSegment = 0;
       this.currentSegmentPath = this._segmentPath(0);
     }
@@ -806,11 +806,11 @@ export class WormAuditSink implements AuditSink {
             this.lastHash = event.chainHash;
             return;
           }
-        } catch {
+        } catch (_e) {
           continue;
         }
       }
-    } catch {
+    } catch (_e) {
       // Best-effort restoration
     }
   }
@@ -878,14 +878,14 @@ export class WormAuditSink implements AuditSink {
           const fd = openSync(this.currentSegmentPath, "r");
           fsyncSync(fd);
           closeSync(fd);
-        } catch {
+        } catch (_e) {
           // Best-effort fsync
         }
       }
 
       this.buffer = [];
       return true;
-    } catch {
+    } catch (_e) {
       return false;
     }
   }
@@ -908,7 +908,7 @@ export class WormAuditSink implements AuditSink {
         return false;
       }
       return true;
-    } catch {
+    } catch (_e) {
       return true; // no directory yet — fine to write
     }
   }
@@ -939,12 +939,12 @@ export class WormAuditSink implements AuditSink {
         try {
           execFileSync("chattr", ["+i", segPath], { timeout: 5000 });
           return true;
-        } catch {
+        } catch (_e) {
           // chattr requires root/CAP_LINUX_IMMUTABLE - best effort
         }
       }
       return true;
-    } catch {
+    } catch (_e) {
       return false;
     }
   }
@@ -965,13 +965,13 @@ export class WormAuditSink implements AuditSink {
           const output = execFileSync("lsattr", ["-d", segPath], { timeout: 5000 });
           const attrs = output.toString().split(/\s/)[0] ?? "";
           return /i/.test(attrs);
-        } catch {
+        } catch (_e) {
           // lsattr not available or no permissions
         }
       }
       const stats = statSync(segPath);
       return (stats.mode & 0o200) === 0;
-    } catch {
+    } catch (_e) {
       return false;
     }
   }
@@ -1001,13 +1001,13 @@ export class WormAuditSink implements AuditSink {
             const expected = chainHashOf(prevHash, event);
             if (event.chainHash !== expected) return false;
             prevHash = event.chainHash;
-          } catch {
+          } catch (_e) {
             continue;
           }
         }
       }
       return true;
-    } catch {
+    } catch (_e) {
       return false;
     }
   }
