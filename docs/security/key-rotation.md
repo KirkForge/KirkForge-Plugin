@@ -145,8 +145,16 @@ If a key is suspected compromised:
 
 Per-tenant encryption is now wired into the data flow via `TenantEncryptionAdapter`
 (`core-tenancy/src/tenant-encryption.ts`). When enabled, each tenant's memory
-store data (descriptions, properties, tags) is encrypted with a unique DEK
-derived from the master KEK using HMAC-SHA256.
+store data is encrypted with a unique DEK derived from the master KEK using
+HMAC-SHA256.
+
+**What is encrypted:**
+- `description` — encrypted as a single ciphertext string
+- `properties` — serialized to JSON, then encrypted and stored as `{ _enc: "v{version}:..." }`
+- `kind`, `taskId`, `timestamp`, `runId` — NOT encrypted (needed for inner adapter queries)
+- `tags` — NOT encrypted (metadata labels needed for tag-based queries; encrypting
+  tags with AES-GCM would make queries impossible since each encryption produces
+  different ciphertext due to random IVs)
 
 **Data flow:**
 
@@ -154,11 +162,14 @@ derived from the master KEK using HMAC-SHA256.
 Application
   → TenantRegistry.createMemoryStore(tenantId, { keyProvider })
     → TenantEncryptionAdapter(innerAdapter, keyProvider, tenantId)
-      → write: TenantKeyProvider.encryptForTenant(tenantId, plaintext)
-        → HMAC-SHA256 KEK derivation → AES-256-GCM encryption
-          → Inner adapter stores: v{version}:{iv}:{tag}:{ciphertext}
-      → read: TenantKeyProvider.decryptForTenant(tenantId, ciphertext)
-        → Version-prefixed decryption with active DEK versions
+      → write: encrypt description + properties; pass tags through
+        → description: v{version}:{iv}:{tag}:{ciphertext}
+        → properties: { _enc: v{version}:{iv}:{tag}:{ciphertext} }
+        → tags: ["python", "production"]  (plaintext for query support)
+      → read: decrypt description + properties; pass tags through
+        → Legacy unencrypted data detected by absence of ciphertext prefix
+        → Ciphertext decryption failure returns error (not silent garbage)
+      → query: tags passed through (not encrypted); kind/since passed through
 ```
 
 ### Enabling Per-Tenant Encryption
@@ -226,9 +237,16 @@ v{version}:{iv_base64}:{tag_base64}:{ciphertext_base64}
 - `tag`: 16-byte authentication tag (base64).
 - `ciphertext`: AES-256-GCM encrypted payload (base64).
 
-Legacy unencrypted data is handled gracefully: if decryption fails (no version
-prefix), the adapter returns the raw object, enabling smooth migration from
-unencrypted to encrypted storage.
+**Stored field format:**
+- `description`: stored as ciphertext string directly
+- `properties`: stored as `{ _enc: "v{version}:..." }` to avoid JSON.parse on ciphertext
+- `tags`: stored as plaintext array for query support
+
+**Legacy migration:** If the adapter encounters data without the `v{version}:` prefix
+in `description` or without the `_enc` key in `properties`, it passes the data through
+unchanged. This enables smooth migration from unencrypted to encrypted storage.
+Ciphertext data that fails to decrypt (e.g., wrong tenant key) returns an error
+rather than silently returning garbage data.
 
 ### Related
 
@@ -236,3 +254,4 @@ unencrypted to encrypted storage.
 - `core-secrets/src/index.ts` — `TenantKeyProvider`, `encryptForTenant`, `decryptForTenant`
 - `core-tenancy/src/index.ts` — `TenantRegistry.createMemoryStore({ keyProvider })`
 - `apps/cli/src/bootstrap.ts` — Per-tenant encryption wiring in enterprise mode
+
