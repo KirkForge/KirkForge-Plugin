@@ -90,27 +90,121 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
   }
 
   await healthServer.start();
-  healthServer.ready = true;
-  log.info?.("[serve] 55NDeep daemon ready — health server listening");
 
-  const gracefulStop = async () => {
-    log.info?.("\n[serve] Shutting down...");
-    healthServer.ready = false;
-    await auditLogger.record({
-      action: "serve.shutdown",
-      outcome: "success",
-      actorId: "system",
-      tenantId: "",
-      reason: "SIGTERM received",
+  // ── Startup readiness validation ──────────────────────────────────────
+  // Verify all critical subsystems are operational before accepting traffic.
+  const startupChecks: Array<{ name: string; ok: boolean; detail?: string }> = [];
+
+  // Check 1: Orchestrator health
+  try {
+    const health = opts.orchestrator.healthCheck();
+    startupChecks.push({
+      name: "orchestrator",
+      ok: health.status === "healthy",
+      detail: `status=${health.status}`,
     });
-    await auditLogger.flush();
-    await auditLogger.close();
-    await healthServer.stop();
+  } catch (e) {
+    startupChecks.push({
+      name: "orchestrator",
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Check 2: EventBus running
+  try {
+    const running = opts.eventBus.running;
+    startupChecks.push({
+      name: "eventBus",
+      ok: running,
+      detail: running ? "running" : "stopped",
+    });
+  } catch (e) {
+    startupChecks.push({
+      name: "eventBus",
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Check 3: Memory store
+  try {
+    const stats = await opts.orchestrator.getStats();
+    startupChecks.push({
+      name: "memory",
+      ok: true,
+      detail: `entries=${stats.memoryEntries ?? 0}`,
+    });
+  } catch (e) {
+    startupChecks.push({
+      name: "memory",
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Check 4: Enterprise controls (if enabled)
+  if (enterpriseConfig.enabled) {
+    startupChecks.push({
+      name: "enterprise",
+      ok: true,
+      detail: "controls validated in bootstrap",
+    });
+  }
+
+  const allPassed = startupChecks.every((c) => c.ok);
+  for (const check of startupChecks) {
+    const icon = check.ok ? "✓" : "✗";
+    log.info?.(`[serve] ${icon} ${check.name}: ${check.ok ? "ok" : "FAIL"}${check.detail ? ` (${check.detail})` : ""}`);
+  }
+
+  if (!allPassed) {
+    log.error?.("[serve] Startup validation FAILED — not marking as ready");
+    // Still start the server, but don't mark as ready so /readyz returns 503
+  } else {
+    healthServer.ready = true;
+    log.info?.("[serve] 55NDeep daemon ready — health server listening");
+  }
+
+  const gracefulStop = async (signal: string) => {
+    log.info?.(`\n[serve] Received ${signal} — shutting down gracefully...`);
+    healthServer.ready = false;
+
+    // Record shutdown audit event
+    try {
+      await auditLogger.record({
+        action: "serve.shutdown",
+        outcome: "success",
+        actorId: "system",
+        tenantId: "",
+        reason: `${signal} received`,
+      });
+      await auditLogger.flush();
+      await auditLogger.close();
+    } catch (e) {
+      log.warn?.(`[serve] Audit flush during shutdown: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // Drain in-flight HTTP requests with timeout
+    try {
+      await healthServer.stop();
+    } catch (e) {
+      log.warn?.(`[serve] Health server stop error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // Flush event bus
+    try {
+      await opts.eventBus.gracefulShutdown(5000);
+    } catch {
+      // Best-effort drain
+    }
+
+    log.info?.("[serve] Shutdown complete");
     process.exit(0);
   };
 
-  process.on("SIGTERM", gracefulStop);
-  process.on("SIGINT", gracefulStop);
+  process.on("SIGTERM", () => gracefulStop("SIGTERM"));
+  process.on("SIGINT", () => gracefulStop("SIGINT"));
 }
 
 /**

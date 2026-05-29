@@ -184,6 +184,7 @@ export const ERROR_CATALOG: Record<
     category: "auth",
     description: "Authentication token is invalid or expired",
   },
+  NOT_FOUND: { status: 404, category: "not_found", description: "Resource not found" },
   TASK_NOT_FOUND: { status: 404, category: "not_found", description: "Task not found" },
   TENANT_NOT_FOUND: { status: 404, category: "not_found", description: "Tenant not found" },
   RUN_NOT_FOUND: { status: 404, category: "not_found", description: "Run record not found" },
@@ -202,6 +203,8 @@ export const ERROR_CATALOG: Record<
     category: "conflict",
     description: "Task is locked by another process",
   },
+  PAYLOAD_TOO_LARGE: { status: 413, category: "validation", description: "Request payload exceeds size limit" },
+  SERVICE_UNAVAILABLE: { status: 503, category: "unavailable", description: "Server is shutting down or unavailable" },
   RATE_LIMITED: {
     status: 429,
     category: "rate_limit",

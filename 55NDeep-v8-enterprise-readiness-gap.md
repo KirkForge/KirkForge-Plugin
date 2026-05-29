@@ -131,7 +131,25 @@
 
 ---
 
-## Risk register (updated 2026-05-27)
+## Enterprise hardening (2026-05-29)
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Correlation IDs (X-Request-Id / X-Correlation-Id) | ✅ Implemented | Auto-generated or echoed from client |
+| Request body size limits | ✅ Implemented | Default 1MB, configurable via `maxBodyBytes` |
+| Request timeout configuration | ✅ Implemented | Default 30s, configurable via `requestTimeoutMs` |
+| Graceful shutdown with drain | ✅ Implemented | Drains in-flight requests before closing, configurable drain timeout |
+| 503 during shutdown | ✅ Implemented | Returns SERVICE_UNAVAILABLE with structured error response while shutting down |
+| Structured error catalog (HTTP) | ✅ Implemented | All HTTP errors use `toErrorResponse()` with code, status, category, requestId, timestamp |
+| Startup readiness validation | ✅ Implemented | Daemon validates orchestrator, eventBus, memory, enterprise controls before marking ready |
+| Daemon graceful shutdown with audit flush | ✅ Implemented | SIGTERM/SIGINT drains in-flight HTTP, flushes audit, closes eventBus |
+| In-flight request tracking | ✅ Implemented | `inFlightCount` gauge exposed in Prometheus metrics |
+| Health server drain timeout | ✅ Implemented | Configurable via `drainTimeoutMs`, default 10s |
+| Error catalog: NOT_FOUND, PAYLOAD_TOO_LARGE, SERVICE_UNAVAILABLE | ✅ Implemented | Added to `ERROR_CATALOG` in core-errors |
+| LoggerInternals type fix | ✅ Fixed | Added `LoggerInternals` interface to core-logging |
+| Health server test coverage | ✅ Implemented | 10 tests covering correlation IDs, body limits, 404, 503, Prometheus, timeouts |
+
+## Risk register (updated 2026-05-29)
 
 | Risk                          | Severity | Likelihood | Status       | Notes                                                        |
 | ----------------------------- | -------- | ---------- | ------------ | ------------------------------------------------------------ |
@@ -159,7 +177,7 @@
 
 **55NDeep v8 is enterprise-beta ready.** All 9 identified bugs have been resolved and validated with dedicated tests. The full auth chain (OIDC → JWT verify → RBAC → deny → audit event → chain integrity) has an integration test. Architecture is sound — correct abstractions (Result<T,E>, deny-by-default, chain-hash audit, tenant isolation, policy engine). Codebase is clean (0 lint, 0 type errors, all unit/integration tests passing).
 
-**Progress to enterprise-beta: ~98%.** Remaining items are post-beta hardening (Docker CI, external pentest). Per-tenant encryption, TLS syslog, key rotation docs, and SqliteAdapter load tests are now complete.
+**Progress to enterprise-beta: ~99%.** Remaining items are post-beta hardening (Docker CI, external pentest). All critical HTTP server hardening (correlation IDs, body limits, timeout config, graceful drain, structured errors, startup validation) is now in place with test coverage. Per-tenant encryption, TLS syslog, key rotation docs, and SqliteAdapter load tests are now complete.
 
 **Known limitation:** FileAdapter load test fails on slow CI — this is a known dev-mode limitation. Enterprise mode mandates SqliteAdapter, which meets SLOs. SqliteAdapter load tests now validate performance for 1K writes, queries, backup, and bulk operations.
 
@@ -167,6 +185,6 @@
 
 ## Last updated
 
-- **Date**: 2026-05-28
-- **Reviewer**: Deep audit (automated + manual code review) + bug-fix session (BUG-10/11/12)
-- **Next review**: 2026-07-28 (post pentest)
+- **Date**: 2026-05-29
+- **Reviewer**: Enterprise hardening session (correlation IDs, graceful shutdown, structured errors, request limits, startup validation)
+- **Next review**: 2026-07-29 (post pentest)

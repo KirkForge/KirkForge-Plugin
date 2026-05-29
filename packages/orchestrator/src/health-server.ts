@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes } from "node:crypto";
 import type { Orchestrator } from "./index.js";
 import type { OrchestratorStats, HealthCheckResult } from "./types.js";
 import type { Logger } from "@55ndeep/core-logging";
+import { NDeepError, toErrorResponse } from "@55ndeep/core-errors";
 import {
   type Actor,
   type Permission,
@@ -40,11 +42,32 @@ export interface HealthServerConfig {
   auditLogger?: AuditLogger;
   /** Policy engine for endpoint-level checks. */
   policyEngine?: PolicyEngine;
+  /** Request timeout in milliseconds. Default: 30000. */
+  requestTimeoutMs?: number;
+  /** Max request body size in bytes. Default: 1MB. */
+  maxBodyBytes?: number;
+  /** Graceful shutdown drain timeout in milliseconds. Default: 10000. */
+  drainTimeoutMs?: number;
 }
 interface RateBucket {
   tokens: number;
   lastRefill: number;
 }
+
+/** Tracks in-flight requests for graceful shutdown draining. */
+interface InFlightRequest {
+  req: IncomingMessage;
+  res: ServerResponse;
+  startedAt: number;
+}
+
+/** Default request timeout (30 seconds). */
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+/** Default max request body size (1 MB). */
+const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+/** Default graceful shutdown drain timeout (10 seconds). */
+const DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
+
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
@@ -93,6 +116,18 @@ export class HealthServer {
   private auditLogger?: AuditLogger;
   private policyEngine?: PolicyEngine;
 
+  private requestTimeoutMs: number;
+  private maxBodyBytes: number;
+  private drainTimeoutMs: number;
+
+  // ── In-flight request tracking for graceful drain ──────────────────────
+  private _inFlight = new Map<IncomingMessage, InFlightRequest>();
+  private _shuttingDown = false;
+  private _drainResolve: (() => void) | null = null;
+
+
+  // ── In-flight request tracking for graceful drain ──────────────────────
+
   // ── Auth/policy counters for Prometheus ────────────────────────────────
   private _authSuccessCount = 0;
   private _authFailureCount = 0;
@@ -107,6 +142,9 @@ export class HealthServer {
     this.groupRoleMapping = config.groupRoleMapping;
     this.auditLogger = config.auditLogger;
     this.policyEngine = config.policyEngine;
+    this.requestTimeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    this.maxBodyBytes = config.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+    this.drainTimeoutMs = config.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
   }
   get ready(): boolean {
     return this._ready;
@@ -114,6 +152,13 @@ export class HealthServer {
   set ready(v: boolean) {
     this._ready = v;
   }
+
+  /** Number of in-flight requests currently being processed. */
+  get inFlightCount(): number {
+    return this._inFlight.size;
+  }
+
+  /** Number of in-flight requests currently being processed. */
   start(): Promise<void> {
     const port = this.config.port ?? parseInt(process.env.HEALTH_PORT ?? "9090", 10);
     const host = this.config.host ?? process.env.HEALTH_HOST ?? "0.0.0.0";
@@ -125,34 +170,90 @@ export class HealthServer {
     }, 30000);
     return new Promise((resolve, reject) => {
       this.server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-        // Security headers on every response
-        for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
-          res.setHeader(k, v);
+        // ── Correlation ID ────────────────────────────────────────────────
+        const correlationId = (req.headers["x-request-id"] as string | undefined)
+          ?? (req.headers["x-correlation-id"] as string | undefined)
+          ?? randomBytes(8).toString("hex");
+        res.setHeader("X-Request-Id", correlationId);
+        res.setHeader("X-Correlation-Id", correlationId);
+
+        // ── In-flight request tracking ────────────────────────────────────
+        this._inFlight.set(req, { req, res, startedAt: Date.now() });
+
+        try {
+          // ── Reject requests during shutdown ────────────────────────────
+          if (this._shuttingDown) {
+            res.writeHead(503, { "Content-Type": "application/json", ...SECURITY_HEADERS });
+            res.end(JSON.stringify({
+              error: {
+                code: "SERVICE_UNAVAILABLE",
+                message: "Server is shutting down",
+                status: 503,
+                requestId: correlationId,
+                timestamp: new Date().toISOString(),
+              },
+            }));
+            return;
+          }
+
+          // ── Request body size limit ────────────────────────────────────
+          const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
+          if (contentLength > this.maxBodyBytes) {
+            this._authFailureCount++;
+            res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
+            res.end(JSON.stringify({
+              error: {
+                code: "PAYLOAD_TOO_LARGE",
+                message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
+                status: 413,
+                requestId: correlationId,
+                timestamp: new Date().toISOString(),
+              },
+            }));
+            return;
+          }
+
+          // Security headers on every response
+          for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+            res.setHeader(k, v);
+          }
+          // W3C traceparent propagation
+          this._propagateTraceparent(req, res);
+          // Auth check — resolves Actor from Bearer token (async for JWKS)
+          const authResult = await this._resolveActor(req, res);
+          if (!authResult) return; // response already sent
+          // Rate limit
+          if (!this._checkRateLimit(req, res)) return;
+          // RBAC check — verify actor has permission for this endpoint
+          const url = req.url ?? "/";
+          const normalizedUrl = this._normalizeUrl(url);
+          if (!this._checkPermission(authResult.actor, normalizedUrl, authResult.tokenId, req, res)) {
+            return;
+          }
+          // /v1/ prefixed routes (API versioning)
+          if (url.startsWith("/v1/")) return this._routeV1(url.slice(4), req, res);
+          // Legacy routes
+          if (url === "/healthz") return this._handleHealthz(res);
+          if (url === "/readyz") return this._handleReadyz(res);
+          if (url === "/metrics") return this._handleMetricsJson(res);
+          // Prometheus metrics (also at root for backward compat)
+          if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
+          this._sendError(res, new NDeepError("NOT_FOUND", `Unknown path: ${url}`), correlationId);
+        } catch (err: unknown) {
+          this._sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
+        } finally {
+          this._inFlight.delete(req);
+          if (this._shuttingDown && this._inFlight.size === 0 && this._drainResolve) {
+            this._drainResolve();
+          }
         }
-        // W3C traceparent propagation
-        this._propagateTraceparent(req, res);
-        // Auth check — resolves Actor from Bearer token (async for JWKS)
-        const authResult = await this._resolveActor(req, res);
-        if (!authResult) return; // response already sent
-        // Rate limit
-        if (!this._checkRateLimit(req, res)) return;
-        // RBAC check — verify actor has permission for this endpoint
-        const url = req.url ?? "/";
-        const normalizedUrl = this._normalizeUrl(url);
-        if (!this._checkPermission(authResult.actor, normalizedUrl, authResult.tokenId, req, res)) {
-          return;
-        }
-        // /v1/ prefixed routes (API versioning)
-        if (url.startsWith("/v1/")) return this._routeV1(url.slice(4), req, res);
-        // Legacy routes
-        if (url === "/healthz") return this._handleHealthz(res);
-        if (url === "/readyz") return this._handleReadyz(res);
-        if (url === "/metrics") return this._handleMetricsJson(res);
-        // Prometheus metrics (also at root for backward compat)
-        if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "not_found" }));
       });
+
+      // ── Server timeouts ─────────────────────────────────────────────────
+      this.server.timeout = this.requestTimeoutMs;
+      this.server.requestTimeout = this.requestTimeoutMs;
+      this.server.headersTimeout = this.requestTimeoutMs + 5000;
+
       this.server.on("error", (err) => {
         this.config.logger?.error(`[health-server] Failed to start: ${err.message}`);
         reject(err);
@@ -170,11 +271,38 @@ export class HealthServer {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    return new Promise((resolve) => {
-      if (!this.server) return resolve();
-      this.server.close(() => {
-        this.config.logger?.info("[health-server] Stopped");
+    this._shuttingDown = true;
+    this.config.logger?.info("[health-server] Shutting down — draining in-flight requests");
+
+    return new Promise((resolve, reject) => {
+      if (!this.server) {
+        this._shuttingDown = false;
         resolve();
+        return;
+      }
+
+      // Wait for in-flight requests to drain, with a timeout
+      const drainPromise = new Promise<void>((r) => {
+        if (this._inFlight.size === 0) {
+          r();
+        } else {
+          this._drainResolve = r;
+        }
+      });
+      const timeoutPromise = new Promise<void>((r) => setTimeout(r, this.drainTimeoutMs));
+
+      Promise.race([drainPromise, timeoutPromise]).then(() => {
+        this.server!.close((err) => {
+          this._shuttingDown = false;
+          this._drainResolve = null;
+          if (err) {
+            this.config.logger?.error(`[health-server] Error closing: ${err.message}`);
+            reject(err);
+          } else {
+            this.config.logger?.info("[health-server] Stopped — all requests drained");
+            resolve();
+          }
+        });
       });
     });
   }
@@ -435,6 +563,14 @@ export class HealthServer {
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "forbidden", reason }));
   }
+
+  /** Send a structured error response using the core-errors catalog. */
+  private _sendError(res: ServerResponse, error: Error, requestId?: string): void {
+    const errResp = toErrorResponse(error, requestId);
+    const status = errResp.error.status;
+    res.writeHead(status, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(errResp));
+  }
   // ── Rate limiting ────────────────────────────────────────────────────────
   private _checkRateLimit(req: IncomingMessage, res: ServerResponse): boolean {
     if (this.rateLimitPerSec <= 0) return true;
@@ -554,6 +690,7 @@ export class HealthServer {
     counter("55ndeep_auth_success_total", "Total successful auth events", this._authSuccessCount);
     counter("55ndeep_auth_failure_total", "Total failed auth events", this._authFailureCount);
     counter("55ndeep_policy_deny_total", "Total policy deny events", this._policyDenyCount);
+    gauge("55ndeep_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
     res.end(lines.join("\n") + "\n");

@@ -61,6 +61,11 @@ export interface LoggerOptions {
   stream?: "stdout" | "stderr";
 }
 
+interface LoggerInternals {
+  _transports: LogTransport[];
+  _level: LogLevel;
+}
+
 export class Logger {
   private _level: LogLevel;
   private _transports: LogTransport[];
