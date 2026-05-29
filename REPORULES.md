@@ -93,14 +93,20 @@ git push
 
 ## Auth
 
-GitHub PAT should be read from a secure local file (never committed to the repo). Use it for HTTPS auth:
+All repos use SSH for push/pull. Ensure your SSH key is added to GitHub:
 
 ```sh
-git clone https://$(cat ~/.config/github_pat)@github.com/KirkForge/<repo>.git
+ssh -T git@github.com
+# → Hi KirkForge! You've successfully authenticated
 ```
 
-Never hardcode the PAT in scripts. Always read from the file. Never reference absolute developer-specific paths in product documentation or source code.
+Remotes are configured as:
+```
+git@github.com:KirkForge/<repo>.git
+```
 
+Never hardcode tokens or PATs in scripts, configs, or documentation.
+Never reference absolute developer-specific paths in product documentation or source code.
 ## Codex Agent Instructions
 
 When working with a Codex agent, point it at Clean-Live:
@@ -119,6 +125,6 @@ cd /home/kirk/Madlab/Clean-Live/<project>
 git init
 git add -A
 git commit -m "Initial commit"
-git remote add origin https://$(cat /home/kirk/Madlab/Toolbox_meatbag/.github_pat_classic)@github.com/KirkForge/<repo>.git
+git remote add origin git@github.com:KirkForge/<repo>.git
 git push -u origin master
 ```
