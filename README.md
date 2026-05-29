@@ -273,7 +273,7 @@ Runs `build`, `lint`, and `test` in sequence. Exits on first failure. Use this t
 ## Enterprise Readiness
 
 55NDeep v8 has passed external security review (Claude Opus 4.8) and is **enterprise-beta ready** (~99% complete). All critical audit findings are resolved: deny-by-default sandbox, env inheritance, path scanning, and memory measurement are all production-hardened.
-For a detailed gap analysis, see the [enterprise readiness gap analysis](./55NDeep-v8-enterprise-readiness-gap.md).
+For a detailed gap analysis, see the [enterprise readiness gap analysis](./55NDeep-plugin-enterprise-readiness-gap.md).
 
 **Current enterprise posture:**
 

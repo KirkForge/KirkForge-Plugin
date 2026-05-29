@@ -30,14 +30,14 @@ Every KirkForge repo lives in `/home/kirk/Madlab/Clean-Live/`:
 ```
 /home/kirk/Madlab/Clean-Live/
 ├── REPORULES.md              ← this file
-├── 55NDeep-v8/               → github.com/KirkForge/55NDeep-plugin
+├── 55NDeep-plugin/            → github.com/KirkForge/55NDeep-plugin
 ├── PicoSentry/               → github.com/KirkForge/PicoSentry
 ├── ForagerFlow/              → github.com/KirkForge/ForagerFlow
 ├── Dopaflow/                 → github.com/KirkForge/Dopaflow
 ├── Sword-jin_PWA/            → github.com/KirkForge/Sword-jin_PWA
 ├── MCP/                      → github.com/KirkForge/MCP
-├── browser-integration-llm/  → github.com/KirkForge/Browser_integration_llm
-├── pet-wifi-sense/           → github.com/KirkForge/PetSense
+├── Browser_integration_llm/ → github.com/KirkForge/Browser_integration_llm
+├── PetSense/                 → github.com/KirkForge/PetSense
 └── KirkForge/                → github.com/KirkForge/KirkForge (profile)
 ```
 
