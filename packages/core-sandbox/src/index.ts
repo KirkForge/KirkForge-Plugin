@@ -32,6 +32,11 @@ export interface SandboxConstraints {
   /** Whether network egress is allowed. Default: false. */
   networkAllowed?: boolean;
   /** Allowed network destinations (host:port). Only relevant if networkAllowed is true. */
+  // ⚠ ADVISORY on the bare-host runner: networkAllowlist is checked by
+  // isNetworkDestinationAllowed() but NOT enforced at the process level.
+  // A bare-host child process can make any network connection regardless of
+  // this list. For enforcement, use runDockerSandboxed() with custom network
+  // + iptables, or a microVM with egress filtering.
   networkAllowlist?: string[];
   /** Denied network destinations. Takes precedence over allowlist. */
   networkDenylist?: string[];
