@@ -204,39 +204,37 @@ export class HealthServer {
     }, 30000);
     return new Promise((resolve, reject) => {
       const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
-        // ── Correlation ID ────────────────────────────────────────────────
+        // ── Correlation ID (needed in catch/finally) ───────────────────────
         const correlationId = (req.headers["x-request-id"] as string | undefined)
           ?? (req.headers["x-correlation-id"] as string | undefined)
           ?? randomBytes(8).toString("hex");
-        res.setHeader("X-Request-Id", correlationId);
-        res.setHeader("X-Correlation-Id", correlationId);
-
-        // ── In-flight request tracking ────────────────────────────────────
-        this._inFlight.set(req, { req, res, startedAt: Date.now() });
-        // ── Request counter ─────────────────────────────────────────────
-        this._requestCount++;
-
-        // ── CORS headers ────────────────────────────────────────────────
-        if (this.corsOrigin) {
-          res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
-          res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-          res.setHeader("Access-Control-Allow-Headers", "Authorization, X-Request-Id, X-Correlation-Id, traceparent");
-          res.setHeader("Access-Control-Max-Age", "86400");
-        }
-
-        // ── HTTP method validation ──────────────────────────────────────
-        const method = req.method?.toUpperCase() ?? "GET";
-        if (method === "OPTIONS") {
-          res.writeHead(204);
-          res.end();
-          return;
-        }
-        if (method !== "GET" && method !== "HEAD") {
-          this._sendError(res, new NDeepError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
-          return;
-        }
-
         try {
+          res.setHeader("X-Request-Id", correlationId);
+          res.setHeader("X-Correlation-Id", correlationId);
+
+          // ── In-flight request tracking ────────────────────────────────────
+          this._inFlight.set(req, { req, res, startedAt: Date.now() });
+          this._requestCount++;
+
+          // ── CORS headers ────────────────────────────────────────────────
+          if (this.corsOrigin) {
+            res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
+            res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+            res.setHeader("Access-Control-Allow-Headers", "Authorization, X-Request-Id, X-Correlation-Id, traceparent");
+            res.setHeader("Access-Control-Max-Age", "86400");
+          }
+
+          // ── HTTP method validation ──────────────────────────────────────
+          const method = req.method?.toUpperCase() ?? "GET";
+          if (method === "OPTIONS") {
+            res.writeHead(204);
+            res.end();
+            return;
+          }
+          if (method !== "GET" && method !== "HEAD") {
+            this._sendError(res, new NDeepError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
+            return;
+          }
           // ── Reject requests during shutdown ────────────────────────────
           if (this._shuttingDown) {
             res.writeHead(503, { "Content-Type": "application/json", ...SECURITY_HEADERS });

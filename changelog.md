@@ -1,3 +1,29 @@
+## v8.5 — Docs cleanup, health server fix (2026-05-30)
+
+### Documentation overhaul
+
+- **README rewritten**: Leads with Brain/Brawn/Verifier thesis. Enterprise features moved to a section titled "Security and multi-tenancy" with a clear statement: "These are guardrails, not the product. The product is deterministic verification that makes cheap models productive."
+- **Enterprise gap doc rewritten**: Replaced 2,800 words of compliance theater with an honest status checklist. No more "external audit" claims. Dark-Moon review credited correctly as AI-assisted review.
+- **AGENTS.md rewritten**: Stripped the 40-item secure-defaults checklist. Replaced with actual project structure, key concepts, and dev commands.
+- **summary.md deleted**: Was frozen at v5 with wrong numbers (525 tests, 29 packages). Actual: 970 tests, 66 suites, 34 packages.
+- **Correct stats throughout**: 34 packages, 970 tests, 66 suites, ~22,500 lines production code, ~15,300 lines test code.
+
+### Bug fixes
+
+- **Health server**: Fixed 3 test failures where PUT/DELETE/POST and unknown paths returned 500 instead of 405/404. The async request handler wasn't wrapped in try/catch, so unhandled rejections fell through to Node's default 500 response. Moved all request handling inside the try/catch block.
+
+### Repo hygiene
+
+- Removed revoked PAT references from REPORULES.md (7 repos)
+- Switched all git remotes from HTTPS+PAT to SSH
+- Purged credential store — using cache-only with 1hr timeout
+- Deleted stale dependabot branches (6 branches across 2 repos)
+- Pruned stale remote-tracking refs across all 20 repos
+- Fixed ci-cleandev to honor `.trufflehog_exclude` per-project
+- Fixed README titles to match GitHub repo names (6 repos)
+- Renamed local folders to match GitHub repo names (3 repos)
+- Updated all cross-references in REPORULES.md to use consistent folder names
+
 ## v8.4 — Native strict lint, all 3 phases complete (2026-05-20)
 
 ### Phase 3 completion — 8 languages, native lint
