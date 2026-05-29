@@ -306,4 +306,46 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
     }
   });
 
+  it('serves OpenAPI schema at /v1/openapi', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequest(port, '/v1/openapi', { Authorization: 'Bearer test-key' });
+      expect(res.status).toBe(200);
+      const spec = JSON.parse(res.body);
+      expect(spec.openapi).toBe('3.0.3');
+      expect(spec.info.title).toContain('55NDeep');
+      expect(spec.paths['/healthz']).toBeDefined();
+      expect(spec.paths['/readyz']).toBeDefined();
+      expect(spec.paths['/metrics']).toBeDefined();
+      expect(spec.paths['/openapi']).toBeDefined();
+      expect(spec.components.securitySchemes.bearerAuth).toBeDefined();
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('accepts rateLimitPerSecPerTenant config', () => {
+    const orchestrator = createTestOrchestrator();
+    const server = new HealthServer(orchestrator, { port: 0, rateLimitPerSecPerTenant: 10 });
+    expect(server).toBeDefined();
+  });
+
+  it('per-IP rate limiting returns 429 when client exceeds limit', async () => {
+    // Set very low per-IP limit: 1 req/sec
+    await startServer({ apiKey: 'test-key', rateLimitPerSec: 1 });
+    try {
+      // First request should succeed
+      const res1 = await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      expect(res1.status).toBe(200);
+
+      // Rapid second request should be rate-limited
+      const res2 = await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      expect(res2.status).toBe(429);
+      const body = JSON.parse(res2.body);
+      expect(body.error.code).toBe('RATE_LIMITED');
+    } finally {
+      await stopServer();
+    }
+  });
+
 });

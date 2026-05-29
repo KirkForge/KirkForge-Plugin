@@ -1,4 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { Orchestrator } from "./index.js";
 import type { OrchestratorStats, HealthCheckResult } from "./types.js";
@@ -49,6 +52,15 @@ export interface HealthServerConfig {
   drainTimeoutMs?: number;
   /** Allowed CORS origin(s). Default: none (CORS disabled). Set to "*" for any, or specific origin. */
   corsOrigin?: string;
+  /** Max requests per second per tenant (authenticated actors). Default: 0 (disabled — per-IP only). */
+  rateLimitPerSecPerTenant?: number;
+  /** TLS configuration. If set, the server uses HTTPS instead of HTTP. */
+  tls?: {
+    /** Path to TLS certificate file (PEM). */
+    cert: string;
+    /** Path to TLS private key file (PEM). */
+    key: string;
+  };
 }
 interface RateBucket {
   tokens: number;
@@ -93,6 +105,7 @@ const ENDPOINT_PERMISSIONS: Record<string, Permission> = {
   "/v1/audit": "admin:audit_export",
   "/v1/tenants": "admin:tenant",
   "/v1/quotas": "admin:tenant",
+  "/v1/openapi": "viewer:metrics",
 };
 /**
  * Lightweight HTTP health-check server for daemon/bot deployment.
@@ -123,6 +136,10 @@ export class HealthServer {
   private drainTimeoutMs: number;
   private corsOrigin?: string;
 
+  private rateLimitPerSecPerTenant: number;
+  private tenantBuckets = new Map<string, RateBucket>();
+  private tlsConfig?: { cert: string; key: string };
+
   // ── Request counter for Prometheus ────────────────────────────────────
   private _requestCount = 0;
 
@@ -149,6 +166,14 @@ export class HealthServer {
     this.maxBodyBytes = config.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
     this.drainTimeoutMs = config.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
     this.corsOrigin = config.corsOrigin;
+    this.rateLimitPerSecPerTenant = config.rateLimitPerSecPerTenant ?? 0;
+    if (config.tls) {
+      const certPath = resolve(config.tls.cert);
+      const keyPath = resolve(config.tls.key);
+      if (!existsSync(certPath)) throw new Error(`TLS cert file not found: ${certPath}`);
+      if (!existsSync(keyPath)) throw new Error(`TLS key file not found: ${keyPath}`);
+      this.tlsConfig = { cert: certPath, key: keyPath };
+    }
   }
   get ready(): boolean {
     return this._ready;
@@ -170,10 +195,11 @@ export class HealthServer {
       const now = Date.now();
       for (const [key, bucket] of this.buckets) {
         if (now - bucket.lastRefill > 60000) this.buckets.delete(key);
+        if (now - bucket.lastRefill > 60000) this.tenantBuckets.delete(key);
       }
     }, 30000);
     return new Promise((resolve, reject) => {
-      this.server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+      const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         // ── Correlation ID ────────────────────────────────────────────────
         const correlationId = (req.headers["x-request-id"] as string | undefined)
           ?? (req.headers["x-correlation-id"] as string | undefined)
@@ -223,21 +249,12 @@ export class HealthServer {
           }
 
           // ── Request body size limit ────────────────────────────────────
-          const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
-          if (contentLength > this.maxBodyBytes) {
-            this._authFailureCount++;
-            res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-            res.end(JSON.stringify({
-              error: {
-                code: "PAYLOAD_TOO_LARGE",
-                message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
-                status: 413,
-                requestId: correlationId,
-                timestamp: new Date().toISOString(),
-              },
-            }));
-            return;
-          }
+          // ── Request body size limit (stream-consumed) ────────────────────
+          // Previously only checked Content-Length header, which is spoofable
+          // or absent with chunked encoding. Now we actually consume the body
+          // stream byte-by-byte and destroy the connection on overflow.
+          const bodyCheck = await this._consumeAndLimitBody(req, res, correlationId);
+          if (!bodyCheck) return; // response already sent (413 or error)
 
           // Security headers on every response
           for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
@@ -249,7 +266,7 @@ export class HealthServer {
           const authResult = await this._resolveActor(req, res);
           if (!authResult) return; // response already sent
           // Rate limit
-          if (!this._checkRateLimit(req, res)) return;
+          if (!this._checkRateLimit(req, res, authResult.actor)) return;
           // RBAC check — verify actor has permission for this endpoint
           const url = req.url ?? "/";
           const normalizedUrl = this._normalizeUrl(url);
@@ -291,9 +308,22 @@ export class HealthServer {
             this._drainResolve();
           }
         }
-      });
+      };
 
       // ── Server timeouts ─────────────────────────────────────────────────
+      // ── TLS / HTTPS support ──────────────────────────────────────────────
+      // When tls is configured, the server uses HTTPS with the provided cert/key.
+      // For production, a reverse proxy (nginx, envoy) is still recommended for
+      // termination, certificate rotation, and SNI — this path is for
+      // single-node deployments that need transport encryption without a proxy.
+      if (this.tlsConfig) {
+        const cert = readFileSync(this.tlsConfig.cert, "utf-8");
+        const key = readFileSync(this.tlsConfig.key, "utf-8");
+        this.server = createHttpsServer({ cert, key }, requestHandler);
+      } else {
+        this.server = createServer(requestHandler);
+      }
+
       this.server.timeout = this.requestTimeoutMs;
       this.server.requestTimeout = this.requestTimeoutMs;
       this.server.headersTimeout = this.requestTimeoutMs + 5000;
@@ -304,7 +334,7 @@ export class HealthServer {
       });
       this.server.listen(port, host, () => {
         this.config.logger?.info(
-          `[health-server] Listening on ${host}:${port}${this.apiKey ? " (auth enabled)" : ""}`,
+          `[health-server] Listening on ${this.tlsConfig ? "https" : "http"}://${host}:${port}${this.apiKey ? " (auth enabled)" : ""}`,
         );
         resolve();
       });
@@ -367,12 +397,14 @@ export class HealthServer {
         return this._handleAuditVerify(req, res);
       case "tenants":
         return this._handleTenants(res);
+      case "openapi":
+        return this._handleOpenApi(res);
       default:
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             error: "not_found",
-            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json"],
+            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json", "/v1/openapi"],
           }),
         );
     }
@@ -580,6 +612,127 @@ export class HealthServer {
     );
   }
 
+  // ── OpenAPI 3.0 schema ─────────────────────────────────────────────────────
+  private _handleOpenApi(res: ServerResponse): void {
+    const spec = {
+      openapi: "3.0.3",
+      info: {
+        title: "55NDeep Health & Metrics API",
+        version: "1.0.0",
+        description: "Deterministic verification and routing layer for coding agents",
+      },
+      servers: [
+        { url: "/v1", description: "Versioned API" },
+      ],
+      paths: {
+        "/healthz": {
+          get: {
+            operationId: "getLiveness",
+            summary: "Liveness probe",
+            description: "Returns 200 if the service is running. Returns 503 if shutting down.",
+            tags: ["health"],
+            responses: {
+              "200": { description: "Service is healthy", content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["healthy"] } } } } } },
+              "503": { description: "Service is unhealthy or shutting down" },
+            },
+          },
+        },
+        "/readyz": {
+          get: {
+            operationId: "getReadiness",
+            summary: "Readiness probe",
+            description: "Returns 200 if the service is ready to accept requests. Checks event bus and memory store health.",
+            tags: ["health"],
+            responses: {
+              "200": { description: "Service is ready", content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["ready"] }, checks: { type: "object" } } } } } },
+              "503": { description: "Service is not ready" },
+            },
+          },
+        },
+        "/metrics": {
+          get: {
+            operationId: "getMetricsPrometheus",
+            summary: "Prometheus metrics (text format)",
+            description: "Returns metrics in Prometheus text exposition format.",
+            tags: ["metrics"],
+            responses: {
+              "200": { description: "Prometheus text metrics", content: { "text/plain": {} } },
+            },
+          },
+        },
+        "/metrics/json": {
+          get: {
+            operationId: "getMetricsJson",
+            summary: "JSON metrics",
+            description: "Returns metrics as a JSON object.",
+            tags: ["metrics"],
+            responses: {
+              "200": { description: "JSON metrics object", content: { "application/json": {} } },
+            },
+          },
+        },
+        "/policy": {
+          get: {
+            operationId: "getPolicy",
+            summary: "Current policy configuration",
+            description: "Returns the active policy and its hash. Requires admin:policy permission.",
+            tags: ["admin"],
+            responses: {
+              "200": { description: "Policy object", content: { "application/json": {} } },
+              "404": { description: "Policy engine not configured" },
+            },
+          },
+        },
+        "/audit": {
+          get: {
+            operationId: "getAuditStatus",
+            summary: "Audit chain status",
+            description: "Returns audit log integrity verification status. Requires admin:audit_export permission.",
+            tags: ["admin"],
+            responses: {
+              "200": { description: "Audit status", content: { "application/json": {} } },
+            },
+          },
+        },
+        "/tenants": {
+          get: {
+            operationId: "listTenants",
+            summary: "List tenants",
+            description: "Returns registered tenants. Requires admin:tenant permission.",
+            tags: ["admin"],
+            responses: {
+              "200": { description: "Tenant list", content: { "application/json": {} } },
+            },
+          },
+        },
+        "/openapi": {
+          get: {
+            operationId: "getOpenApi",
+            summary: "OpenAPI specification",
+            description: "Returns this OpenAPI 3.0 schema document.",
+            tags: ["meta"],
+            responses: {
+              "200": { description: "OpenAPI 3.0 JSON schema", content: { "application/json": {} } },
+            },
+          },
+        },
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT or API key",
+            description: "Bearer token (OIDC JWT or static API key)",
+          },
+        },
+      },
+      security: [{ bearerAuth: [] }],
+    };
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(spec, null, 2));
+  }
+
   private _sendUnauthorized(res: ServerResponse, reason: string): void {
     const errResp = toErrorResponse(new NDeepError("UNAUTHORIZED", reason));
     res.writeHead(401, {
@@ -602,7 +755,36 @@ export class HealthServer {
     res.end(JSON.stringify(errResp));
   }
   // ── Rate limiting ────────────────────────────────────────────────────────
-  private _checkRateLimit(req: IncomingMessage, res: ServerResponse): boolean {
+  private _checkRateLimit(req: IncomingMessage, res: ServerResponse, actor?: Actor): boolean {
+    // ── Per-tenant rate limiting ──────────────────────────────────────────
+    // When rateLimitPerSecPerTenant > 0 and the actor has a tenant, apply
+    // per-tenant rate limiting using the tenant ID as bucket key. This
+    // prevents a single tenant from consuming all capacity.
+    if (this.rateLimitPerSecPerTenant > 0 && actor?.tenantId) {
+      const tenantKey = `tenant:${actor.tenantId}`;
+      const now = Date.now();
+      let tBucket = this.tenantBuckets.get(tenantKey);
+      if (!tBucket) {
+        tBucket = { tokens: this.rateLimitPerSecPerTenant, lastRefill: now };
+        this.tenantBuckets.set(tenantKey, tBucket);
+      }
+      const tElapsed = (now - tBucket.lastRefill) / 1000;
+      tBucket.tokens = Math.min(this.rateLimitPerSecPerTenant, tBucket.tokens + tElapsed * this.rateLimitPerSecPerTenant);
+      tBucket.lastRefill = now;
+      if (tBucket.tokens < 1) {
+        res.writeHead(429, {
+          "Content-Type": "application/json",
+          "Retry-After": "1",
+        });
+        res.end(JSON.stringify(toErrorResponse(
+          new NDeepError("TENANT_RATE_LIMITED", `Tenant ${actor.tenantId} rate limit exceeded`),
+          undefined,
+        )));
+        return false;
+      }
+      tBucket.tokens -= 1;
+    }
+    // ── Per-IP rate limiting (always applied, regardless of tenant limit) ─
     if (this.rateLimitPerSec <= 0) return true;
     const ip =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
@@ -627,6 +809,88 @@ export class HealthServer {
     }
     bucket.tokens -= 1;
     return true;
+  }
+  // ── Request body stream consumption ────────────────────────────────────────
+  /**
+   * Consume the request body stream and enforce byte-by-byte size limits.
+   * Previous implementation only checked the Content-Length header, which
+   * can be spoofed or absent (chunked encoding). This method actually reads
+   * the body and destroys the connection if the accumulated size exceeds
+   * maxBodyBytes — even if Content-Length was missing or understated.
+   *
+   * Returns true if the body was consumed (or absent) within limits.
+   * Returns false and sends 413 if the body exceeds the limit.
+   */
+  private _consumeAndLimitBody(
+    req: IncomingMessage,
+    res: ServerResponse,
+    correlationId: string,
+  ): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Fast-path: GET/HEAD typically have no body
+      const method = req.method?.toUpperCase() ?? "GET";
+      const transferEncoding = (req.headers["transfer-encoding"] ?? "").toLowerCase();
+      const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
+      const hasBody = method === "POST" || method === "PUT" || method === "PATCH"
+        || transferEncoding.includes("chunked")
+        || contentLength > 0;
+
+      if (!hasBody) {
+        resolve(true);
+        return;
+      }
+
+      // Pre-check Content-Length if present (fast rejection before streaming)
+      if (contentLength > this.maxBodyBytes) {
+        this._authFailureCount++;
+        res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
+        res.end(JSON.stringify({
+          error: {
+            code: "PAYLOAD_TOO_LARGE",
+            message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
+            status: 413,
+            requestId: correlationId,
+            timestamp: new Date().toISOString(),
+          },
+        }));
+        req.destroy();
+        resolve(false);
+        return;
+      }
+
+      // Stream-consume the body, tracking byte count
+      let received = 0;
+      let exceeded = false;
+
+      req.on("data", (chunk: Buffer) => {
+        if (exceeded) return;
+        received += chunk.length;
+        if (received > this.maxBodyBytes) {
+          exceeded = true;
+          this._authFailureCount++;
+          res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
+          res.end(JSON.stringify({
+            error: {
+              code: "PAYLOAD_TOO_LARGE",
+              message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
+              status: 413,
+              requestId: correlationId,
+              timestamp: new Date().toISOString(),
+            },
+          }));
+          req.destroy();
+          resolve(false);
+        }
+      });
+
+      req.on("end", () => {
+        if (!exceeded) resolve(true);
+      });
+
+      req.on("error", () => {
+        if (!exceeded) resolve(false);
+      });
+    });
   }
   // ── Endpoint handlers ─────────────────────────────────────────────────────
   private _handleHealthz(res: ServerResponse): void {
@@ -768,8 +1032,13 @@ export class HealthServer {
     counter("55ndeep_policy_deny_total", "Total policy deny events", this._policyDenyCount);
     gauge("55ndeep_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
     counter("55ndeep_http_requests_total", "Total HTTP requests processed", this._requestCount);
+    // Tenant rate limit metrics
+    if (this.rateLimitPerSecPerTenant > 0) {
+      gauge("55ndeep_tenant_rate_limit_buckets", "Active tenant rate limit buckets", this.tenantBuckets.size);
+    }
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
     res.end(lines.join("\n") + "\n");
   }
 }
+            // Full list: /v1/policy, /v1/audit, /v1/tenants require admin permissions
