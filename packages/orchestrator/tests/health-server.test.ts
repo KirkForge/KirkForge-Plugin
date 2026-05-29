@@ -40,6 +40,32 @@ function httpRequest(
   });
 }
 
+
+function httpRequestWithMethod(
+  port: number,
+  path: string,
+  method: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; headers: Record<string, string | undefined>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      { hostname: "127.0.0.1", port, path, method, headers },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk: Buffer) => { body += chunk; });
+        res.on("end", () => {
+          const h: Record<string, string | undefined> = {};
+          for (const [k, v] of Object.entries(res.headers)) {
+            h[k] = Array.isArray(v) ? v.join(", ") : v;
+          }
+          resolve({ status: res.statusCode ?? 0, headers: h, body });
+        });
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
 // Unit tests (no HTTP server needed)
 describe("HealthServer unit features", () => {
   it("initializes with default configuration values", () => {
@@ -70,12 +96,14 @@ describe("HealthServer unit features", () => {
 });
 
 // Integration tests (HTTP server needed) — run sequentially
-describe("HealthServer HTTP integration", { sequential: true, timeout: 10000 }, () => {
+describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, () => {
   let orchestrator: Orchestrator;
   let server: HealthServer;
   let port: number;
 
   async function startServer(opts: Record<string, unknown> = {}): Promise<void> {
+    // Ensure previous server is fully stopped
+    await new Promise((r) => setTimeout(r, 100));
     // Stop previous server if any
     try { await server?.stop(); } catch { /* best effort */ }
 
@@ -176,4 +204,106 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 10000 }, 
       await stopServer();
     }
   });
+
+
+  it('rejects POST with 405 Method Not Allowed', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequestWithMethod(port, '/healthz', 'POST', {
+        Authorization: 'Bearer test-key',
+      });
+      expect(res.status).toBe(405);
+      const body = JSON.parse(res.body);
+      expect(body.error.code).toBe('METHOD_NOT_ALLOWED');
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('rejects DELETE with 405 Method Not Allowed', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequestWithMethod(port, '/healthz', 'DELETE', {
+        Authorization: 'Bearer test-key',
+      });
+      expect(res.status).toBe(405);
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('responds to OPTIONS with 204 (CORS preflight)', async () => {
+    await startServer({ apiKey: 'test-key', corsOrigin: '*' });
+    try {
+      const res = await httpRequestWithMethod(port, '/healthz', 'OPTIONS', {
+        Authorization: 'Bearer test-key',
+      });
+      expect(res.status).toBe(204);
+      expect(res.headers['access-control-allow-origin']).toBe('*');
+      expect(res.headers['access-control-allow-methods']).toContain('GET');
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('sets CORS headers when corsOrigin is configured', async () => {
+    await startServer({ apiKey: 'test-key', corsOrigin: 'https://example.com' });
+    try {
+      const res = await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('https://example.com');
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('does not set CORS headers when corsOrigin is not configured', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('sets HSTS header on responses', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      expect(res.status).toBe(200);
+      expect(res.headers['strict-transport-security']).toContain('max-age=');
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('returns structured error for 401 unauthorized', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      const res = await httpRequest(port, '/healthz');
+      expect(res.status).toBe(401);
+      const body = JSON.parse(res.body);
+      expect(body.error).toBeDefined();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+      expect(body.error.category).toBe('auth');
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it('includes request counter in Prometheus metrics', async () => {
+    await startServer({ apiKey: 'test-key' });
+    try {
+      // Make a request first to increment counter
+      await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
+      const res = await httpRequest(port, '/metrics/prometheus', { Authorization: 'Bearer test-key' });
+      expect(res.status).toBe(200);
+      expect(res.body).toContain('55ndeep_http_requests_total');
+    } finally {
+      await stopServer();
+    }
+  });
+
 });

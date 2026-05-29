@@ -90,7 +90,7 @@ export class HandlerError extends NDeepError {
 
 export class AuthError extends NDeepError {
   constructor(
-    code: "UNAUTHORIZED" | "FORBIDDEN" | "INVALID_TOKEN",
+    code: "UNAUTHORIZED" | "FORBIDDEN" | "INVALID_TOKEN" | "METHOD_NOT_ALLOWED",
     message: string,
     context?: Record<string, unknown>,
   ) {
@@ -101,7 +101,7 @@ export class AuthError extends NDeepError {
 
 export class NotFoundError extends NDeepError {
   constructor(
-    code: "TASK_NOT_FOUND" | "TENANT_NOT_FOUND" | "RUN_NOT_FOUND",
+    code: "TASK_NOT_FOUND" | "TENANT_NOT_FOUND" | "RUN_NOT_FOUND" | "METHOD_NOT_FOUND",
     message: string,
     context?: Record<string, unknown>,
   ) {
@@ -252,6 +252,7 @@ export const ERROR_CATALOG: Record<
     description: "Event handler execution failed",
   },
   INTERNAL_ERROR: { status: 500, category: "internal", description: "Unexpected internal error" },
+  METHOD_NOT_ALLOWED: { status: 405, category: "validation", description: "HTTP method not allowed for this endpoint" },
 };
 
 export interface ErrorResponse {

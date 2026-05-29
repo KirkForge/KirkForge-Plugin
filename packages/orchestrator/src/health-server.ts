@@ -9,7 +9,6 @@ import {
   type Permission,
   type OidcConfig,
   authorize,
-  validateJwtClaims,
   actorFromJwt,
   actorFromApiKey,
   verifyJwt,
@@ -48,6 +47,8 @@ export interface HealthServerConfig {
   maxBodyBytes?: number;
   /** Graceful shutdown drain timeout in milliseconds. Default: 10000. */
   drainTimeoutMs?: number;
+  /** Allowed CORS origin(s). Default: none (CORS disabled). Set to "*" for any, or specific origin. */
+  corsOrigin?: string;
 }
 interface RateBucket {
   tokens: number;
@@ -75,6 +76,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-XSS-Protection": "0",
   "Referrer-Policy": "no-referrer",
   "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
 };
 // ── Permission requirements per endpoint ────────────────────────────────────
 const ENDPOINT_PERMISSIONS: Record<string, Permission> = {
@@ -119,14 +121,15 @@ export class HealthServer {
   private requestTimeoutMs: number;
   private maxBodyBytes: number;
   private drainTimeoutMs: number;
+  private corsOrigin?: string;
+
+  // ── Request counter for Prometheus ────────────────────────────────────
+  private _requestCount = 0;
 
   // ── In-flight request tracking for graceful drain ──────────────────────
   private _inFlight = new Map<IncomingMessage, InFlightRequest>();
   private _shuttingDown = false;
   private _drainResolve: (() => void) | null = null;
-
-
-  // ── In-flight request tracking for graceful drain ──────────────────────
 
   // ── Auth/policy counters for Prometheus ────────────────────────────────
   private _authSuccessCount = 0;
@@ -145,6 +148,7 @@ export class HealthServer {
     this.requestTimeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.maxBodyBytes = config.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
     this.drainTimeoutMs = config.drainTimeoutMs ?? DEFAULT_DRAIN_TIMEOUT_MS;
+    this.corsOrigin = config.corsOrigin;
   }
   get ready(): boolean {
     return this._ready;
@@ -179,6 +183,28 @@ export class HealthServer {
 
         // ── In-flight request tracking ────────────────────────────────────
         this._inFlight.set(req, { req, res, startedAt: Date.now() });
+        // ── Request counter ─────────────────────────────────────────────
+        this._requestCount++;
+
+        // ── CORS headers ────────────────────────────────────────────────
+        if (this.corsOrigin) {
+          res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
+          res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+          res.setHeader("Access-Control-Allow-Headers", "Authorization, X-Request-Id, X-Correlation-Id, traceparent");
+          res.setHeader("Access-Control-Max-Age", "86400");
+        }
+
+        // ── HTTP method validation ──────────────────────────────────────
+        const method = req.method?.toUpperCase() ?? "GET";
+        if (method === "OPTIONS") {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+        if (method !== "GET" && method !== "HEAD") {
+          this._sendError(res, new NDeepError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
+          return;
+        }
 
         try {
           // ── Reject requests during shutdown ────────────────────────────
@@ -410,13 +436,12 @@ export class HealthServer {
    * Validate a JWT bearer token using full JOSE/JWKS signature verification.
    * Uses the jose library to verify the token's signature against the OIDC
    * provider's JWKS endpoint, then validates claims (issuer, audience, expiry).
-   * Falls back to claims-only validation if signature verification is unavailable
-   * (e.g. JWKS endpoint unreachable) — logs a warning in that case.
+   * If JWKS verification fails (e.g. endpoint unreachable), deny immediately.
+   * No claims-only fallback — unsigned tokens are never accepted.
    */
   private async _validateJwtBearer(token: string): Promise<{ actor: Actor } | null> {
     if (!this.oidcConfig) return null;
     try {
-      // ── Full signature verification via jose/JWKS ────────────────────────
       const claimsResult = await verifyJwt(token, this.oidcConfig, this.groupRoleMapping);
       if (!claimsResult.ok) {
         this.config.logger?.warn(
@@ -428,28 +453,13 @@ export class HealthServer {
       if (!actorResult.ok) return null;
       return { actor: actorResult.value };
     } catch (e) {
-      // ── Fallback: claims-only validation (signature NOT verified) ─────────
-      // This path is reached when the JWKS endpoint is unreachable.
-      // In production, this should be monitored closely.
-      this.config.logger?.warn(
-        `[health-server] JWT JWKS verification failed, falling back to claims-only: ${e instanceof Error ? e.message : String(e)}`,
+      // JWKS verification failed — deny immediately. No claims-only fallback.
+      this.config.logger?.error(
+        `[health-server] JWT JWKS verification failed, denying: ${e instanceof Error ? e.message : String(e)}`,
       );
-      try {
-        const parts = token.split(".");
-        if (parts.length !== 3) return null;
-        const payload = JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf-8"));
-        const claimsResult = validateJwtClaims(payload, this.oidcConfig);
-        if (!claimsResult.ok) return null;
-        const actorResult = actorFromJwt(
-          claimsResult.value,
-          this.oidcConfig,
-          this.groupRoleMapping,
-        );
-        if (!actorResult.ok) return null;
-        return { actor: actorResult.value };
-      } catch {
-        return null;
-      }
+      this._auditAuth("unknown", "auth.failure", "", "JWT JWKS verification error — no fallback");
+      this._authFailureCount++;
+      return null;
     }
   }
   // ── RBAC permission check ────────────────────────────────────────────────
@@ -553,15 +563,17 @@ export class HealthServer {
   }
 
   private _sendUnauthorized(res: ServerResponse, reason: string): void {
+    const errResp = toErrorResponse(new NDeepError("UNAUTHORIZED", reason));
     res.writeHead(401, {
       "Content-Type": "application/json",
       "WWW-Authenticate": 'Bearer realm="55ndeep"',
     });
-    res.end(JSON.stringify({ error: "unauthorized", reason }));
+    res.end(JSON.stringify(errResp));
   }
   private _sendForbidden(res: ServerResponse, reason: string): void {
+    const errResp = toErrorResponse(new NDeepError("FORBIDDEN", reason));
     res.writeHead(403, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "forbidden", reason }));
+    res.end(JSON.stringify(errResp));
   }
 
   /** Send a structured error response using the core-errors catalog. */
@@ -592,7 +604,7 @@ export class HealthServer {
         "Content-Type": "application/json",
         "Retry-After": "1",
       });
-      res.end(JSON.stringify({ error: "rate_limited", retryAfterSec: 1 }));
+      res.end(JSON.stringify(toErrorResponse(new NDeepError("RATE_LIMITED", "Too many requests"), undefined)));
       return false;
     }
     bucket.tokens -= 1;
@@ -691,6 +703,7 @@ export class HealthServer {
     counter("55ndeep_auth_failure_total", "Total failed auth events", this._authFailureCount);
     counter("55ndeep_policy_deny_total", "Total policy deny events", this._policyDenyCount);
     gauge("55ndeep_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
+    counter("55ndeep_http_requests_total", "Total HTTP requests processed", this._requestCount);
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
     res.end(lines.join("\n") + "\n");
