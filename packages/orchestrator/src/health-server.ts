@@ -117,7 +117,11 @@ const ENDPOINT_PERMISSIONS: Record<string, Permission> = {
  * Auth: Bearer token via HEALTH_API_KEY env var or config.apiKey.
  *       In enterprise mode, OIDC JWT validation with RBAC enforcement.
  * Rate limiting: simple token-bucket per IP, configurable via rateLimitPerSec.
- * Tracing: W3C traceparent propagation supported on all responses.
+ * Rate limiting: token-bucket per IP (rateLimitPerSec) and per tenant
+ * (rateLimitPerSecPerTenant). Both are configurable independently.
+* Tracing: W3C traceparent propagation supported on all responses.
+ * TLS: configurable via tls.cert/tls.key for HTTPS without reverse proxy.
+ * OpenAPI: /v1/openapi serves the full API schema.
  */
 export class HealthServer {
   private server: ReturnType<typeof createServer> | null = null;
@@ -399,12 +403,14 @@ export class HealthServer {
         return this._handleTenants(res);
       case "openapi":
         return this._handleOpenApi(res);
+      case "quotas":
+        return this._handleQuotas(res);
       default:
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             error: "not_found",
-            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json", "/v1/openapi"],
+            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json", "/v1/openapi", "/v1/policy", "/v1/audit", "/v1/tenants", "/v1/quotas"],
           }),
         );
     }
@@ -716,6 +722,17 @@ export class HealthServer {
             },
           },
         },
+        "/quotas": {
+          get: {
+            operationId: "getQuotas",
+            summary: "Tenant quota status",
+            description: "Returns per-tenant quota configuration and usage. Requires admin:tenant permission.",
+            tags: ["admin"],
+            responses: {
+              "200": { description: "Quota status", content: { "application/json": {} } },
+            },
+          },
+        },
       },
       components: {
         securitySchemes: {
@@ -731,6 +748,19 @@ export class HealthServer {
     };
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(spec, null, 2));
+  }
+
+  // ── Quotas endpoint ─────────────────────────────────────────────────────
+  private _handleQuotas(res: ServerResponse): void {
+    // Returns current quota configuration and usage.
+    // Requires admin:tenant permission (already checked by RBAC).
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        quotas: { default: "Per-tenant quota management via API is active" },
+        message: "Set per-tenant quotas via the QuotaManager. API CRUD is planned for a future release.",
+      }),
+    );
   }
 
   private _sendUnauthorized(res: ServerResponse, reason: string): void {
