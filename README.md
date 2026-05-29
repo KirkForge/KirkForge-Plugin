@@ -1,5 +1,8 @@
 # 55NDeep
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
+
+
 > **Status: Enterprise Beta (v1.0.0-rc)**
 > 55NDeep is a deterministic verification plugin for coding-agent workflows with enterprise-grade security posture. Deny-by-default sandboxing, OIDC/JWKS auth, RBAC, signed policy bundles, WORM audit trail, and per-tenant isolation are all production-hardened — reviewed by external audit (Claude Opus 4.8).
 >
