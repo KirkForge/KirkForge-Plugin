@@ -268,6 +268,24 @@ export class HealthServer {
         } catch (err: unknown) {
           this._sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
         } finally {
+          // ── Access log ────────────────────────────────────────────────────
+          // Per-request structured access log: method, path, status, duration, actor.
+          // Required for enterprise audit compliance.
+          const startedAt = this._inFlight.get(req)?.startedAt ?? Date.now();
+          const durationMs = Date.now() - startedAt;
+          const accessLog = {
+            method: req.method,
+            path: req.url,
+            status: res.statusCode,
+            durationMs,
+            actor: (req as any).__actorId ?? "anonymous",
+            correlationId,
+            ip: req.socket?.remoteAddress,
+            userAgent: req.headers["user-agent"],
+          };
+          this.config.logger?.info(
+            `[health-server] ${accessLog.method} ${accessLog.path} ${accessLog.status} ${accessLog.durationMs}ms actor=${accessLog.actor}`,
+          );
           this._inFlight.delete(req);
           if (this._shuttingDown && this._inFlight.size === 0 && this._drainResolve) {
             this._drainResolve();
@@ -637,8 +655,54 @@ export class HealthServer {
       res.end(JSON.stringify({ status: "not_ready", reason: "shutting_down" }));
       return;
     }
+
+    // ── Deep readiness: re-verify subsystem health at request time ─────
+    // Previously /readyz only checked a boolean _ready flag set at startup.
+    // Now it also verifies that the event bus and memory store are actually
+    // functional at the time of the request.
+    const checks: Record<string, { ok: boolean; detail?: string }> = {};
+
+    // Event bus: verify it's running and not backlogged
+    const eventBus = health.eventBus;
+    if (eventBus && typeof eventBus === "object") {
+      const eb = eventBus as { running?: boolean; inflight?: number; bufferSize?: number };
+      checks.eventBus = {
+        ok: eb.running === true,
+        detail: eb.running ? `inflight=${eb.inflight ?? 0}, buffer=${eb.bufferSize ?? 0}` : "not running",
+      };
+    } else {
+      checks.eventBus = { ok: true, detail: "not configured" };
+    }
+
+    // Memory store: verify it's connected (or not configured)
+    const memStatus = health.memory;
+    if (memStatus === "connected") {
+      checks.memoryStore = { ok: true };
+    } else if (memStatus === "none") {
+      checks.memoryStore = { ok: true, detail: "not configured" };
+    } else {
+      checks.memoryStore = { ok: false, detail: String(memStatus) };
+    }
+
+    const allOk = Object.values(checks).every((c) => c.ok);
+    if (!allOk) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "not_ready",
+        checks,
+        stats: health.stats,
+        providers: health.providers,
+      }));
+      return;
+    }
+
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ready", stats: health.stats, providers: health.providers }));
+    res.end(JSON.stringify({
+      status: "ready",
+      checks,
+      stats: health.stats,
+      providers: health.providers,
+    }));
   }
   private _handleMetricsJson(res: ServerResponse): void {
     const stats = this.orchestrator.getStats();

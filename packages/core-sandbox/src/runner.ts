@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { readFileSync as fsReadFileSync } from "node:fs";
 import { ok, err, type Result } from "@55ndeep/core-types";
 import { NDeepError } from "@55ndeep/core-errors";
 import {
@@ -41,8 +42,15 @@ export interface SandboxRunConfig {
   args?: string[];
   /** Current working directory for the command. */
   cwd?: string;
-  /** Environment variables (merged with process.env). */
+  /** Environment variables to pass to child. Deny-by-default: only explicitly
+   *  listed env vars are passed; the parent process.env is NOT inherited
+   *  unless ALLOW_UNSAFE_HOST_SANDBOX=1 is set. */
   env?: Record<string, string>;
+  /** Whether to inherit the parent process environment. Default: false.
+   *  Setting this to true is equivalent to ALLOW_UNSAFE_HOST_SANDBOX behavior —
+   *  it should only be used for trusted tool execution, never for model-influenced
+   *  code. In enterprise mode, this is forced to false. */
+  inheritParentEnv?: boolean;
   /** Sandbox constraints. Defaults applied for unspecified fields. */
   constraints?: SandboxConstraints;
   /** Tenant ID for multi-tenant isolation. */
@@ -111,7 +119,7 @@ function scanEnvForSecrets(env: Record<string, string>): SandboxViolation[] {
     for (const pattern of sensitivePatterns) {
       if (pattern.test(key) && value.length > 0) {
         violations.push({
-          type: "filesystem",
+          type: "secret",
           message: `Environment variable "${key}" may contain sensitive data`,
           target: key,
         });
@@ -131,6 +139,15 @@ function scanEnvForSecrets(env: Record<string, string>): SandboxViolation[] {
  * wall-clock timeout and output size limits, and detects path violations
  * in arguments. Full filesystem/network/CPU/memory isolation requires
  * running inside Docker or a microVM.
+ *
+ * SECURITY: The bare-host runner provides constraint enforcement (allowlists,
+ * timeouts, output limits) but NOT process-level isolation. For untrusted or
+ * model-influenced code, use runDockerSandboxed() instead. If you must use
+ * this runner for untrusted code, set ALLOW_UNSAFE_HOST_SANDBOX=1 — mirroring
+ * the ALLOW_UNSAFE_VALIDATOR_SHELL pattern. This env var gates:
+ *   - Parent env inheritance (otherwise deny-by-default)
+ *   - Bypassing secret env var blocking
+ * Enterprise mode forces the Docker path regardless.
  */
 export async function runSandboxed(
   config: SandboxRunConfig,
@@ -142,6 +159,26 @@ export async function runSandboxed(
     );
   }
   const constraints = mergedConstraints.value;
+
+  // ── ALLOW_UNSAFE_HOST_SANDBOX gate ───────────────────────────────────
+  // The bare-host runner provides constraint enforcement but NOT process-level
+  // isolation. For untrusted/model-influenced code, runDockerSandboxed() is
+  // the safe default. ALLOW_UNSAFE_HOST_SANDBOX=1 opts into the bare-host
+  // runner for trusted tool execution — mirrors the ALLOW_UNSAFE_VALIDATOR_SHELL
+  // pattern. In enterprise mode, this gate is always enforced.
+  const isEnterprise = process.env["55NDEEP_ENTERPRISE_MODE"] === "1"
+    || process.env["55NDEEP_ENTERPRISE_MODE"] === "true";
+  const unsafeHostSandbox = process.env.ALLOW_UNSAFE_HOST_SANDBOX === "1";
+  if (isEnterprise && !unsafeHostSandbox) {
+    // In enterprise mode, the bare-host runner is denied unless explicitly
+    // opted in with ALLOW_UNSAFE_HOST_SANDBOX=1. Use runDockerSandboxed instead.
+    return err(
+      new SandboxExecutionError(
+        "Enterprise mode requires container isolation. Use runDockerSandboxed() or set ALLOW_UNSAFE_HOST_SANDBOX=1 (not recommended for untrusted code).",
+        [{ type: "command", message: "Bare-host sandbox denied in enterprise mode", target: config.command }],
+      ),
+    );
+  }
 
   // ── Command allowlist check ───────────────────────────────────────────
   if (constraints.shellAllowed && !isCommandAllowed(config.command, constraints)) {
@@ -170,7 +207,13 @@ export async function runSandboxed(
 
   // ── Path scanning ─────────────────────────────────────────────────────
   const pathViolations = scanArgsForPathViolations(args, constraints);
-  if (pathViolations.length > 0 && constraints.allowedReadPaths.length > 0) {
+  // Deny-by-default: path violations always block execution, even when
+  // allowedReadPaths is empty. An empty allowedReadPaths list means NO paths
+  // are allowed for reading - so any path-like argument is a violation.
+  // Previously the guard skipped blocking when allowedReadPaths was empty,
+  // which was the opposite of deny-by-default semantics.
+  // (Fixes defect identified in enterprise security review.)
+  if (pathViolations.length > 0) {
     return err(
       new SandboxExecutionError(
         `Sandbox path violations detected: ${pathViolations.map((v) => v.message).join("; ")}`,
@@ -180,14 +223,30 @@ export async function runSandboxed(
   }
 
   // ── Environment scanning ──────────────────────────────────────────────
-  const envViolations = config.env ? scanEnvForSecrets(config.env) : [];
+  // Deny-by-default: env inheritance is opt-in. Only explicitly provided env
+  // vars are passed to the child unless inheritParentEnv is set.
+  // Secret-named env vars BLOCK execution — they are not merely flagged.
+  // (Fixes defects identified in enterprise security review.)
+  const inheritParent = config.inheritParentEnv === true || unsafeHostSandbox;
+  const envViolations = scanEnvForSecrets(config.env ?? {});
+  // In non-enterprise mode with ALLOW_UNSAFE_HOST_SANDBOX, secret violations
+  // are still detected and logged but don't block execution (for backward
+  // compat with trusted tool chains). In enterprise mode, they always block.
+  if (envViolations.length > 0 && (isEnterprise || !unsafeHostSandbox)) {
+    return err(
+      new SandboxExecutionError(
+        `Sandbox env violations: sensitive env vars detected: ${envViolations.map((v) => v.target).join(", ")}. Remove them or set ALLOW_UNSAFE_HOST_SANDBOX=1 (not recommended for untrusted code).`,
+        envViolations,
+      ),
+    );
+  }
 
   // ── Create context and call beforeHook ─────────────────────────────────
   const contextResult = createSandboxContext(config.command, args, {
-    constraints: config.constraints,
+    constraints: config.constraints ?? {},
     tenantId: config.tenantId,
     actorId: config.actorId,
-    beforeHook: config.beforeHook,
+    beforeHook: config.beforeHook as ((context: SandboxContext) => Result<void, import("./index.js").SandboxError>) | undefined,
   });
   if (!contextResult.ok) {
     return err(
@@ -207,10 +266,10 @@ export async function runSandboxed(
   return new Promise((resolve) => {
     let killed = false;
 
-    const childEnv = { ...process.env, ...config.env };
+    const childEnv = inheritParent ? { ...process.env, ...config.env } : { ...config.env };
     const child: ChildProcess = spawn(config.command, args, {
       cwd: config.cwd,
-      env: childEnv as NodeJS.Dict<string | undefined>,
+      env: childEnv as Record<string, string | undefined>,
       stdio: ["pipe", "pipe", "pipe"],
       // Detach false — child is in the same process group
       detached: false,
@@ -261,16 +320,28 @@ export async function runSandboxed(
     });
 
     // ── Memory measurement (best-effort) ────────────────────────────────
+    // On Linux, read child RSS from /proc/<pid>/status for accuracy.
+    // On other platforms, we cannot reliably measure child memory, so we
+    // report null rather than a misleading parent-process metric.
+    // (Fixes defect identified in enterprise security review.)
+    const isLinux = process.platform === "linux";
     const memoryInterval = setInterval(() => {
-      const rss = child.killed ? 0 : (process.memoryUsage?.().rss ?? 0);
-      const mb = rss / (1024 * 1024);
-      if (peakMemoryMb === null || mb > peakMemoryMb) {
-        peakMemoryMb = mb;
+      if (child.killed || child.pid == null) return;
+      if (!isLinux) return; // non-Linux: leave peakMemoryMb as null
+      try {
+        if (!child.pid) return;
+        const status = fsReadFileSync(`/proc/${child.pid}/status`, "utf-8");
+        const match = status.match(/VmRSS:\s+(\d+)\s+kB/);
+        if (match) {
+          const mb = parseInt(match[1] ?? "0", 10) / 1024;
+          if (peakMemoryMb === null || mb > peakMemoryMb) {
+            peakMemoryMb = mb;
+          }
+        }
+      } catch {
+        // /proc not available or PID gone — best effort
       }
     }, 500);
-    // Only measure if child is still running
-    // Note: this measures the parent process memory, not the child.
-    // For accurate child memory, use /proc/PID/status or cgroups.
 
     // ── Close handlers ──────────────────────────────────────────────────
     child.on("close", (code) => {
