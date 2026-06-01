@@ -21,7 +21,7 @@
     "test:adapter": "bash examples/shell-adapter/test-adapter.sh",
     "ci": "bash scripts/ci.sh",
     "cli": "npx tsx apps/cli/src/index.ts",
-    "test:ci": "bash scripts/ci.sh",
+    "test:ci": "bash scripts/test-batched.sh",
     "test:e2e": "vitest run e2e/",
     "test:all": "bash scripts/test-batched.sh && vitest run e2e/",
     "docs:api": "typedoc",

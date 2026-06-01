@@ -11,7 +11,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; DIM='
 PASS=0; FAIL=0; SKIP=0; WARN=0
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
-TIMEOUT="${CI_CLEANDEV_TIMEOUT:-900}"
+TIMEOUT="${CI_CLEANDEV_TIMEOUT:-600}"
 REQUIRE_TRUFFLEHOG="${CI_CLEANDEV_REQUIRE_TRUFFLEHOG:-0}"
 CI_MODE="normal"
 CONFIG_FILE=""
@@ -276,8 +276,27 @@ if [ -f package.json ]; then
         fi
 
         # Test — prefer test:ci over test (avoids watch-mode hangs)
+        # test:ci uses its own per-batch timeouts, so we skip the ci.sh wrapper timeout
         if has_npm_script "test:ci"; then
-            run_step "test" $pm run test:ci
+            test_exit=0
+            test_log="$(mktemp -t ci-cleandev-test.XXXXXX.log)"
+            printf "  %-42s " "test"
+            $pm run test:ci > "$test_log" 2>&1 || test_exit=$?
+            if [ "$test_exit" -eq 0 ]; then
+                echo -e "${GREEN}PASS${NC}"
+                PASS=$((PASS + 1))
+                rm -f "$test_log"
+            else
+                if [ "$test_exit" -eq 124 ]; then
+                    echo -e "${RED}TIMEOUT${NC} (ci.sh timeout ${TIMEOUT}s)"
+                else
+                    echo -e "${RED}FAIL${NC}"
+                fi
+                tail -20 "$test_log"
+                echo -e "  exit code: ${test_exit}"
+                FAIL=$((FAIL + 1))
+                rm -f "$test_log"
+            fi
         elif has_npm_script "test"; then
             if is_watch_test; then
                 warn_step "test" "watch mode detected — forcing single run"

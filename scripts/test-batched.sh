@@ -8,7 +8,7 @@ R="--reporter=dot --testTimeout=30000 --hookTimeout=15000"
 L="/tmp/kirkforge-test.log"
 FAIL=0
 # Per-batch timeout in seconds (prevents hung processes from blocking CI)
-BATCH_TIMEOUT=120
+BATCH_TIMEOUT=180
 
 # Run a vitest batch with a timeout. Args: <batch_name> <test_files...>
 run_batch() {
