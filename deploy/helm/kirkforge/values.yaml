@@ -3,7 +3,7 @@
 replicaCount: 1
 
 image:
-  repository: kirkforge
+  repository: ghcr.io/kirkforge/kirkforge
   tag: ""  # REQUIRED: set via --set image.tag=... or in your values file
   pullPolicy: IfNotPresent
 
