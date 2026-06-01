@@ -255,3 +255,47 @@ describe("generatePolicySigningKey", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+// ── Regression: HMAC malformed signature does not throw ────────────────────
+//
+// Verify that a malformed (wrong-length) base64 signature returns a clean
+// verification error rather than throwing a RangeError from timingSafeEqual.
+
+describe("HMAC malformed signature regression", () => {
+  it("returns error (not throw) when HMAC signature has wrong length", () => {
+    const engine = new PolicyEngine();
+    const policy = engine.getPolicy();
+    const hash = engine.getHash();
+    const bundle = signPolicyHmac(policy, hash, "test-secret-key", "key-1");
+
+    // Truncate the signature to produce a wrong-length buffer
+    const malformedBundle: SignedPolicyBundle = {
+      ...bundle,
+      signature: Buffer.from("short", "utf-8").toString("base64"),
+    };
+
+    const result = verifySignedPolicy(malformedBundle, "test-secret-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain("HMAC-SHA256 signature verification failed");
+    }
+  });
+
+  it("returns error (not throw) when HMAC signature is empty string", () => {
+    const engine = new PolicyEngine();
+    const policy = engine.getPolicy();
+    const hash = engine.getHash();
+    const bundle = signPolicyHmac(policy, hash, "test-secret-key", "key-1");
+
+    const emptyBundle: SignedPolicyBundle = {
+      ...bundle,
+      signature: "",
+    };
+
+    const result = verifySignedPolicy(emptyBundle, "test-secret-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain("HMAC-SHA256 signature verification failed");
+    }
+  });
+});

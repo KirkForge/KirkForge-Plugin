@@ -171,3 +171,34 @@ describe("Full auth chain integration", () => {
     expect(authResult.value.actor.role).toBe("admin");
   });
 });
+
+// ── Regression: parseGroupRoleMapping validates roles ──────────────────────
+//
+// Verify that the exported parseGroupRoleMapping rejects invalid roles
+// and accepts valid ones.
+
+import { parseGroupRoleMapping } from "../src/auth-middleware.js";
+
+describe("parseGroupRoleMapping regression: role validation", () => {
+  it("accepts valid role names", () => {
+    const result = parseGroupRoleMapping("admin:admins,operator:ops,developer:devs,viewer:viewers");
+    expect(result).toBeDefined();
+    expect(result!["admins"]).toBe("admin");
+    expect(result!["ops"]).toBe("operator");
+    expect(result!["devs"]).toBe("developer");
+    expect(result!["viewers"]).toBe("viewer");
+  });
+
+  it("rejects invalid role names like superadmin", () => {
+    expect(() => parseGroupRoleMapping("superadmin:admins")).toThrow("Invalid role");
+  });
+
+  it("rejects invalid role names like admins (reversed)", () => {
+    expect(() => parseGroupRoleMapping("admins:admin")).toThrow("Invalid role");
+  });
+
+  it("returns undefined for empty input", () => {
+    expect(parseGroupRoleMapping("")).toBeUndefined();
+    expect(parseGroupRoleMapping(undefined)).toBeUndefined();
+  });
+});
