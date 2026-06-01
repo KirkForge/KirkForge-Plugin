@@ -48,14 +48,14 @@ KirkForge is a **deterministic verification and routing layer** for coding agent
 
 All findings from external review have been resolved:
 
-| Finding | Resolution |
-|---------|-----------|
-| Bare-host sandbox is default | `ALLOW_UNSAFE_HOST_SANDBOX=1` gate added; Docker is default |
-| Env inheritance passes full parent env | Deny-by-default env; only `allowedEnvVars` passed |
-| Path scanning disabled when `allowedReadPaths` empty | Empty list = deny all path-like args |
-| `peakMemoryMb` reports parent not child | Reads `/proc/<pid>/status` on Linux; `null` on other platforms |
-| `scanEnvForSecrets` flags but doesn't block | Secret-pattern env vars now rejected, not just flagged |
-| `networkAllowlist` is advisory on bare host | Documented; Docker runner enforces `--network=none` |
+| Finding                                              | Resolution                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| Bare-host sandbox is default                         | `ALLOW_UNSAFE_HOST_SANDBOX=1` gate added; Docker is default    |
+| Env inheritance passes full parent env               | Deny-by-default env; only `allowedEnvVars` passed              |
+| Path scanning disabled when `allowedReadPaths` empty | Empty list = deny all path-like args                           |
+| `peakMemoryMb` reports parent not child              | Reads `/proc/<pid>/status` on Linux; `null` on other platforms |
+| `scanEnvForSecrets` flags but doesn't block          | Secret-pattern env vars now rejected, not just flagged         |
+| `networkAllowlist` is advisory on bare host          | Documented; Docker runner enforces `--network=none`            |
 
 ## Audit & Compliance
 

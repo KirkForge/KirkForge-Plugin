@@ -19,10 +19,10 @@
 
 The core insight: **verification commoditizes model choice.**
 
-| Role         | Cost      | Job                                                    |
-| ------------ | --------- | ------------------------------------------------------ |
-| **Brain**    | Expensive | Plans, delegates, decides next action. The host agent. |
-| **Brawn**    | Cheap     | Generates code from a prompt. A worker model.         |
+| Role         | Cost      | Job                                                              |
+| ------------ | --------- | ---------------------------------------------------------------- |
+| **Brain**    | Expensive | Plans, delegates, decides next action. The host agent.           |
+| **Brawn**    | Cheap     | Generates code from a prompt. A worker model.                    |
 | **Verifier** | Free      | Lint, types, security, diff, imports. KirkForge. No model calls. |
 
 The Brain sends a task to the Brawn in JSON. The Brawn writes code. KirkForge's deterministic tools run on the output. If the Brawn messes up, KirkForge builds a compact correction prompt — not a summary, the actual errors — and the Brain decides whether to retry, switch models, or escalate. The Verifier never calls a model. The Brain never sees raw Brawn output, only the reduced state.
@@ -72,37 +72,37 @@ npx tsx apps/cli/src/index.ts serve
 
 ## CLI commands
 
-| Command              | What it does                                                    |
-| -------------------- | --------------------------------------------------------------- |
-| `delegate`           | Task delegation with automatic mode routing                    |
-| `run`                | Execute task with correction loop (accept/correct/escalate)     |
-| `verify-workspace`   | Deterministic verification → `ReducedStatePacket`              |
-| `decompose`          | Break complex task into dependency-ordered subtrees             |
-| `recall-decomposition` | Inspect stored decompositions                                 |
-| `observe`            | Record task outcome for routing memory                          |
-| `recall`             | Retrieve routing bias for similar tasks                        |
-| `health`             | Orchestrator health and SLO status                              |
-| `serve`              | Daemon mode with health-check server (port 9090)               |
-| `doctor`             | Internal + external tool availability diagnostic                |
-| `tools`              | List registered verification tools                              |
+| Command                | What it does                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `delegate`             | Task delegation with automatic mode routing                 |
+| `run`                  | Execute task with correction loop (accept/correct/escalate) |
+| `verify-workspace`     | Deterministic verification → `ReducedStatePacket`           |
+| `decompose`            | Break complex task into dependency-ordered subtrees         |
+| `recall-decomposition` | Inspect stored decompositions                               |
+| `observe`              | Record task outcome for routing memory                      |
+| `recall`               | Retrieve routing bias for similar tasks                     |
+| `health`               | Orchestrator health and SLO status                          |
+| `serve`                | Daemon mode with health-check server (port 9090)            |
+| `doctor`               | Internal + external tool availability diagnostic            |
+| `tools`                | List registered verification tools                          |
 
 ## Delegation modes
 
-| Mode              | How it works                                                              |
-| ----------------- | ------------------------------------------------------------------------- |
+| Mode              | How it works                                                                 |
+| ----------------- | ---------------------------------------------------------------------------- |
 | `hard-prompt`     | Brain sends freeform instructions, Brawn writes code blocks, Verifier checks |
-| `schema-contract` | Brain sends a JSON schema, Brawn fills it, Verifier validates structure  |
-| `artifact`         | Brawn emits JSONL file-write artifacts, Verifier checks path safety      |
+| `schema-contract` | Brain sends a JSON schema, Brawn fills it, Verifier validates structure      |
+| `artifact`        | Brawn emits JSONL file-write artifacts, Verifier checks path safety          |
 
 ## Verifier tools
 
-| Tool        | What it checks                     | Source    |
-| ----------- | ---------------------------------- | --------- |
-| lint        | 8 languages, 103 rules total       | internal  |
-| types       | tsc (TS), pyright (Python)         | external  |
-| security    | Safety-category lint rules         | internal  |
-| changes     | git diff (via GitnexusEmitter)     | internal  |
-| graph       | Import graph broken-edge detection | internal  |
+| Tool     | What it checks                     | Source   |
+| -------- | ---------------------------------- | -------- |
+| lint     | 8 languages, 103 rules total       | internal |
+| types    | tsc (TS), pyright (Python)         | external |
+| security | Safety-category lint rules         | internal |
+| changes  | git diff (via GitnexusEmitter)     | internal |
+| graph    | Import graph broken-edge detection | internal |
 
 Internal tools are bundled and always available. External tools (tsc, pyright) are probed from PATH.
 
@@ -113,7 +113,6 @@ Internal tools are bundled and always available. External tools (tsc, pyright) a
 - **Verifier fail is not exit 1.** The `ReducedStatePacket` is the product regardless of verdict.
 - **Memory is explicit.** `observe` and `recall` require `--memory <path>`. No ambient state.
 - **Host decides task outcome.** `observe --outcome` must come from the host's validator, never from verification status. Verifier pass ≠ task pass.
-
 
 ## MCP Server
 
@@ -155,12 +154,12 @@ See [apps/mcp/README.md](apps/mcp/README.md) for the full tool list and configur
 
 ## Deployment
 
-| Method         | Command                                                        |
-| -------------- | -------------------------------------------------------------- |
+| Method         | Command                                                            |
+| -------------- | ------------------------------------------------------------------ |
 | Docker         | `docker build -t kirkforge . && docker run -p 9090:9090 kirkforge` |
-| Docker Compose | `docker-compose up -d`                                         |
-| GHCR           | `docker pull ghcr.io/kirkforge/kirkforge:latest`               |
-| Kubernetes     | `helm install kirkforge ./deploy/helm/kirkforge`               |
+| Docker Compose | `docker-compose up -d`                                             |
+| GHCR           | `docker pull ghcr.io/kirkforge/kirkforge:latest`                   |
+| Kubernetes     | `helm install kirkforge ./deploy/helm/kirkforge`                   |
 
 ## Security and multi-tenancy
 
