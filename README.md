@@ -1,5 +1,10 @@
 # KirkForge
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/kirkforge-banner.svg">
+  <img src="docs/assets/kirkforge-banner.png" alt="KirkForge — Deterministic verification for coding agents" width="100%">
+</picture>
+
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
 
 **Deterministic verification plugin for coding agents.** KirkForge is not a standalone agent. It plugs into Codex, Claude Code, OpenCode, or any agent stack as a verification, correction, and routing layer.
