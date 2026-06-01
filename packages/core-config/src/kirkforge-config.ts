@@ -117,7 +117,9 @@ export function validateConfig(raw: unknown): Result<AppConfig, KirkForgeError> 
       message: i.message,
       code: i.code,
     }));
-    return err(new KirkForgeError("VALIDATION_ERROR", "Configuration validation failed", { issues }));
+    return err(
+      new KirkForgeError("VALIDATION_ERROR", "Configuration validation failed", { issues }),
+    );
   }
   return ok(parsed.data);
 }
@@ -154,7 +156,9 @@ export function validateProvider(
       message: i.message,
       code: i.code,
     }));
-    return err(new KirkForgeError("INVALID_CONFIG", "Provider configuration is invalid", { issues }));
+    return err(
+      new KirkForgeError("INVALID_CONFIG", "Provider configuration is invalid", { issues }),
+    );
   }
   return ok(parsed.data);
 }

@@ -251,7 +251,10 @@ describe("chainHashOf regression: tamper detection", () => {
   it("changing nested metadata breaks the chain", () => {
     const withMeta = { ...baseEvent, metadata: { ctx: { ip: "10.0.0.1", path: "/verify" } } };
     const original = chainHashOf("prev", withMeta);
-    const tampered = chainHashOf("prev", { ...withMeta, metadata: { ctx: { ip: "10.0.0.2", path: "/verify" } } });
+    const tampered = chainHashOf("prev", {
+      ...withMeta,
+      metadata: { ctx: { ip: "10.0.0.2", path: "/verify" } },
+    });
     expect(original).not.toBe(tampered);
   });
 
@@ -266,7 +269,10 @@ describe("chainHashOf regression: tamper detection", () => {
   it("deeply nested metadata is included in hash", () => {
     const withDeep = { ...baseEvent, metadata: { level1: { level2: { level3: "secret" } } } };
     const original = chainHashOf("prev", withDeep);
-    const tampered = chainHashOf("prev", { ...withDeep, metadata: { level1: { level2: { level3: "tampered" } } } });
+    const tampered = chainHashOf("prev", {
+      ...withDeep,
+      metadata: { level1: { level2: { level3: "tampered" } } },
+    });
     expect(original).not.toBe(tampered);
   });
 
@@ -280,7 +286,12 @@ describe("chainHashOf regression: tamper detection", () => {
   });
 });
 
-import { chainHashOf as _chainHashOf, initialHash as _initialHash, MemoryAuditSink as _MemoryAuditSink, type AuditEvent as _AuditEvent } from "../src/audit.js";
+import {
+  chainHashOf as _chainHashOf,
+  initialHash as _initialHash,
+  MemoryAuditSink as _MemoryAuditSink,
+  type AuditEvent as _AuditEvent,
+} from "../src/audit.js";
 
 // ── HMAC-keyed audit chain ────────────────────────────────────────────────
 //

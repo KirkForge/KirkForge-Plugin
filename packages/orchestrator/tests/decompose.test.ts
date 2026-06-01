@@ -681,15 +681,18 @@ describe("executeDecomposition", () => {
 
   it("handles a linear chain of 10 tasks", () => {
     const orch = makeOrchestrator();
-    const nodes: import("@kirkforge/core-types").TaskNode[] = Array.from({ length: 10 }, (_, i) => ({
-      id: `step-${i}`,
-      description: `Step ${i}`,
-      language: "text" as const,
-      dependsOn: i > 0 ? [`step-${i - 1}`] : [],
-      estimatedComplexity: "simple" as const,
-      outputFiles: [],
-      verificationHint: "",
-    }));
+    const nodes: import("@kirkforge/core-types").TaskNode[] = Array.from(
+      { length: 10 },
+      (_, i) => ({
+        id: `step-${i}`,
+        description: `Step ${i}`,
+        language: "text" as const,
+        dependsOn: i > 0 ? [`step-${i - 1}`] : [],
+        estimatedComplexity: "simple" as const,
+        outputFiles: [],
+        verificationHint: "",
+      }),
+    );
     const result = orch._topologicalSort(nodes);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");

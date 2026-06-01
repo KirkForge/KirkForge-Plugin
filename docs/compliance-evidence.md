@@ -110,7 +110,7 @@ controls, test coverage, and known gaps.
 
 ### SOC 2 Type II
 
-| Control                 | KirkForge Implementation                                |
+| Control                 | KirkForge Implementation                              |
 | ----------------------- | ----------------------------------------------------- |
 | CC6.1 Logical Access    | OIDC JWT + API key auth, RBAC, tenant isolation       |
 | CC6.2 Authentication    | `verifyJwt`, `actorFromApiKey`, `AuthMiddleware`      |
@@ -121,7 +121,7 @@ controls, test coverage, and known gaps.
 
 ### ISO 27001
 
-| Control                                | KirkForge Implementation                                   |
+| Control                                | KirkForge Implementation                                 |
 | -------------------------------------- | -------------------------------------------------------- |
 | A.9.1.1 Access control policy          | `PolicyEngine` deny-by-default                           |
 | A.9.2.1 User registration              | OIDC group-to-role mapping                               |

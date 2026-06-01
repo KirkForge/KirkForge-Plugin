@@ -126,7 +126,7 @@ const ENDPOINT_PERMISSIONS: Record<string, Permission> = {
  * Rate limiting: simple token-bucket per IP, configurable via rateLimitPerSec.
  * Rate limiting: token-bucket per IP (rateLimitPerSec) and per tenant
  * (rateLimitPerSecPerTenant). Both are configurable independently.
-* Tracing: W3C traceparent propagation supported on all responses.
+ * Tracing: W3C traceparent propagation supported on all responses.
  * TLS: configurable via tls.cert/tls.key for HTTPS without reverse proxy.
  * OpenAPI: /v1/openapi serves the full API schema.
  */
@@ -216,9 +216,10 @@ export class HealthServer {
     return new Promise((resolve, reject) => {
       const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         // ── Correlation ID (needed in catch/finally) ───────────────────────
-        const correlationId = (req.headers["x-request-id"] as string | undefined)
-          ?? (req.headers["x-correlation-id"] as string | undefined)
-          ?? randomBytes(8).toString("hex");
+        const correlationId =
+          (req.headers["x-request-id"] as string | undefined) ??
+          (req.headers["x-correlation-id"] as string | undefined) ??
+          randomBytes(8).toString("hex");
         try {
           res.setHeader("X-Request-Id", correlationId);
           res.setHeader("X-Correlation-Id", correlationId);
@@ -231,7 +232,10 @@ export class HealthServer {
           if (this.corsOrigin) {
             res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
             res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-            res.setHeader("Access-Control-Allow-Headers", "Authorization, X-Request-Id, X-Correlation-Id, traceparent");
+            res.setHeader(
+              "Access-Control-Allow-Headers",
+              "Authorization, X-Request-Id, X-Correlation-Id, traceparent",
+            );
             res.setHeader("Access-Control-Max-Age", "86400");
           }
 
@@ -243,21 +247,27 @@ export class HealthServer {
             return;
           }
           if (method !== "GET" && method !== "HEAD") {
-            this._sendError(res, new KirkForgeError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
+            this._sendError(
+              res,
+              new KirkForgeError("METHOD_NOT_ALLOWED", `${method} is not allowed`),
+              correlationId,
+            );
             return;
           }
           // ── Reject requests during shutdown ────────────────────────────
           if (this._shuttingDown) {
             res.writeHead(503, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-            res.end(JSON.stringify({
-              error: {
-                code: "SERVICE_UNAVAILABLE",
-                message: "Server is shutting down",
-                status: 503,
-                requestId: correlationId,
-                timestamp: new Date().toISOString(),
-              },
-            }));
+            res.end(
+              JSON.stringify({
+                error: {
+                  code: "SERVICE_UNAVAILABLE",
+                  message: "Server is shutting down",
+                  status: 503,
+                  requestId: correlationId,
+                  timestamp: new Date().toISOString(),
+                },
+              }),
+            );
             return;
           }
 
@@ -283,7 +293,9 @@ export class HealthServer {
           // RBAC check — verify actor has permission for this endpoint
           const url = req.url ?? "/";
           const normalizedUrl = this._normalizeUrl(url);
-          if (!this._checkPermission(authResult.actor, normalizedUrl, authResult.tokenId, req, res)) {
+          if (
+            !this._checkPermission(authResult.actor, normalizedUrl, authResult.tokenId, req, res)
+          ) {
             return;
           }
           // /v1/ prefixed routes (API versioning)
@@ -294,7 +306,11 @@ export class HealthServer {
           if (url === "/metrics") return this._handleMetricsJson(res);
           // Prometheus metrics (also at root for backward compat)
           if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
-          this._sendError(res, new KirkForgeError("NOT_FOUND", `Unknown path: ${url}`), correlationId);
+          this._sendError(
+            res,
+            new KirkForgeError("NOT_FOUND", `Unknown path: ${url}`),
+            correlationId,
+          );
         } catch (err: unknown) {
           this._sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
         } finally {
@@ -419,7 +435,17 @@ export class HealthServer {
         res.end(
           JSON.stringify({
             error: "not_found",
-            available: ["/v1/healthz", "/v1/readyz", "/v1/metrics", "/v1/metrics/json", "/v1/openapi", "/v1/policy", "/v1/audit", "/v1/tenants", "/v1/quotas"],
+            available: [
+              "/v1/healthz",
+              "/v1/readyz",
+              "/v1/metrics",
+              "/v1/metrics/json",
+              "/v1/openapi",
+              "/v1/policy",
+              "/v1/audit",
+              "/v1/tenants",
+              "/v1/quotas",
+            ],
           }),
         );
     }
@@ -447,7 +473,12 @@ export class HealthServer {
     if (!this.apiKey && !this.oidcConfig) {
       // If requireAuth is set (enterprise mode), deny access rather than grant admin
       if (this.requireAuth) {
-        this._auditAuth("none", "auth.failure", "", "No auth provider configured but auth is required");
+        this._auditAuth(
+          "none",
+          "auth.failure",
+          "",
+          "No auth provider configured but auth is required",
+        );
         this._sendUnauthorized(res, "Auth is required but no provider is configured");
         return null;
       }
@@ -484,7 +515,12 @@ export class HealthServer {
       }
       // JWT failed — if API key fallback with OIDC is not allowed, deny immediately
       if (!this.allowApiKeyFallbackWithOidc) {
-        this._auditAuth("unknown", "auth.failure", "", "JWT validation failed; API key fallback disabled");
+        this._auditAuth(
+          "unknown",
+          "auth.failure",
+          "",
+          "JWT validation failed; API key fallback disabled",
+        );
         this._sendForbidden(res, "invalid JWT token; API key fallback disabled");
         this._authFailureCount++;
         this.orchestrator.recordAuthEvent("auth.failure");
@@ -664,9 +700,7 @@ export class HealthServer {
         version: "1.0.0",
         description: "Deterministic verification and routing layer for coding agents",
       },
-      servers: [
-        { url: "/v1", description: "Versioned API" },
-      ],
+      servers: [{ url: "/v1", description: "Versioned API" }],
       paths: {
         "/healthz": {
           get: {
@@ -675,7 +709,17 @@ export class HealthServer {
             description: "Returns 200 if the service is running. Returns 503 if shutting down.",
             tags: ["health"],
             responses: {
-              "200": { description: "Service is healthy", content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["healthy"] } } } } } },
+              "200": {
+                description: "Service is healthy",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: { status: { type: "string", enum: ["healthy"] } },
+                    },
+                  },
+                },
+              },
               "503": { description: "Service is unhealthy or shutting down" },
             },
           },
@@ -684,10 +728,24 @@ export class HealthServer {
           get: {
             operationId: "getReadiness",
             summary: "Readiness probe",
-            description: "Returns 200 if the service is ready to accept requests. Checks event bus and memory store health.",
+            description:
+              "Returns 200 if the service is ready to accept requests. Checks event bus and memory store health.",
             tags: ["health"],
             responses: {
-              "200": { description: "Service is ready", content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["ready"] }, checks: { type: "object" } } } } } },
+              "200": {
+                description: "Service is ready",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        status: { type: "string", enum: ["ready"] },
+                        checks: { type: "object" },
+                      },
+                    },
+                  },
+                },
+              },
               "503": { description: "Service is not ready" },
             },
           },
@@ -718,7 +776,8 @@ export class HealthServer {
           get: {
             operationId: "getPolicy",
             summary: "Current policy configuration",
-            description: "Returns the active policy and its hash. Requires admin:policy permission.",
+            description:
+              "Returns the active policy and its hash. Requires admin:policy permission.",
             tags: ["admin"],
             responses: {
               "200": { description: "Policy object", content: { "application/json": {} } },
@@ -730,7 +789,8 @@ export class HealthServer {
           get: {
             operationId: "getAuditStatus",
             summary: "Audit chain status",
-            description: "Returns audit log integrity verification status. Requires admin:audit_export permission.",
+            description:
+              "Returns audit log integrity verification status. Requires admin:audit_export permission.",
             tags: ["admin"],
             responses: {
               "200": { description: "Audit status", content: { "application/json": {} } },
@@ -755,7 +815,10 @@ export class HealthServer {
             description: "Returns this OpenAPI 3.0 schema document.",
             tags: ["meta"],
             responses: {
-              "200": { description: "OpenAPI 3.0 JSON schema", content: { "application/json": {} } },
+              "200": {
+                description: "OpenAPI 3.0 JSON schema",
+                content: { "application/json": {} },
+              },
             },
           },
         },
@@ -763,7 +826,8 @@ export class HealthServer {
           get: {
             operationId: "getQuotas",
             summary: "Tenant quota status",
-            description: "Returns per-tenant quota configuration and usage. Requires admin:tenant permission.",
+            description:
+              "Returns per-tenant quota configuration and usage. Requires admin:tenant permission.",
             tags: ["admin"],
             responses: {
               "200": { description: "Quota status", content: { "application/json": {} } },
@@ -795,7 +859,8 @@ export class HealthServer {
     res.end(
       JSON.stringify({
         quotas: { default: "Per-tenant quota management via API is active" },
-        message: "Set per-tenant quotas via the QuotaManager. API CRUD is planned for a future release.",
+        message:
+          "Set per-tenant quotas via the QuotaManager. API CRUD is planned for a future release.",
       }),
     );
   }
@@ -836,17 +901,27 @@ export class HealthServer {
         this.tenantBuckets.set(tenantKey, tBucket);
       }
       const tElapsed = (now - tBucket.lastRefill) / 1000;
-      tBucket.tokens = Math.min(this.rateLimitPerSecPerTenant, tBucket.tokens + tElapsed * this.rateLimitPerSecPerTenant);
+      tBucket.tokens = Math.min(
+        this.rateLimitPerSecPerTenant,
+        tBucket.tokens + tElapsed * this.rateLimitPerSecPerTenant,
+      );
       tBucket.lastRefill = now;
       if (tBucket.tokens < 1) {
         res.writeHead(429, {
           "Content-Type": "application/json",
           "Retry-After": "1",
         });
-        res.end(JSON.stringify(toErrorResponse(
-          new KirkForgeError("TENANT_RATE_LIMITED", `Tenant ${actor.tenantId} rate limit exceeded`),
-          undefined,
-        )));
+        res.end(
+          JSON.stringify(
+            toErrorResponse(
+              new KirkForgeError(
+                "TENANT_RATE_LIMITED",
+                `Tenant ${actor.tenantId} rate limit exceeded`,
+              ),
+              undefined,
+            ),
+          ),
+        );
         return false;
       }
       tBucket.tokens -= 1;
@@ -871,7 +946,11 @@ export class HealthServer {
         "Content-Type": "application/json",
         "Retry-After": "1",
       });
-      res.end(JSON.stringify(toErrorResponse(new KirkForgeError("RATE_LIMITED", "Too many requests"), undefined)));
+      res.end(
+        JSON.stringify(
+          toErrorResponse(new KirkForgeError("RATE_LIMITED", "Too many requests"), undefined),
+        ),
+      );
       return false;
     }
     bucket.tokens -= 1;
@@ -898,9 +977,12 @@ export class HealthServer {
       const method = req.method?.toUpperCase() ?? "GET";
       const transferEncoding = (req.headers["transfer-encoding"] ?? "").toLowerCase();
       const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
-      const hasBody = method === "POST" || method === "PUT" || method === "PATCH"
-        || transferEncoding.includes("chunked")
-        || contentLength > 0;
+      const hasBody =
+        method === "POST" ||
+        method === "PUT" ||
+        method === "PATCH" ||
+        transferEncoding.includes("chunked") ||
+        contentLength > 0;
 
       if (!hasBody) {
         resolve(true);
@@ -911,15 +993,17 @@ export class HealthServer {
       if (contentLength > this.maxBodyBytes) {
         this._authFailureCount++;
         res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-        res.end(JSON.stringify({
-          error: {
-            code: "PAYLOAD_TOO_LARGE",
-            message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
-            status: 413,
-            requestId: correlationId,
-            timestamp: new Date().toISOString(),
-          },
-        }));
+        res.end(
+          JSON.stringify({
+            error: {
+              code: "PAYLOAD_TOO_LARGE",
+              message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
+              status: 413,
+              requestId: correlationId,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        );
         req.destroy();
         resolve(false);
         return;
@@ -936,15 +1020,17 @@ export class HealthServer {
           exceeded = true;
           this._authFailureCount++;
           res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-          res.end(JSON.stringify({
-            error: {
-              code: "PAYLOAD_TOO_LARGE",
-              message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
-              status: 413,
-              requestId: correlationId,
-              timestamp: new Date().toISOString(),
-            },
-          }));
+          res.end(
+            JSON.stringify({
+              error: {
+                code: "PAYLOAD_TOO_LARGE",
+                message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
+                status: 413,
+                requestId: correlationId,
+                timestamp: new Date().toISOString(),
+              },
+            }),
+          );
           req.destroy();
           resolve(false);
         }
@@ -999,7 +1085,9 @@ export class HealthServer {
       const eb = eventBus as { running?: boolean; inflight?: number; bufferSize?: number };
       checks.eventBus = {
         ok: eb.running === true,
-        detail: eb.running ? `inflight=${eb.inflight ?? 0}, buffer=${eb.bufferSize ?? 0}` : "not running",
+        detail: eb.running
+          ? `inflight=${eb.inflight ?? 0}, buffer=${eb.bufferSize ?? 0}`
+          : "not running",
       };
     } else {
       checks.eventBus = { ok: true, detail: "not configured" };
@@ -1018,22 +1106,26 @@ export class HealthServer {
     const allOk = Object.values(checks).every((c) => c.ok);
     if (!allOk) {
       res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        status: "not_ready",
-        checks,
-        stats: health.stats,
-        providers: health.providers,
-      }));
+      res.end(
+        JSON.stringify({
+          status: "not_ready",
+          checks,
+          stats: health.stats,
+          providers: health.providers,
+        }),
+      );
       return;
     }
 
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      status: "ready",
-      checks,
-      stats: health.stats,
-      providers: health.providers,
-    }));
+    res.end(
+      JSON.stringify({
+        status: "ready",
+        checks,
+        stats: health.stats,
+        providers: health.providers,
+      }),
+    );
   }
   private _handleMetricsJson(res: ServerResponse): void {
     const stats = this.orchestrator.getStats();
@@ -1047,7 +1139,7 @@ export class HealthServer {
     const lines: string[] = [];
     const num = (v: unknown): number => (typeof v === "number" ? v : 0);
     const escapePromLabel = (v: string): string =>
-      v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n");
+      v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
     const gauge = (name: string, help: string, value: number, labels?: Record<string, string>) => {
       lines.push(`# HELP ${name} ${help}`);
       lines.push(`# TYPE ${name} gauge`);
@@ -1087,7 +1179,11 @@ export class HealthServer {
     if (typeof stats.memoryEntries === "number")
       gauge("kirkforge_memory_store_entries", "Memory store entries", stats.memoryEntries);
     if (typeof stats.memorySizeBytes === "number")
-      gauge("kirkforge_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
+      gauge(
+        "kirkforge_memory_store_size_bytes",
+        "Memory store size in bytes",
+        stats.memorySizeBytes,
+      );
     const memUsage = process.memoryUsage();
     gauge("process_resident_memory_bytes", "Resident memory in bytes", memUsage.rss);
     gauge("process_heap_total_bytes", "Total heap in bytes", memUsage.heapTotal);
@@ -1097,15 +1193,23 @@ export class HealthServer {
     counter("kirkforge_auth_success_total", "Total successful auth events", this._authSuccessCount);
     counter("kirkforge_auth_failure_total", "Total failed auth events", this._authFailureCount);
     counter("kirkforge_policy_deny_total", "Total policy deny events", this._policyDenyCount);
-    gauge("kirkforge_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
+    gauge(
+      "kirkforge_http_requests_in_flight",
+      "Currently processing HTTP requests",
+      this._inFlight.size,
+    );
     counter("kirkforge_http_requests_total", "Total HTTP requests processed", this._requestCount);
     // Tenant rate limit metrics
     if (this.rateLimitPerSecPerTenant > 0) {
-      gauge("kirkforge_tenant_rate_limit_buckets", "Active tenant rate limit buckets", this.tenantBuckets.size);
+      gauge(
+        "kirkforge_tenant_rate_limit_buckets",
+        "Active tenant rate limit buckets",
+        this.tenantBuckets.size,
+      );
     }
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
     res.end(lines.join("\n") + "\n");
   }
 }
-            // Full list: /v1/policy, /v1/audit, /v1/tenants require admin permissions
+// Full list: /v1/policy, /v1/audit, /v1/tenants require admin permissions

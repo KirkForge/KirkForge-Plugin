@@ -203,8 +203,16 @@ export const ERROR_CATALOG: Record<
     category: "conflict",
     description: "Task is locked by another process",
   },
-  PAYLOAD_TOO_LARGE: { status: 413, category: "validation", description: "Request payload exceeds size limit" },
-  SERVICE_UNAVAILABLE: { status: 503, category: "unavailable", description: "Server is shutting down or unavailable" },
+  PAYLOAD_TOO_LARGE: {
+    status: 413,
+    category: "validation",
+    description: "Request payload exceeds size limit",
+  },
+  SERVICE_UNAVAILABLE: {
+    status: 503,
+    category: "unavailable",
+    description: "Server is shutting down or unavailable",
+  },
   RATE_LIMITED: {
     status: 429,
     category: "rate_limit",
@@ -252,7 +260,11 @@ export const ERROR_CATALOG: Record<
     description: "Event handler execution failed",
   },
   INTERNAL_ERROR: { status: 500, category: "internal", description: "Unexpected internal error" },
-  METHOD_NOT_ALLOWED: { status: 405, category: "validation", description: "HTTP method not allowed for this endpoint" },
+  METHOD_NOT_ALLOWED: {
+    status: 405,
+    category: "validation",
+    description: "HTTP method not allowed for this endpoint",
+  },
 };
 
 export interface ErrorResponse {

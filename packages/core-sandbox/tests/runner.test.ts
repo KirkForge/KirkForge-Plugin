@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { runSandboxed, runDockerSandboxed, SandboxExecutionError, DEFAULT_CONSTRAINTS } from "../src/runner.js";
+import {
+  runSandboxed,
+  runDockerSandboxed,
+  SandboxExecutionError,
+  DEFAULT_CONSTRAINTS,
+} from "../src/runner.js";
 
 describe("runSandboxed", () => {
   const allowedConstraints = {
@@ -326,7 +331,9 @@ describe("enterprise hardening fixes", () => {
       // On other platforms: should be null (not the parent's RSS)
       if (process.platform === "linux") {
         // On Linux, we should get a real memory reading (or null if /proc unavailable)
-        expect(result.value.peakMemoryMb === null || typeof result.value.peakMemoryMb === "number").toBe(true);
+        expect(
+          result.value.peakMemoryMb === null || typeof result.value.peakMemoryMb === "number",
+        ).toBe(true);
       } else {
         // Non-Linux: peakMemoryMb should be null, not a misleading parent-process number
         expect(result.value.peakMemoryMb).toBeNull();

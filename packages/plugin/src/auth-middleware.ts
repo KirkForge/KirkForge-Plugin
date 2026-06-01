@@ -129,7 +129,11 @@ export class AuthMiddleware {
     // In enterprise/requireAuth mode, deny access rather than grant admin
     if (!this.apiKey && !this.oidcConfig) {
       if (this.requireAuth) {
-        const error = new AuthMiddlewareError(500, "none", "Auth is required but no provider is configured");
+        const error = new AuthMiddlewareError(
+          500,
+          "none",
+          "Auth is required but no provider is configured",
+        );
         this._recordAuthFailure("none", "auth_required_but_not_configured");
         return err(error);
       }
@@ -168,7 +172,11 @@ export class AuthMiddleware {
       }
       // JWT failed — fall through to API key only if explicitly allowed
       if (!this.allowApiKeyFallbackWithOidc) {
-        const error = new AuthMiddlewareError(401, "oidc", "JWT validation failed and API key fallback is not enabled");
+        const error = new AuthMiddlewareError(
+          401,
+          "oidc",
+          "JWT validation failed and API key fallback is not enabled",
+        );
         this._recordAuthFailure("oidc", "jwt_failed_no_fallback");
         return err(error);
       }
@@ -333,9 +341,7 @@ export function createAuthMiddleware(config?: AuthMiddlewareConfig): AuthMiddlew
     groupRoleMapping:
       config?.groupRoleMapping ?? parseGroupRoleMapping(process.env.OIDC_GROUP_ROLE_MAP),
     auditLogger: config?.auditLogger,
-    requireAuth:
-      config?.requireAuth ??
-      isEnterpriseMode(),
+    requireAuth: config?.requireAuth ?? isEnterpriseMode(),
   });
 }
 

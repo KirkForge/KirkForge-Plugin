@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 
 describe("Enterprise mode integration", () => {
   const validEnterpriseEnv: Record<string, string | undefined> = {
-    "KIRKFORGE_ENTERPRISE_MODE": "1",
+    KIRKFORGE_ENTERPRISE_MODE: "1",
     HEALTH_API_KEY: "a".repeat(32),
     MEMORY_BACKEND: "sqlite",
     POLICY_FILE_PATH: "/tmp/test-policy.json",
@@ -26,7 +26,7 @@ describe("Enterprise mode integration", () => {
 
   it("rejects startup without auth in enterprise mode", () => {
     const env: Record<string, string | undefined> = {
-      "KIRKFORGE_ENTERPRISE_MODE": "1",
+      KIRKFORGE_ENTERPRISE_MODE: "1",
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/tmp/policy.json",
       AUDIT_SINK_TYPE: "file",
@@ -54,7 +54,7 @@ describe("Enterprise mode integration", () => {
   });
 
   it("startup gate throws in enterprise mode with missing controls", () => {
-    expect(() => enterpriseStartupGate(undefined, { "KIRKFORGE_ENTERPRISE_MODE": "1" })).toThrow();
+    expect(() => enterpriseStartupGate(undefined, { KIRKFORGE_ENTERPRISE_MODE: "1" })).toThrow();
   });
 
   it("startup gate returns dev config when enterprise mode is off", () => {

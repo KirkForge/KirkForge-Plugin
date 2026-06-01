@@ -93,7 +93,15 @@ export interface SandboxResult {
 
 export interface SandboxViolation {
   /** Type of violation. */
-  type: "time" | "memory" | "network" | "filesystem" | "process" | "output_size" | "command" | "secret";
+  type:
+    | "time"
+    | "memory"
+    | "network"
+    | "filesystem"
+    | "process"
+    | "output_size"
+    | "command"
+    | "secret";
   /** Description of the violation. */
   message: string;
   /** The resource or target that was accessed beyond limits. */

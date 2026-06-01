@@ -197,7 +197,13 @@ export async function runSandboxed(
     return err(
       new SandboxExecutionError(
         "Enterprise mode requires container isolation. Use runDockerSandboxed() or set ALLOW_UNSAFE_HOST_SANDBOX=1 (not recommended for untrusted code).",
-        [{ type: "command", message: "Bare-host sandbox denied in enterprise mode", target: config.command }],
+        [
+          {
+            type: "command",
+            message: "Bare-host sandbox denied in enterprise mode",
+            target: config.command,
+          },
+        ],
       ),
     );
   }
@@ -234,9 +240,7 @@ export async function runSandboxed(
   // Docker execution skips arg path scanning because Docker mount args
   // (e.g. -v /path:/path:ro) are not filesystem references the host sandbox
   // should restrict — the container provides its own filesystem isolation.
-  const pathViolations = config.skipArgPathScan
-    ? []
-    : scanArgsForPathViolations(args, constraints);
+  const pathViolations = config.skipArgPathScan ? [] : scanArgsForPathViolations(args, constraints);
   if (pathViolations.length > 0) {
     return err(
       new SandboxExecutionError(
@@ -270,7 +274,9 @@ export async function runSandboxed(
     constraints: config.constraints ?? {},
     tenantId: config.tenantId,
     actorId: config.actorId,
-    beforeHook: config.beforeHook as ((context: SandboxContext) => Result<void, import("./index.js").SandboxError>) | undefined,
+    beforeHook: config.beforeHook as
+      | ((context: SandboxContext) => Result<void, import("./index.js").SandboxError>)
+      | undefined,
   });
   if (!contextResult.ok) {
     return err(

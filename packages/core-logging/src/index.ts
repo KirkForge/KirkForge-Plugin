@@ -190,15 +190,17 @@ export function getTraceContext(): { traceId: string; spanId: string } | null {
  * ```
  */
 export function withTraceContext(logger: Logger): Logger {
-  const enrichedTransports: LogTransport[] = (logger as unknown as LoggerInternals)._transports.map((t: LogTransport) => ({
-    write(entry: LogEntry): void {
-      const tc = getTraceContext();
-      const enriched: LogEntry = tc ? { ...entry, context: { ...entry.context, ...tc } } : entry;
-      t.write(enriched);
-    },
-    flush: t.flush?.bind(t),
-    close: t.close?.bind(t),
-  }));
+  const enrichedTransports: LogTransport[] = (logger as unknown as LoggerInternals)._transports.map(
+    (t: LogTransport) => ({
+      write(entry: LogEntry): void {
+        const tc = getTraceContext();
+        const enriched: LogEntry = tc ? { ...entry, context: { ...entry.context, ...tc } } : entry;
+        t.write(enriched);
+      },
+      flush: t.flush?.bind(t),
+      close: t.close?.bind(t),
+    }),
+  );
 
   const enriched = new Logger({ level: logger.level, format: "json" });
   (enriched as unknown as LoggerInternals)._transports = enrichedTransports;

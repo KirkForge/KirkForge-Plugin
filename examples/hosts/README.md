@@ -12,8 +12,8 @@ Minimal post-generation hooks for three host CLIs. Each follows the same contrac
 
 ## Files
 
-| Sketch                         | Host             | Notes                                               |
-| ------------------------------ | ---------------- | --------------------------------------------------- |
+| Sketch                           | Host             | Notes                                               |
+| -------------------------------- | ---------------- | --------------------------------------------------- |
 | `kirkforge-openai-codex-hook.sh` | OpenAI Codex CLI | Codex writes files, then shells out to this hook    |
 | `kirkforge-opencode-hook.sh`     | OpenCode         | Node-based CLI; config shown as YAML template       |
 | `kirkforge-claude-code-hook.sh`  | Claude Code      | Anthropic's CLI; hook config shown as JSON template |

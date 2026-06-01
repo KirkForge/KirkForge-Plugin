@@ -155,7 +155,9 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
   const allPassed = startupChecks.every((c) => c.ok);
   for (const check of startupChecks) {
     const icon = check.ok ? "✓" : "✗";
-    log.info?.(`[serve] ${icon} ${check.name}: ${check.ok ? "ok" : "FAIL"}${check.detail ? ` (${check.detail})` : ""}`);
+    log.info?.(
+      `[serve] ${icon} ${check.name}: ${check.ok ? "ok" : "FAIL"}${check.detail ? ` (${check.detail})` : ""}`,
+    );
   }
 
   if (!allPassed) {
@@ -182,7 +184,9 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
       await auditLogger.flush();
       await auditLogger.close();
     } catch (e) {
-      log.warn?.(`[serve] Audit flush during shutdown: ${e instanceof Error ? e.message : String(e)}`);
+      log.warn?.(
+        `[serve] Audit flush during shutdown: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
 
     // Drain in-flight HTTP requests with timeout

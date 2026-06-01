@@ -328,7 +328,13 @@ describe("actorFromJwt", () => {
 
   it("defaults to viewer without groups", () => {
     const result = actorFromJwt(
-      { sub: "user1", iss: "https://auth.example.com", aud: "kirkforge", exp: 9999999999, iat: 1000 },
+      {
+        sub: "user1",
+        iss: "https://auth.example.com",
+        aud: "kirkforge",
+        exp: 9999999999,
+        iat: 1000,
+      },
       config,
     );
     expect(result.ok).toBe(true);

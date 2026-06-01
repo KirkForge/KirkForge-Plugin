@@ -180,7 +180,8 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
 
   // ── Audit logger ──────────────────────────────────────────────────────
   let auditSink: AuditSink;
-  const auditSinkType = process.env.AUDIT_SINK_TYPE ?? process.env["KIRKFORGE_AUDIT_SINK"] ?? "none";
+  const auditSinkType =
+    process.env.AUDIT_SINK_TYPE ?? process.env["KIRKFORGE_AUDIT_SINK"] ?? "none";
 
   if (auditSinkType === "file") {
     const filePath = process.env.AUDIT_FILE_PATH ?? "/var/lib/kirkforge/audit/audit.jsonl";

@@ -21,7 +21,12 @@
  *   to avoid attempting JSON.parse on ciphertext strings.
  */
 
-import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "@kirkforge/memory-palace";
+import type {
+  MemoryAdapter,
+  MemoryObject,
+  MemoryQuery,
+  MemoryStats,
+} from "@kirkforge/memory-palace";
 import { ok, err, type Result } from "@kirkforge/core-types";
 import type { TenantKeyProvider } from "@kirkforge/core-secrets";
 

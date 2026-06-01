@@ -592,7 +592,9 @@ export function verifySignedPolicy(
       if (publicKey.asymmetricKeyType !== "ed25519") {
         return err(
           new PolicySignatureError(
-            "Ed25519 verification key is not an Ed25519 key (got " + publicKey.asymmetricKeyType + ")",
+            "Ed25519 verification key is not an Ed25519 key (got " +
+              publicKey.asymmetricKeyType +
+              ")",
           ),
         );
       }

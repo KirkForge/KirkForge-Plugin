@@ -38,7 +38,7 @@ See `REAL_TBENCH_GUIDE.md` for full configuration options.
 
 ## What It Measures
 
-| Metric        | KirkForge                          | OpenCode                   |
+| Metric        | KirkForge                        | OpenCode                   |
 | ------------- | -------------------------------- | -------------------------- |
 | Worker tokens | Correction loop total            | Single shot                |
 | Corrections   | Up to 3 retries                  | 0                          |

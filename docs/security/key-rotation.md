@@ -6,13 +6,13 @@ and is required by SOC 2 (CC6.1), ISO 27001 (A.10.1.2), and PCI DSS (3.6).
 
 ## Key Types
 
-| Key                     | Purpose                           | Rotation Impact                                      | Storage                   |
-| ----------------------- | --------------------------------- | ---------------------------------------------------- | ------------------------- |
-| JWT signing key (OIDC)  | Token verification                | Active tokens invalid until JWKS refresh             | IdP-managed               |
+| Key                     | Purpose                           | Rotation Impact                                      | Storage                     |
+| ----------------------- | --------------------------------- | ---------------------------------------------------- | --------------------------- |
+| JWT signing key (OIDC)  | Token verification                | Active tokens invalid until JWKS refresh             | IdP-managed                 |
 | Policy signing HMAC key | Signed policy bundle verification | All policies must be re-signed                       | `KIRKFORGE_POLICY_HMAC_KEY` |
-| Tenant KEK (master)     | Per-tenant DEK derivation         | All tenant data must be re-encrypted                 | Vault / KMS               |
+| Tenant KEK (master)     | Per-tenant DEK derivation         | All tenant data must be re-encrypted                 | Vault / KMS                 |
 | API key                 | Static bearer authentication      | Active sessions invalidated                          | `KIRKFORGE_API_KEY`         |
-| Audit chain hash seed   | Audit log integrity               | New chain starts; old chain verifiable independently | `WORM_AUDIT_SEED`         |
+| Audit chain hash seed   | Audit log integrity               | New chain starts; old chain verifiable independently | `WORM_AUDIT_SEED`           |
 
 ## Rotation Procedures
 

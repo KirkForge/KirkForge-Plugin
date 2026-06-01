@@ -311,10 +311,10 @@ interface LintFinding {
 
 | Step      | Task                                             | Session |
 | --------- | ------------------------------------------------ | ------- |
-| 1         | Build `@kirkforge/tool-lint-core` shared engine    | 1 ✅    |
-| 2         | Build `@kirkforge/tool-lint-ts` 29 rules           | 1 ✅    |
+| 1         | Build `@kirkforge/tool-lint-core` shared engine  | 1 ✅    |
+| 2         | Build `@kirkforge/tool-lint-ts` 29 rules         | 1 ✅    |
 | 3         | Wire into emitter-factory, replace ESLint        | 1 ✅    |
-| 4         | Build `@kirkforge/tool-lint-py` 34 rules           | 1 ✅    |
+| 4         | Build `@kirkforge/tool-lint-py` 34 rules         | 1 ✅    |
 | 5         | Wire Python lint, deprecate Ruff+Bandit          | 1 ✅    |
 | 6         | Build Phase 3 packages (Shell, C, Rust, Go, SQL) | 2 ✅    |
 | 7         | Tests for all 8 lint packages (30 new tests)     | 3 ✅    |

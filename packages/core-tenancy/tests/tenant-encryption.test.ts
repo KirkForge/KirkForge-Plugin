@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { TenantEncryptionAdapter } from "../src/tenant-encryption.js";
 import { TenantKeyProvider } from "@kirkforge/core-secrets";
-import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "@kirkforge/memory-palace";
+import type {
+  MemoryAdapter,
+  MemoryObject,
+  MemoryQuery,
+  MemoryStats,
+} from "@kirkforge/memory-palace";
 import { ok, type Result } from "@kirkforge/core-types";
 import { randomBytes } from "node:crypto";
 

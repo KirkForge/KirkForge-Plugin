@@ -28,6 +28,7 @@ export const maintainRules: LintRule[] = [
     category: "maintain",
     severity: "info",
     pattern: /\brequire\s*\(\s*['"][^'"]+['"]\s*\)/g,
-    message: "Use ESM import instead of require() — if dynamic, add a kirkforge-lint-disable comment",
+    message:
+      "Use ESM import instead of require() — if dynamic, add a kirkforge-lint-disable comment",
   },
 ];
