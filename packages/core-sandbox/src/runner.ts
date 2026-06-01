@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync as fsReadFileSync } from "node:fs";
+import { existsSync, readFileSync as fsReadFileSync } from "node:fs";
+import { delimiter, isAbsolute, join } from "node:path";
 import { ok, err, type Result } from "@kirkforge/core-types";
 import { KirkForgeError } from "@kirkforge/core-errors";
 import {
@@ -13,6 +14,7 @@ import {
   isWritePathAllowed,
   createSandboxContext,
 } from "./index.js";
+import { isEnterpriseMode } from "@kirkforge/core-enterprise";
 
 // ── Sandboxed process runner ───────────────────────────────────────────────
 //
@@ -74,6 +76,23 @@ export class SandboxExecutionError extends KirkForgeError {
     this.name = "SandboxExecutionError";
     this.violations = violations;
   }
+}
+
+/**
+ * Resolve a command name to an absolute path using PATH lookup.
+ * This allows sandboxed commands to run even when the child env
+ * doesn't inherit PATH — the parent resolves the binary, but the
+ * child process never receives the parent's environment.
+ */
+function resolveCommand(command: string): string {
+  if (command === "node") return process.execPath;
+  if (isAbsolute(command)) return command;
+  const envPath = process.env.PATH ?? "";
+  for (const dir of envPath.split(delimiter)) {
+    const candidate = join(dir, command);
+    if (existsSync(candidate)) return candidate;
+  }
+  return command;
 }
 
 // ── Path argument scanning ──────────────────────────────────────────────────
@@ -170,8 +189,7 @@ export async function runSandboxed(
   // the safe default. ALLOW_UNSAFE_HOST_SANDBOX=1 opts into the bare-host
   // runner for trusted tool execution — mirrors the ALLOW_UNSAFE_VALIDATOR_SHELL
   // pattern. In enterprise mode, this gate is always enforced.
-  const isEnterprise = process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1"
-    || process.env["KIRKFORGE_ENTERPRISE_MODE"] === "true";
+  const isEnterprise = isEnterpriseMode();
   const unsafeHostSandbox = process.env.ALLOW_UNSAFE_HOST_SANDBOX === "1";
   if (isEnterprise && !unsafeHostSandbox) {
     // In enterprise mode, the bare-host runner is denied unless explicitly
@@ -272,8 +290,9 @@ export async function runSandboxed(
   return new Promise((resolve) => {
     let killed = false;
 
+    const resolvedCommand = inheritParent ? config.command : resolveCommand(config.command);
     const childEnv = inheritParent ? { ...process.env, ...config.env } : { ...config.env };
-    const child: ChildProcess = spawn(config.command, args, {
+    const child: ChildProcess = spawn(resolvedCommand, args, {
       cwd: config.cwd,
       env: childEnv as Record<string, string | undefined>,
       stdio: ["pipe", "pipe", "pipe"],

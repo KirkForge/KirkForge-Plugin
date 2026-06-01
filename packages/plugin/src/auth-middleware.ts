@@ -13,6 +13,7 @@ import {
   verifyJwt,
 } from "@kirkforge/core-rbac";
 import type { AuditLogger } from "@kirkforge/core-events";
+import { isEnterpriseMode } from "@kirkforge/core-enterprise";
 
 // ── Auth middleware for KirkForge services ─────────────────────────────────────
 //
@@ -334,7 +335,7 @@ export function createAuthMiddleware(config?: AuthMiddlewareConfig): AuthMiddlew
     auditLogger: config?.auditLogger,
     requireAuth:
       config?.requireAuth ??
-      (process.env.KIRKFORGE_ENTERPRISE_MODE === "1" || process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1"),
+      isEnterpriseMode(),
   });
 }
 

@@ -444,9 +444,22 @@ export function chainHashOf(prevHash: string, event: AuditEvent): string {
   // tampering with any audit field breaks the chain. Previous versions
   // excluded outcome/reason/metadata, allowing a denied event to be
   // rewritten as "success" without breaking the hash.
-  const metadataJson = JSON.stringify(event.metadata ?? {}, Object.keys(event.metadata ?? {}).sort());
+  // Recursively sort keys at every depth so nested objects are included
+  // in the integrity chain. The previous replacer-array approach only sorted
+  // top-level keys and dropped all nested object contents.
+  const metadataJson = canonicalJson(event.metadata ?? {});
   const payload = `${prevHash}|${event.action}|${event.outcome}|${event.actorId}|${event.tenantId}|${event.reason}|${event.timestamp}|${event.sequence}|${metadataJson}`;
   return createHash("sha256").update(payload, "utf-8").digest("hex");
+}
+
+/** Recursively sort object keys and stringify, producing a deterministic
+ *  JSON representation that includes all nested values. */
+function canonicalJson(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj !== "object") return JSON.stringify(obj);
+  if (Array.isArray(obj)) return "[" + (obj as unknown[]).map(canonicalJson).join(",") + "]";
+  const sorted = Object.keys(obj as Record<string, unknown>).sort();
+  return "{" + sorted.map((k) => JSON.stringify(k) + ":" + canonicalJson((obj as Record<string, unknown>)[k])).join(",") + "}";
 }
 
 // ── Syslog audit sink (CEF/SIEM integration) ──────────────────────────────

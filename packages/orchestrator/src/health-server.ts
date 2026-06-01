@@ -18,6 +18,7 @@ import {
 } from "@kirkforge/core-rbac";
 import type { AuditLogger } from "@kirkforge/core-events";
 import type { PolicyEngine } from "@kirkforge/core-policy";
+import { isEnterpriseMode } from "@kirkforge/core-enterprise";
 // ── RBAC-enforced health server ──────────────────────────────────────────────
 //
 // Extends the basic health server with:
@@ -56,6 +57,10 @@ export interface HealthServerConfig {
   rateLimitPerSecPerTenant?: number;
   /** Whether auth is required. Default: true in enterprise mode, false in dev mode. */
   requireAuth?: boolean;
+  /** Whether to allow API key fallback when OIDC JWT validation fails.
+   *  Default: false in enterprise mode, true in dev mode.
+   *  A failed JWT should not silently fall through to API key auth. */
+  allowApiKeyFallbackWithOidc?: boolean;
   /** TLS configuration. If set, the server uses HTTPS instead of HTTP. */
   tls?: {
     /** Path to TLS certificate file (PEM). */
@@ -137,6 +142,7 @@ export class HealthServer {
   private auditLogger?: AuditLogger;
   private policyEngine?: PolicyEngine;
   private requireAuth: boolean = false;
+  private allowApiKeyFallbackWithOidc: boolean = false;
 
   private requestTimeoutMs: number;
   private maxBodyBytes: number;
@@ -164,7 +170,8 @@ export class HealthServer {
     private config: HealthServerConfig = {},
   ) {
     this.apiKey = config.apiKey ?? process.env.HEALTH_API_KEY ?? null;
-    this.requireAuth = config.requireAuth ?? (process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1");
+    this.requireAuth = config.requireAuth ?? isEnterpriseMode();
+    this.allowApiKeyFallbackWithOidc = config.allowApiKeyFallbackWithOidc ?? !isEnterpriseMode();
     this.rateLimitPerSec = config.rateLimitPerSec ?? 20;
     this.oidcConfig = config.oidcConfig;
     this.groupRoleMapping = config.groupRoleMapping;
@@ -475,7 +482,14 @@ export class HealthServer {
         );
         return { actor: jwtResult.actor, tokenId: jwtResult.actor.id };
       }
-      // JWT failed — fall through to API key if configured
+      // JWT failed — if API key fallback with OIDC is not allowed, deny immediately
+      if (!this.allowApiKeyFallbackWithOidc) {
+        this._auditAuth("unknown", "auth.failure", "", "JWT validation failed; API key fallback disabled");
+        this._sendForbidden(res, "invalid JWT token; API key fallback disabled");
+        this._authFailureCount++;
+        this.orchestrator.recordAuthEvent("auth.failure");
+        return null;
+      }
     }
     // Static API key auth
     if (this.apiKey) {
@@ -539,10 +553,24 @@ export class HealthServer {
     res: ServerResponse,
   ): boolean {
     const required = ENDPOINT_PERMISSIONS[normalizedUrl];
-    // If no permission mapping exists for this URL, it's not a protected endpoint.
-    // Let it through to the routing layer, which will return 404 for unknown paths.
-    // This avoids returning 403 for paths that should be 404.
-    if (!required) return true;
+    // Deny-by-default for /v1/* routes: if no RBAC permission mapping exists,
+    // the endpoint is not explicitly allowed. This prevents silently exposing
+    // future sensitive endpoints added without updating the permission map.
+    // Non-v1 routes (healthz, readyz, metrics) pass through to the 404 handler.
+    if (!required) {
+      if (normalizedUrl.startsWith("/v1/")) {
+        this._auditAuth(
+          actor.id,
+          "auth.failure",
+          actor.tenantId,
+          `No RBAC permission mapping for ${normalizedUrl}`,
+        );
+        this._authFailureCount++;
+        this._sendForbidden(res, `No RBAC permission mapping for ${normalizedUrl}`);
+        return false;
+      }
+      return true;
+    }
     const result = authorize(actor, required);
     if (!result.ok) {
       this._auditAuth(

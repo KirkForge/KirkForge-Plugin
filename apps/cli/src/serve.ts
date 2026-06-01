@@ -212,12 +212,19 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
  * Format: "admin:admins,operator:operators,developer:developers,viewer:viewers"
  * Maps OIDC group names to KirkForge roles.
  */
+const VALID_ROLES = new Set(["admin", "operator", "developer", "viewer"]);
+
 function parseGroupRoleMapping(envValue: string | undefined): GroupRoleMapping | undefined {
   if (!envValue) return undefined;
   const mapping: GroupRoleMapping = {};
   for (const pair of envValue.split(",")) {
     const [role, group] = pair.split(":").map((s) => s.trim());
     if (role && group) {
+      if (!VALID_ROLES.has(role)) {
+        throw new Error(
+          `Invalid role "${role}" in OIDC_GROUP_ROLE_MAP. Valid roles: admin, operator, developer, viewer`,
+        );
+      }
       mapping[group] = role as Role;
     }
   }

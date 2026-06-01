@@ -564,7 +564,9 @@ export function verifySignedPolicy(
     // Previous implementation used SHA256(payload‖key) which is vulnerable
     // to length-extension attacks and used non-constant-time comparison.
     const expected = createHmac("sha256", verificationKey).update(payload).digest("base64");
-    if (!timingSafeEqual(Buffer.from(bundle.signature, "base64"), Buffer.from(expected, "base64"))) {
+    const actualBuf = Buffer.from(bundle.signature, "base64");
+    const expectedBuf = Buffer.from(expected, "base64");
+    if (actualBuf.length !== expectedBuf.length || !timingSafeEqual(actualBuf, expectedBuf)) {
       return err(
         new PolicySignatureError(
           "HMAC-SHA256 signature verification failed. The policy may have been modified or the wrong key was used.",
