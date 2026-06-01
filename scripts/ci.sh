@@ -11,7 +11,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; DIM='
 PASS=0; FAIL=0; SKIP=0; WARN=0
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
-TIMEOUT="${CI_CLEANDEV_TIMEOUT:-180}"
+TIMEOUT="${CI_CLEANDEV_TIMEOUT:-600}"
 REQUIRE_TRUFFLEHOG="${CI_CLEANDEV_REQUIRE_TRUFFLEHOG:-0}"
 CI_MODE="normal"
 CONFIG_FILE=""
@@ -363,7 +363,7 @@ if is_docker_project; then
     if [ "$CI_MODE" = "fast" ]; then
         skip_step "docker build" "fast mode"
     elif command -v docker >/dev/null 2>&1; then
-        run_step "docker build" docker build -t "ci-cleandev-$PROJECT_NAME" .
+        run_step "docker build" docker build -t "ci-cleandev-$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')" .
     else
         skip_step "docker build" "docker not available"
     fi
