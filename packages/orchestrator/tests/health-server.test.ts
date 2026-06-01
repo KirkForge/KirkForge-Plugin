@@ -349,3 +349,114 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
   });
 
 });
+
+// ── Regression tests: RBAC deny-by-default for unmapped /v1/* routes ───────
+//
+// These verify that unmapped /v1/* routes are denied with 403, and that
+// the OIDC→API key fallback gate works as configured.
+
+describe("HealthServer RBAC deny-by-default regression", { sequential: true, timeout: 30000 }, () => {
+  let orchestrator: Orchestrator;
+  let server: HealthServer;
+  let port: number;
+
+  async function startServer(opts: Record<string, unknown> = {}): Promise<void> {
+    await new Promise((r) => setTimeout(r, 100));
+    try { await server?.stop(); } catch { /* best effort */ }
+    orchestrator = createTestOrchestrator();
+    server = new HealthServer(orchestrator, { port: 0, ...opts });
+    await server.start();
+    server.ready = true;
+    const internal = server as unknown as { server: http.Server };
+    const addr = internal.server.address() as { port: number };
+    port = addr.port;
+  }
+
+  async function stopServer(): Promise<void> {
+    try { await server?.stop(); } catch { /* best effort */ }
+  }
+
+  it("denies unmapped /v1/* routes with 403 even with valid auth", async () => {
+    await startServer({ apiKey: "test-key" });
+    try {
+      // /v1/unknown-endpoint is not in ENDPOINT_PERMISSIONS
+      const res = await httpRequest(port, "/v1/unknown-endpoint", { Authorization: "Bearer test-key" });
+      expect(res.status).toBe(403);
+      const body = JSON.parse(res.body);
+      expect(body.error.message).toContain("No RBAC permission mapping");
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("allows unmapped non-v1 routes (e.g. /healthz) with valid auth", async () => {
+    await startServer({ apiKey: "test-key" });
+    try {
+      // /healthz is a known mapped endpoint — should work
+      const res = await httpRequest(port, "/healthz", { Authorization: "Bearer test-key" });
+      expect(res.status).toBe(200);
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("returns 401 when requireAuth is true and no auth provider is configured", async () => {
+    await startServer({ requireAuth: true });
+    try {
+      // No apiKey, no oidcConfig, requireAuth=true → should deny
+      const res = await httpRequest(port, "/healthz");
+      expect(res.status).toBe(401);
+      const body = JSON.parse(res.body);
+      expect(body.error.message).toContain("Auth is required");
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("OIDC→API key fallback: denies when allowApiKeyFallbackWithOidc is false", async () => {
+    // Set up OIDC config pointing at a fake issuer and an API key
+    // With allowApiKeyFallbackWithOidc=false (default in enterprise), a bad JWT
+    // should not fall through to API key auth
+    await startServer({
+      apiKey: "fallback-key-32chars!!",
+      oidcConfig: {
+        issuer: "https://fake-issuer.example.com",
+        audience: "kirkforge-api",
+        jwksUri: "https://fake-issuer.example.com/.well-known/jwks.json",
+      },
+      allowApiKeyFallbackWithOidc: false,
+    });
+    try {
+      // Send a clearly-invalid JWT-like bearer token
+      const res = await httpRequest(port, "/healthz", {
+        Authorization: "Bearer ey.fakejwt.signature",
+      });
+      // Should get 403 (JWT failed, API key fallback disabled)
+      expect(res.status).toBe(403);
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("OIDC→API key fallback: allows when allowApiKeyFallbackWithOidc is true", async () => {
+    // With allowApiKeyFallbackWithOidc=true, a bad JWT should fall through to API key
+    await startServer({
+      apiKey: "fallback-key-32chars!!",
+      oidcConfig: {
+        issuer: "https://fake-issuer.example.com",
+        audience: "kirkforge-api",
+        jwksUri: "https://fake-issuer.example.com/.well-known/jwks.json",
+      },
+      allowApiKeyFallbackWithOidc: true,
+    });
+    try {
+      // Send the API key as a bearer token — should succeed via fallback
+      const res = await httpRequest(port, "/healthz", {
+        Authorization: "Bearer fallback-key-32chars!!",
+      });
+      expect(res.status).toBe(200);
+    } finally {
+      await stopServer();
+    }
+  });
+});

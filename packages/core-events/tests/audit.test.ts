@@ -214,3 +214,68 @@ describe("SyslogAuditSink", () => {
     await sink.close();
   });
 });
+
+// ── Regression tests: audit chain tamper detection ────────────────────────
+//
+// These verify that the chain hash covers all critical fields, so tampering
+// with outcome, reason, or nested metadata breaks verification.
+
+import { chainHashOf } from "../src/audit.js";
+import type { AuditEvent } from "../src/audit.js";
+
+describe("chainHashOf regression: tamper detection", () => {
+  const baseEvent: AuditEvent = {
+    id: "evt-1",
+    sequence: 1,
+    timestamp: "2026-01-01T00:00:00Z",
+    action: "policy.deny",
+    outcome: "deny",
+    actorId: "user1",
+    tenantId: "t1",
+    reason: "Tool not allowed",
+    chainHash: "",
+  };
+
+  it("changing outcome from deny to success breaks the chain", () => {
+    const original = chainHashOf("prev", baseEvent);
+    const tampered = chainHashOf("prev", { ...baseEvent, outcome: "success" });
+    expect(original).not.toBe(tampered);
+  });
+
+  it("changing reason breaks the chain", () => {
+    const original = chainHashOf("prev", baseEvent);
+    const tampered = chainHashOf("prev", { ...baseEvent, reason: "Approved by admin" });
+    expect(original).not.toBe(tampered);
+  });
+
+  it("changing nested metadata breaks the chain", () => {
+    const withMeta = { ...baseEvent, metadata: { ctx: { ip: "10.0.0.1", path: "/verify" } } };
+    const original = chainHashOf("prev", withMeta);
+    const tampered = chainHashOf("prev", { ...withMeta, metadata: { ctx: { ip: "10.0.0.2", path: "/verify" } } });
+    expect(original).not.toBe(tampered);
+  });
+
+  it("reordering nested metadata keys does not break the chain (canonical)", () => {
+    const meta1 = { b: 2, a: 1 };
+    const meta2 = { a: 1, b: 2 };
+    const hash1 = chainHashOf("prev", { ...baseEvent, metadata: meta1 });
+    const hash2 = chainHashOf("prev", { ...baseEvent, metadata: meta2 });
+    expect(hash1).toBe(hash2);
+  });
+
+  it("deeply nested metadata is included in hash", () => {
+    const withDeep = { ...baseEvent, metadata: { level1: { level2: { level3: "secret" } } } };
+    const original = chainHashOf("prev", withDeep);
+    const tampered = chainHashOf("prev", { ...withDeep, metadata: { level1: { level2: { level3: "tampered" } } } });
+    expect(original).not.toBe(tampered);
+  });
+
+  it("null vs undefined metadata produces consistent hash", () => {
+    const withNull = { ...baseEvent, metadata: null };
+    const withUndefined = { ...baseEvent };
+    const hashNull = chainHashOf("prev", withNull as any);
+    const hashUndefined = chainHashOf("prev", withUndefined);
+    // Both should produce the same hash (canonicalJson maps both to "null")
+    expect(hashNull).toBe(hashUndefined);
+  });
+});

@@ -453,13 +453,15 @@ export function chainHashOf(prevHash: string, event: AuditEvent): string {
 }
 
 /** Recursively sort object keys and stringify, producing a deterministic
- *  JSON representation that includes all nested values. */
-function canonicalJson(obj: unknown): string {
+ *  JSON representation that includes all nested values. Guards against
+ *  circular references and excessive depth to avoid stack overflow. */
+function canonicalJson(obj: unknown, depth = 0): string {
+  if (depth > 32) return '"<max-depth>"';
   if (obj === null || obj === undefined) return "null";
   if (typeof obj !== "object") return JSON.stringify(obj);
-  if (Array.isArray(obj)) return "[" + (obj as unknown[]).map(canonicalJson).join(",") + "]";
+  if (Array.isArray(obj)) return "[" + (obj as unknown[]).map((v) => canonicalJson(v, depth + 1)).join(",") + "]";
   const sorted = Object.keys(obj as Record<string, unknown>).sort();
-  return "{" + sorted.map((k) => JSON.stringify(k) + ":" + canonicalJson((obj as Record<string, unknown>)[k])).join(",") + "}";
+  return "{" + sorted.map((k) => JSON.stringify(k) + ":" + canonicalJson((obj as Record<string, unknown>)[k], depth + 1)).join(",") + "}";
 }
 
 // ── Syslog audit sink (CEF/SIEM integration) ──────────────────────────────
