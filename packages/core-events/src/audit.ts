@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import {
   appendFileSync,
   existsSync,
@@ -142,6 +142,9 @@ export interface AuditSinkConfig {
     /** Server name for SNI. Default: syslogHost. */
     servername?: string;
   };
+  /** HMAC key for chain integrity. When set, chain hashes use HMAC-SHA256.
+   *  Also read from KIRKFORGE_AUDIT_KEY env var. */
+  hmacKey?: string;
 }
 
 export interface FileAuditSinkConfig {
@@ -153,6 +156,10 @@ export interface FileAuditSinkConfig {
   maxFileSizeBytes?: number;
   /** Maximum rotated files to keep (file sink only). Default: 10. */
   maxRotatedFiles?: number;
+  /** HMAC key for chain integrity. When set, chain hashes use HMAC-SHA256
+   *  instead of plain SHA-256, preventing recomputation by anyone without the key.
+   *  Also read from KIRKFORGE_AUDIT_KEY env var. */
+  hmacKey?: string;
 }
 
 // ── File audit sink with rotation ────────────────────────────────────────────
@@ -171,12 +178,14 @@ export class FileAuditSink implements AuditSink {
   private maxFileSizeBytes: number;
   private maxRotatedFiles: number;
 
+  private hmacKey?: string;
   constructor(config: FileAuditSinkConfig) {
     this.filePath = resolve(config.filePath);
     this.flushSize = config.flushInterval ?? 100;
     this.maxFileSizeBytes = config.maxFileSizeBytes ?? 50 * 1024 * 1024; // 50 MB
     this.maxRotatedFiles = config.maxRotatedFiles ?? 10;
-    this.lastHash = initialHash();
+    this.hmacKey = config.hmacKey ?? process.env["KIRKFORGE_AUDIT_KEY"];
+    this.lastHash = initialHash(this.hmacKey);
     // Ensure directory exists
     const dir = dirname(this.filePath);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -224,7 +233,7 @@ export class FileAuditSink implements AuditSink {
 
       const lines: string[] = [];
       for (const event of this.buffer) {
-        const chainHash = chainHashOf(this.lastHash, event);
+        const chainHash = chainHashOf(this.lastHash, event, this.hmacKey);
         const sealed: AuditEvent = { ...event, chainHash };
         lines.push(JSON.stringify(sealed));
         this.lastHash = chainHash;
@@ -252,12 +261,14 @@ export class HttpAuditSink implements AuditSink {
   private buffer: AuditEvent[] = [];
   private flushSize: number;
   private lastHash: string;
+  private hmacKey?: string;
 
-  constructor(config: { url: string; headers?: Record<string, string>; flushInterval?: number }) {
+  constructor(config: { url: string; headers?: Record<string, string>; flushInterval?: number; hmacKey?: string }) {
     this.url = config.url;
     this.headers = { "Content-Type": "application/json", ...(config.headers ?? {}) };
     this.flushSize = config.flushInterval ?? 50;
-    this.lastHash = initialHash();
+    this.hmacKey = config.hmacKey ?? process.env["KIRKFORGE_AUDIT_KEY"];
+    this.lastHash = initialHash(this.hmacKey);
   }
 
   async write(event: AuditEvent): Promise<boolean> {
@@ -273,7 +284,7 @@ export class HttpAuditSink implements AuditSink {
     const events = this.buffer.splice(0);
     try {
       const sealed: AuditEvent[] = events.map((event) => {
-        const chainHash = chainHashOf(this.lastHash, event);
+        const chainHash = chainHashOf(this.lastHash, event, this.hmacKey);
         this.lastHash = chainHash;
         return { ...event, chainHash };
       });
@@ -302,13 +313,15 @@ export class MemoryAuditSink implements AuditSink {
   readonly name = "memory";
   private events: AuditEvent[] = [];
   private lastHash: string;
+  private hmacKey?: string;
 
-  constructor() {
-    this.lastHash = initialHash();
+  constructor(hmacKey?: string) {
+    this.hmacKey = hmacKey ?? process.env["KIRKFORGE_AUDIT_KEY"];
+    this.lastHash = initialHash(this.hmacKey);
   }
 
   async write(event: AuditEvent): Promise<boolean> {
-    const chainHash = chainHashOf(this.lastHash, event);
+    const chainHash = chainHashOf(this.lastHash, event, this.hmacKey);
     this.events.push({ ...event, chainHash });
     this.lastHash = chainHash;
     return true;
@@ -329,9 +342,9 @@ export class MemoryAuditSink implements AuditSink {
 
   /** Verify chain integrity (for testing). */
   verifyChain(): boolean {
-    let prev = initialHash();
+    let prev = initialHash(this.hmacKey);
     for (const event of this.events) {
-      const expected = chainHashOf(prev, event);
+      const expected = chainHashOf(prev, event, this.hmacKey);
       if (event.chainHash !== expected) return false;
       prev = event.chainHash;
     }
@@ -435,11 +448,20 @@ export function createAuditSink(config: AuditSinkConfig): AuditSink {
 
 // ── Chain hash helpers ─────────────────────────────────────────────────────
 
-export function initialHash(): string {
-  return createHash("sha256").update("kirkforge-audit-genesis").digest("hex").slice(0, 24);
+/**
+ * Generate the initial chain hash (genesis hash).
+ * When an HMAC key is provided, the chain uses HMAC-SHA256 for tamper-proofing,
+ * preventing recomputation by anyone without the key. Without a key, the chain
+ * uses plain SHA-256 and relies on WORM storage for tamper-evidence.
+ */
+export function initialHash(hmacKey?: string): string {
+  if (hmacKey) {
+    return createHmac("sha256", hmacKey).update("kirkforge-audit-genesis").digest("hex");
+  }
+  return createHash("sha256").update("kirkforge-audit-genesis").digest("hex");
 }
 
-export function chainHashOf(prevHash: string, event: AuditEvent): string {
+export function chainHashOf(prevHash: string, event: AuditEvent, hmacKey?: string): string {
   // Full canonical payload: include outcome, reason, and metadata so that
   // tampering with any audit field breaks the chain. Previous versions
   // excluded outcome/reason/metadata, allowing a denied event to be
@@ -449,6 +471,9 @@ export function chainHashOf(prevHash: string, event: AuditEvent): string {
   // top-level keys and dropped all nested object contents.
   const metadataJson = canonicalJson(event.metadata ?? {});
   const payload = `${prevHash}|${event.action}|${event.outcome}|${event.actorId}|${event.tenantId}|${event.reason}|${event.timestamp}|${event.sequence}|${metadataJson}`;
+  if (hmacKey) {
+    return createHmac("sha256", hmacKey).update(payload, "utf-8").digest("hex");
+  }
   return createHash("sha256").update(payload, "utf-8").digest("hex");
 }
 
@@ -493,6 +518,9 @@ export interface SyslogAuditSinkConfig {
     /** Server name for SNI. Default: host. */
     servername?: string;
   };
+  /** HMAC key for chain integrity. When set, chain hashes use HMAC-SHA256.
+   *  Also read from KIRKFORGE_AUDIT_KEY env var. */
+  hmacKey?: string;
 }
 
 /**
@@ -519,6 +547,7 @@ export class SyslogAuditSink implements AuditSink {
   private buffer: AuditEvent[] = [];
   private flushSize: number;
   private lastHash: string;
+  private hmacKey?: string;
   private socket: ReturnType<typeof import("node:dgram").createSocket> | null = null;
   private tlsSocket: TLSSocket | Socket | null = null;
   private tlsConfig: SyslogAuditSinkConfig["tls"];
@@ -532,7 +561,8 @@ export class SyslogAuditSink implements AuditSink {
     this.appName = config.appName ?? "kirkforge";
     this.flushSize = config.flushInterval ?? 50;
     this.tlsConfig = config.tls;
-    this.lastHash = initialHash();
+    this.hmacKey = config.hmacKey ?? process.env["KIRKFORGE_AUDIT_KEY"];
+    this.lastHash = initialHash(this.hmacKey);
   }
 
   async write(event: AuditEvent): Promise<boolean> {
@@ -548,7 +578,7 @@ export class SyslogAuditSink implements AuditSink {
     const events = this.buffer.splice(0);
     let allOk = true;
     for (const event of events) {
-      const chainHash = chainHashOf(this.lastHash, event);
+      const chainHash = chainHashOf(this.lastHash, event, this.hmacKey);
       this.lastHash = chainHash;
       const message = this.formatMessage({ ...event, chainHash });
       const ok = await this.send(message);
@@ -747,6 +777,9 @@ export interface WormAuditSinkConfig {
   fsyncAfterFlush?: boolean;
   /** Whether to verify chain integrity on each write. Default: true. */
   verifyOnWrite?: boolean;
+  /** HMAC key for chain integrity. When set, chain hashes use HMAC-SHA256.
+   *  Also read from KIRKFORGE_AUDIT_KEY env var. */
+  hmacKey?: string;
 }
 
 export class WormAuditSink implements AuditSink {
@@ -760,6 +793,7 @@ export class WormAuditSink implements AuditSink {
   private buffer: AuditEvent[] = [];
   private flushSize: number;
   private lastHash: string;
+  private hmacKey?: string;
   private currentSegment: number;
   private currentSegmentPath: string;
   private writeCount = 0;
@@ -772,7 +806,8 @@ export class WormAuditSink implements AuditSink {
     this.fsyncAfterFlush = config.fsyncAfterFlush ?? true;
     this.verifyOnWrite = config.verifyOnWrite ?? true;
     this.flushSize = 50;
-    this.lastHash = initialHash();
+    this.hmacKey = config.hmacKey ?? process.env["KIRKFORGE_AUDIT_KEY"];
+    this.lastHash = initialHash(this.hmacKey);
     this.currentSegment = 0;
     this.currentSegmentPath = "";
 
@@ -837,7 +872,7 @@ export class WormAuditSink implements AuditSink {
 
   async write(event: AuditEvent): Promise<boolean> {
     // Compute chain hash before buffering
-    const chainHash = chainHashOf(this.lastHash, event);
+    const chainHash = chainHashOf(this.lastHash, event, this.hmacKey);
     const sealed: AuditEvent = { ...event, chainHash };
     this.lastHash = chainHash;
 
@@ -845,7 +880,7 @@ export class WormAuditSink implements AuditSink {
     if (this.verifyOnWrite && this.buffer.length > 0) {
       const prevEvent = this.buffer[this.buffer.length - 1];
       if (prevEvent) {
-        const expected = chainHashOf(prevEvent.chainHash, event);
+        const expected = chainHashOf(prevEvent.chainHash, event, this.hmacKey);
         if (sealed.chainHash !== expected) {
           // Chain integrity violation — this should never happen
           throw new Error(
@@ -1011,14 +1046,14 @@ export class WormAuditSink implements AuditSink {
         .filter((f) => f.startsWith(this.filePrefix) && f.endsWith(".jsonl"))
         .sort();
 
-      let prevHash = initialHash();
+      let prevHash = initialHash(this.hmacKey);
       for (const file of files) {
         const content = readFileSync(join(this.directory, file), "utf-8").trim();
         if (!content) continue;
         for (const line of content.split("\n")) {
           try {
             const event = JSON.parse(line);
-            const expected = chainHashOf(prevHash, event);
+            const expected = chainHashOf(prevHash, event, this.hmacKey);
             if (event.chainHash !== expected) return false;
             prevHash = event.chainHash;
           } catch (_e) {

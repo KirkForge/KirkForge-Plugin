@@ -279,3 +279,60 @@ describe("chainHashOf regression: tamper detection", () => {
     expect(hashNull).toBe(hashUndefined);
   });
 });
+
+import { chainHashOf as _chainHashOf, initialHash as _initialHash, MemoryAuditSink as _MemoryAuditSink, type AuditEvent as _AuditEvent } from "../src/audit.js";
+
+// ── HMAC-keyed audit chain ────────────────────────────────────────────────
+//
+// Verify that when an HMAC key is provided, the chain uses HMAC-SHA256
+// and produces different hashes than plain SHA-256.
+
+describe("HMAC-keyed audit chain", () => {
+  it("produces different chain hashes with HMAC key vs without", () => {
+    const event: _AuditEvent = {
+      id: "hmac-test-1",
+      sequence: 1,
+      timestamp: "2026-01-01T00:00:00Z",
+      action: "auth.success",
+      outcome: "success",
+      actorId: "user1",
+      tenantId: "t1",
+      reason: "test",
+      chainHash: "",
+    };
+
+    const plainHash = _chainHashOf(_initialHash(), event);
+    const hmacHash = _chainHashOf(_initialHash("my-secret-key"), event, "my-secret-key");
+    expect(plainHash).not.toBe(hmacHash);
+    expect(plainHash.length).toBe(64); // full SHA-256 hex
+    expect(hmacHash.length).toBe(64); // full HMAC-SHA256 hex
+  });
+
+  it("HMAC key produces different genesis hash", () => {
+    const plain = _initialHash();
+    const keyed = _initialHash("test-key");
+    expect(plain).not.toBe(keyed);
+    expect(plain.length).toBe(64);
+    expect(keyed.length).toBe(64);
+  });
+
+  it("MemoryAuditSink uses HMAC key for chain integrity", () => {
+    const sink = new _MemoryAuditSink("test-hmac-key");
+    const event: _AuditEvent = {
+      id: "hmac-test-2",
+      sequence: 1,
+      timestamp: new Date().toISOString(),
+      action: "auth.success",
+      outcome: "success",
+      actorId: "user1",
+      tenantId: "t1",
+      reason: "test",
+      chainHash: "",
+    };
+    sink.write(event);
+    const events = sink.getEvents();
+    expect(events[0]!.chainHash).toBeTruthy();
+    // HMAC chain should verify
+    expect(sink.verifyChain()).toBe(true);
+  });
+});
