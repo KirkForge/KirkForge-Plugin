@@ -5,7 +5,13 @@
   <img src="docs/assets/kirkforge-banner.png" alt="KirkForge — Deterministic verification for coding agents" width="100%">
 </picture>
 
+[![CI](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/ci.yml)
+[![Release](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/release.yml/badge.svg)](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/release.yml)
+[![Docker](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/docker.yml/badge.svg)](https://github.com/KirkForge/KirkForge-Plugin/actions/workflows/docker.yml)
+[![npm version](https://img.shields.io/npm/v/@kirkforge/plugin?style=for-the-badge&label=%40kirkforge%2Fplugin)](https://www.npmjs.com/package/@kirkforge/plugin)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge)](https://github.com/KirkForge/KirkForge-Plugin/blob/main/LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 
 **Deterministic verification plugin for coding agents.** KirkForge is not a standalone agent. It plugs into Codex, Claude Code, OpenCode, or any agent stack as a verification, correction, and routing layer.
 
