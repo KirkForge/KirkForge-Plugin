@@ -69,7 +69,7 @@
 
 ### Environment/config hygiene
 
-- **Bootstrap no longer auto-loads `.env`/`.55ndeperc`**: Config loading is explicit. No implicit process.cwd file reads at import time. Removes a source of non-deterministic behavior.
+- **Bootstrap no longer auto-loads `.env`/`.kirkforcerc`**: Config loading is explicit. No implicit process.cwd file reads at import time. Removes a source of non-deterministic behavior.
 - **ConfigService.load() no longer mutates `process.env`**: The `KIRKFORGE_CONFIG` key is no longer written to the global environment. Callers manage their own config path tracking.
 - **ConfigService.getPath() workspace containment**: Now validates that resolved paths stay within the workspace directory, throwing on escape attempts.
 

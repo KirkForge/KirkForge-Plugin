@@ -27,7 +27,8 @@ import {
   recordObservation,
   recallRoutingBias,
 } from "@kirkforge/plugin";
-import { MemoryStore } from "@kirkforge/memory-palace";
+import { MemoryStore, InMemoryAdapter } from "@kirkforge/memory-palace";
+import type { ReducedStatePacket } from "@kirkforge/correction-core";
 import { z } from "zod";
 
 // ── Runtime input validators ────────────────────────────────────────────────
@@ -74,14 +75,14 @@ const RecallRoutingBiasSchema = z.object({
 });
 
 const BuildCorrectionPromptSchema = z.object({
-  packet: z.record(z.unknown()),
+  packet: z.record(z.string(), z.unknown()),
   language: z.string().optional(),
   maxTokens: z.number().int().positive().optional(),
 });
 
 // ── Shared MemoryStore ─────────────────────────────────────────────────────
 
-const memoryStore = new MemoryStore({ backend: "memory" });
+const memoryStore = new MemoryStore(new InMemoryAdapter());
 
 // ── Tool definitions ───────────────────────────────────────────────────────
 
@@ -221,7 +222,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const parsed = validateArgs(args, RecordObservationSchema, name);
         if ("error" in parsed)
           return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
-        const result = await recordObservation(parsed, memoryStore);
+        const result = await recordObservation(parsed as any, memoryStore);
         if (!result.ok) {
           return {
             content: [{ type: "text", text: JSON.stringify({ error: result.error.message }) }],
@@ -253,7 +254,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const parsed = validateArgs(args, BuildCorrectionPromptSchema, name);
         if ("error" in parsed)
           return { content: [{ type: "text", text: JSON.stringify(parsed) }], isError: true };
-        const prompt = buildCorrectionPrompt(parsed.packet, {
+        const prompt = buildCorrectionPrompt(parsed.packet as unknown as ReducedStatePacket, {
           language: parsed.language,
           maxTokens: parsed.maxTokens,
         });

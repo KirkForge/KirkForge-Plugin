@@ -10,12 +10,12 @@ Follow the rules in `REPORULES.md`. In short:
 
 ## Pull Request Process
 
-1. Fork the repo and create a feature branch from `master`.
+1. Fork the repo and create a feature branch from `main`.
 2. Run `npm run ci` locally before pushing (build → typecheck → lint → test → adapter test).
 3. Ensure new code is covered by tests (aim for 80%+ branch/line coverage on changed packages).
 4. Update documentation if the public API (`packages/plugin/src/index.ts`) changes.
 5. Add a changelog entry under the appropriate version header.
-6. Open a PR against `master` with a descriptive title and body.
+6. Open a PR against `main` with a descriptive title and body.
 7. All CI checks must pass before merge.
 
 ## Development Setup
@@ -30,7 +30,7 @@ npm run build
 ### Running Tests
 
 ```bash
-npm test              # all 525+ tests
+npm test              # all 970 tests
 npm run test:coverage # with coverage
 npm run test:adapter  # shell adapter smoke tests
 npm run ci            # full CI gate

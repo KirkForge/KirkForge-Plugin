@@ -29,7 +29,7 @@ describe("e2e smoke — real language tooling", () => {
     const eslint = eslintBin();
     if (!hasTool(eslint)) return;
 
-    const dir = mkdtempSync(join(tmpdir(), "55n-smoke-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-smoke-"));
     try {
       writeFileSync(join(dir, "bad.js"), "const x = 1;\nconst y = 2;\n");
       writeFileSync(
@@ -71,7 +71,7 @@ describe("e2e smoke — real language tooling", () => {
     const tsc = tscBin();
     if (!hasTool(tsc)) return;
 
-    const dir = mkdtempSync(join(tmpdir(), "55n-smoke-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-smoke-"));
     try {
       writeFileSync(join(dir, "good.ts"), "export const x: number = 42;\n");
       writeFileSync(
@@ -99,7 +99,7 @@ describe("e2e smoke — real language tooling", () => {
   it("ruff detects Python issues", () => {
     if (!hasTool("ruff")) return;
 
-    const dir = mkdtempSync(join(tmpdir(), "55n-smoke-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-smoke-"));
     try {
       writeFileSync(join(dir, "bad.py"), "import os\nimport sys\nx=1\n");
 

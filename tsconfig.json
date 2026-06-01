@@ -3,8 +3,12 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "types": ["node"],
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -17,10 +21,17 @@
     "composite": true
   },
   "files": [],
-  "exclude": ["node_modules", "dist", "**/tests"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/tests"
+  ],
   "references": [
     {
       "path": "apps/cli"
+    },
+    {
+      "path": "apps/mcp"
     },
     {
       "path": "packages/agent-core"
@@ -48,6 +59,9 @@
     },
     {
       "path": "packages/core-rbac"
+    },
+    {
+      "path": "packages/core-sandbox"
     },
     {
       "path": "packages/core-schemas"
