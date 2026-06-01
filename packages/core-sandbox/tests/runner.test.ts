@@ -341,8 +341,8 @@ describe("ALLOW_UNSAFE_HOST_SANDBOX gate", () => {
   // In dev mode, runSandboxed works but is flagged as unsafe.
 
   it("runSandboxed is allowed in dev mode", async () => {
-    // Without 55NDEEP_ENTERPRISE_MODE, runSandboxed should work
-    expect(process.env["55NDEEP_ENTERPRISE_MODE"]).not.toBe("1");
+    // Without KIRKFORGE_ENTERPRISE_MODE, runSandboxed should work
+    expect(process.env["KIRKFORGE_ENTERPRISE_MODE"]).not.toBe("1");
     const result = await runSandboxed({
       command: "echo",
       args: ["dev-mode"],

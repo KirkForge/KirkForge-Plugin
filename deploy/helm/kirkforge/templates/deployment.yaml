@@ -46,7 +46,7 @@ spec:
             - name: NODE_ENV
               value: "production"
             {{- if .Values.enterprise.enabled }}
-            - name: 55NDEEP_ENTERPRISE_MODE
+            - name: KIRKFORGE_ENTERPRISE_MODE
               value: "1"
             - name: MEMORY_BACKEND
               value: {{ .Values.enterprise.memoryBackend | quote }}

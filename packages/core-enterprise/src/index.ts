@@ -3,7 +3,7 @@ import { KirkForgeError } from "@kirkforge/core-errors";
 
 // ── Enterprise mode ────────────────────────────────────────────────────────
 //
-// When 55NDEEP_ENTERPRISE_MODE=1, the system MUST fail to start unless all
+// When KIRKFORGE_ENTERPRISE_MODE=1, the system MUST fail to start unless all
 // required enterprise controls are configured. This prevents the silent-
 // fallback-to-dev-mode behavior that would be catastrophic in a shared
 // multi-tenant deployment.
@@ -18,7 +18,7 @@ import { KirkForgeError } from "@kirkforge/core-errors";
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface EnterpriseConfig {
-  /** Whether enterprise mode is active. Read from 55NDEEP_ENTERPRISE_MODE env. */
+  /** Whether enterprise mode is active. Read from KIRKFORGE_ENTERPRISE_MODE env. */
   enabled: boolean;
   /** Auth configuration. */
   auth: AuthConfig;
@@ -83,7 +83,7 @@ export class EnterpriseModeError extends KirkForgeError {
 
 // ── Enterprise mode detection ──────────────────────────────────────────────
 
-const ENTERPRISE_ENV_KEY = "55NDEEP_ENTERPRISE_MODE";
+const ENTERPRISE_ENV_KEY = "KIRKFORGE_ENTERPRISE_MODE";
 
 /** Check if enterprise mode is enabled via environment variable. */
 export function isEnterpriseMode(envOverride?: Record<string, string | undefined>): boolean {
@@ -105,9 +105,9 @@ export function validateEnterpriseMode(
   const violations: EnterpriseViolation[] = [];
 
   // ── Auth ──────────────────────────────────────────────────────────────
-  const oidcIssuer = e.OIDC_ISSUER ?? e["55NDEEP_OIDC_ISSUER"];
-  const oidcAudience = e.OIDC_AUDIENCE ?? e["55NDEEP_OIDC_AUDIENCE"];
-  const apiKey = e.HEALTH_API_KEY ?? e["55NDEEP_API_KEY"];
+  const oidcIssuer = e.OIDC_ISSUER ?? e["KIRKFORGE_OIDC_ISSUER"];
+  const oidcAudience = e.OIDC_AUDIENCE ?? e["KIRKFORGE_OIDC_AUDIENCE"];
+  const apiKey = e.HEALTH_API_KEY ?? e["KIRKFORGE_API_KEY"];
   const authConfigured = !!(oidcIssuer || (apiKey && apiKey.length >= 32));
   const authConfig: AuthConfig = {
     oidcIssuer,
@@ -135,7 +135,7 @@ export function validateEnterpriseMode(
   }
 
   // ── Audit ────────────────────────────────────────────────────────────
-  const auditSinkType = e.AUDIT_SINK_TYPE ?? e["55NDEEP_AUDIT_SINK"] ?? "none";
+  const auditSinkType = e.AUDIT_SINK_TYPE ?? e["KIRKFORGE_AUDIT_SINK"] ?? "none";
   const auditFilePath = e.AUDIT_FILE_PATH;
   const auditHttpUrl = e.AUDIT_HTTP_URL;
   const auditConfigured =
@@ -162,8 +162,8 @@ export function validateEnterpriseMode(
   }
 
   // ── Policy ───────────────────────────────────────────────────────────
-  const policyFilePath = e.POLICY_FILE_PATH ?? e["55NDEEP_POLICY_FILE"];
-  const policyServiceUrl = e.POLICY_SERVICE_URL ?? e["55NDEEP_POLICY_URL"];
+  const policyFilePath = e.POLICY_FILE_PATH ?? e["KIRKFORGE_POLICY_FILE"];
+  const policyServiceUrl = e.POLICY_SERVICE_URL ?? e["KIRKFORGE_POLICY_URL"];
   const policyConfigured = !!(policyFilePath || policyServiceUrl);
   const policyConfig: PolicyConfig = {
     filePath: policyFilePath,
@@ -183,7 +183,7 @@ export function validateEnterpriseMode(
   }
 
   // ── Storage ──────────────────────────────────────────────────────────
-  const storageBackend = e.MEMORY_BACKEND ?? e["55NDEEP_MEMORY_BACKEND"] ?? "memory";
+  const storageBackend = e.MEMORY_BACKEND ?? e["KIRKFORGE_MEMORY_BACKEND"] ?? "memory";
   const isDurable = storageBackend === "sqlite";
   const storageConfig: StorageConfig = {
     backend: storageBackend as StorageConfig["backend"],

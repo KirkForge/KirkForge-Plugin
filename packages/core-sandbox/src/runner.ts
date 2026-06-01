@@ -166,8 +166,8 @@ export async function runSandboxed(
   // the safe default. ALLOW_UNSAFE_HOST_SANDBOX=1 opts into the bare-host
   // runner for trusted tool execution — mirrors the ALLOW_UNSAFE_VALIDATOR_SHELL
   // pattern. In enterprise mode, this gate is always enforced.
-  const isEnterprise = process.env["55NDEEP_ENTERPRISE_MODE"] === "1"
-    || process.env["55NDEEP_ENTERPRISE_MODE"] === "true";
+  const isEnterprise = process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1"
+    || process.env["KIRKFORGE_ENTERPRISE_MODE"] === "true";
   const unsafeHostSandbox = process.env.ALLOW_UNSAFE_HOST_SANDBOX === "1";
   if (isEnterprise && !unsafeHostSandbox) {
     // In enterprise mode, the bare-host runner is denied unless explicitly

@@ -1,4 +1,4 @@
-# ── 55NDeep: Deterministic delegation plugin ──────────────────────────────
+# ── KirkForge: Deterministic delegation plugin ──────────────────────────────
 # Multi-stage build for minimal production image.
 
 # Stage 1: Build
@@ -58,7 +58,7 @@ RUN npm prune --production
 FROM node:22-alpine
 WORKDIR /app
 
-RUN addgroup -S 55ndeep && adduser -S 55ndeep -G 55ndeep
+RUN addgroup -S kirkforge && adduser -S kirkforge -G kirkforge
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
@@ -70,7 +70,7 @@ COPY healthcheck.js ./
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD node /app/healthcheck.js
 
-USER 55ndeep
+USER kirkforge
 EXPOSE 9090
 
 ENV NODE_ENV=production

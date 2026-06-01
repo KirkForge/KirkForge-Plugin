@@ -57,3 +57,11 @@ credentials.json
 *.db-shm
 *.db-wal
 *.sqlite
+
+# --- Dev-only files (never push to GitHub) ---
+REPORULES.md
+.ci-cleandev.yml
+scripts/sync-to-sandbox.sh
+scripts/run-225-native-worker.sh
+.directory
+AGENTS.md

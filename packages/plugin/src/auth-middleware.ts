@@ -317,7 +317,7 @@ export function createAuthMiddleware(config?: AuthMiddlewareConfig): AuthMiddlew
     auditLogger: config?.auditLogger,
     requireAuth:
       config?.requireAuth ??
-      (process.env.NDEEP_ENTERPRISE_MODE === "1" || process.env["55NDEEP_ENTERPRISE_MODE"] === "1"),
+      (process.env.KIRKFORGE_ENTERPRISE_MODE === "1" || process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1"),
   });
 }
 

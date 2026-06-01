@@ -1,4 +1,4 @@
-# ── 55NDeep Sandbox Image ──────────────────────────────────────────────────
+# ── KirkForge Sandbox Image ──────────────────────────────────────────────────
 # Minimal Alpine image for running verified code in isolation.
 # Used by runDockerSandboxed() for enterprise sandboxing.
 
@@ -21,4 +21,4 @@ USER sandbox
 WORKDIR /workspace
 
 ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["echo '55NDeep sandbox ready'"]
+CMD ["echo 'KirkForge sandbox ready'"]

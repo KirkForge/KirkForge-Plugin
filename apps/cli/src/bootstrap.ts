@@ -159,7 +159,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
 
   // ── Policy engine ─────────────────────────────────────────────────────
   const policyEngine = new PolicyEngine();
-  const policyFilePath = process.env.POLICY_FILE_PATH ?? process.env["55NDEEP_POLICY_FILE"];
+  const policyFilePath = process.env.POLICY_FILE_PATH ?? process.env["KIRKFORGE_POLICY_FILE"];
   if (policyFilePath) {
     const result = policyEngine.loadFromFile(policyFilePath);
     if (!result.ok) {
@@ -180,7 +180,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
 
   // ── Audit logger ──────────────────────────────────────────────────────
   let auditSink: AuditSink;
-  const auditSinkType = process.env.AUDIT_SINK_TYPE ?? process.env["55NDEEP_AUDIT_SINK"] ?? "none";
+  const auditSinkType = process.env.AUDIT_SINK_TYPE ?? process.env["KIRKFORGE_AUDIT_SINK"] ?? "none";
 
   if (auditSinkType === "file") {
     const filePath = process.env.AUDIT_FILE_PATH ?? "/var/lib/kirkforge/audit/audit.jsonl";
@@ -247,7 +247,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
 
   // ── Memory ───────────────────────────────────────────────────────────
   const _memoryPath = configService.get().memory.path || ".kirkforge/memory.json";
-  const _memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
+  const _memoryBackend = process.env.MEMORY_BACKEND ?? process.env["KIRKFORGE_MEMORY_BACKEND"];
 
   // ── Tenant registry (single instance used by both memory and returned) ──
   const tenantRegistry = new TenantRegistry();
@@ -257,9 +257,9 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   // ── Per-tenant encryption ────────────────────────────────────────────
   // In enterprise mode, derive per-tenant DEKs from the master KEK for
   // encryption at rest. The master key is loaded from the secrets chain
-  // (Vault → AWS → GCP → env) or from 55NDEEP_TENANT_KEK env var.
+  // (Vault → AWS → GCP → env) or from KIRKFORGE_TENANT_KEK env var.
   let keyProvider: TenantKeyProvider | undefined;
-  const masterKeyHex = process.env["55NDEEP_TENANT_KEK"];
+  const masterKeyHex = process.env["KIRKFORGE_TENANT_KEK"];
   if (enterpriseConfig.enabled && masterKeyHex) {
     const masterKey = Buffer.from(masterKeyHex, "hex");
     if (masterKey.length === 32) {
@@ -269,12 +269,12 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
       );
     } else {
       logger.warn(
-        `[bootstrap] Per-tenant encryption: 55NDEEP_TENANT_KEK must be 32 bytes (64 hex chars), got ${masterKey.length} bytes. Encryption DISABLED.`,
+        `[bootstrap] Per-tenant encryption: KIRKFORGE_TENANT_KEK must be 32 bytes (64 hex chars), got ${masterKey.length} bytes. Encryption DISABLED.`,
       );
     }
   } else if (enterpriseConfig.enabled) {
     logger.warn(
-      "[bootstrap] Enterprise mode: no 55NDEEP_TENANT_KEK set. Per-tenant encryption DISABLED. Set a 32-byte hex key for production.",
+      "[bootstrap] Enterprise mode: no KIRKFORGE_TENANT_KEK set. Per-tenant encryption DISABLED. Set a 32-byte hex key for production.",
     );
   }
 

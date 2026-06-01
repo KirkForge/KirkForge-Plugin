@@ -9,9 +9,9 @@ and is required by SOC 2 (CC6.1), ISO 27001 (A.10.1.2), and PCI DSS (3.6).
 | Key                     | Purpose                           | Rotation Impact                                      | Storage                   |
 | ----------------------- | --------------------------------- | ---------------------------------------------------- | ------------------------- |
 | JWT signing key (OIDC)  | Token verification                | Active tokens invalid until JWKS refresh             | IdP-managed               |
-| Policy signing HMAC key | Signed policy bundle verification | All policies must be re-signed                       | `55NDEEP_POLICY_HMAC_KEY` |
+| Policy signing HMAC key | Signed policy bundle verification | All policies must be re-signed                       | `KIRKFORGE_POLICY_HMAC_KEY` |
 | Tenant KEK (master)     | Per-tenant DEK derivation         | All tenant data must be re-encrypted                 | Vault / KMS               |
-| API key                 | Static bearer authentication      | Active sessions invalidated                          | `55NDEEP_API_KEY`         |
+| API key                 | Static bearer authentication      | Active sessions invalidated                          | `KIRKFORGE_API_KEY`         |
 | Audit chain hash seed   | Audit log integrity               | New chain starts; old chain verifiable independently | `WORM_AUDIT_SEED`         |
 
 ## Rotation Procedures
@@ -39,14 +39,14 @@ Policy bundles are signed with `signPolicyHmac()` and verified with
 **To rotate:**
 
 1. Generate a new HMAC key: `openssl rand -hex 32`
-2. Set `55NDEEP_POLICY_HMAC_KEY` to the new key in your deployment environment.
+2. Set `KIRKFORGE_POLICY_HMAC_KEY` to the new key in your deployment environment.
 3. Re-sign all policy bundles with the new key:
    ```bash
    kirkforge policy sign --key "$NEW_HMAC_KEY" policy.json
    ```
 4. Deploy the new key and re-signed policies simultaneously.
 5. During the transition window, maintain both old and new keys in the
-   verification chain by setting `55NDEEP_POLICY_HMAC_KEY_PREVIOUS` to the old key.
+   verification chain by setting `KIRKFORGE_POLICY_HMAC_KEY_PREVIOUS` to the old key.
    The policy engine will verify against both keys.
 
 ### 3. Tenant Key Encryption Key (KEK)
@@ -81,13 +81,13 @@ how many old versions are kept.
 **To rotate:**
 
 1. Generate a new API key: `openssl rand -hex 32`
-2. Update `55NDEEP_API_KEY` (or `HEALTH_API_KEY`) in the deployment environment.
+2. Update `KIRKFORGE_API_KEY` (or `HEALTH_API_KEY`) in the deployment environment.
 3. Restart the KirkForge process. Active sessions using the old key are immediately
    invalidated.
 
 **For zero-downtime rotation:**
 
-- Support a `55NDEEP_API_KEY_PREVIOUS` env var that allows the old key to remain
+- Support a `KIRKFORGE_API_KEY_PREVIOUS` env var that allows the old key to remain
   valid for a grace period (e.g., 1 hour).
 - Remove the previous key after the grace period.
 
@@ -175,7 +175,7 @@ Application
 
 ### Enabling Per-Tenant Encryption
 
-Set the `55NDEEP_TENANT_KEK` environment variable with a 32-byte hex-encoded
+Set the `KIRKFORGE_TENANT_KEK` environment variable with a 32-byte hex-encoded
 master key (64 hex characters). This must be set **before** starting the daemon
 in enterprise mode.
 
@@ -184,7 +184,7 @@ in enterprise mode.
 openssl rand -hex 32
 
 # Set in environment
-export 55NDEEP_TENANT_KEK=<64-hex-char-key>
+export KIRKFORGE_TENANT_KEK=<64-hex-char-key>
 
 # Start daemon
 kirkforge serve
@@ -192,7 +192,7 @@ kirkforge serve
 
 In enterprise mode, the bootstrap will:
 
-1. Load the master KEK from `55NDEEP_TENANT_KEK` via the secrets chain.
+1. Load the master KEK from `KIRKFORGE_TENANT_KEK` via the secrets chain.
 2. Initialize a `TenantKeyProvider` with the master key.
 3. Wire `TenantEncryptionAdapter` into each tenant's `MemoryStore`.
 
@@ -222,7 +222,7 @@ keyProvider.decryptForTenant("tenant-abc123", "v1:...:...:...");
 2. Initialize both old and new `TenantKeyProvider` instances.
 3. For each tenant, decrypt all data with the old provider and re-encrypt
    with the new provider.
-4. Update `55NDEEP_TENANT_KEK` in the deployment environment.
+4. Update `KIRKFORGE_TENANT_KEK` in the deployment environment.
 5. Restart the daemon.
 
 ### Ciphertext Format

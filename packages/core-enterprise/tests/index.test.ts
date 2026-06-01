@@ -11,27 +11,27 @@ describe("Enterprise mode detection", () => {
     expect(isEnterpriseMode({})).toBe(false);
   });
 
-  it("returns true when 55NDEEP_ENTERPRISE_MODE=1", () => {
-    expect(isEnterpriseMode({ "55NDEEP_ENTERPRISE_MODE": "1" })).toBe(true);
+  it("returns true when KIRKFORGE_ENTERPRISE_MODE=1", () => {
+    expect(isEnterpriseMode({ "KIRKFORGE_ENTERPRISE_MODE": "1" })).toBe(true);
   });
 
-  it("returns true when 55NDEEP_ENTERPRISE_MODE=true", () => {
-    expect(isEnterpriseMode({ "55NDEEP_ENTERPRISE_MODE": "true" })).toBe(true);
+  it("returns true when KIRKFORGE_ENTERPRISE_MODE=true", () => {
+    expect(isEnterpriseMode({ "KIRKFORGE_ENTERPRISE_MODE": "true" })).toBe(true);
   });
 
-  it("returns true when 55NDEEP_ENTERPRISE_MODE=yes", () => {
-    expect(isEnterpriseMode({ "55NDEEP_ENTERPRISE_MODE": "yes" })).toBe(true);
+  it("returns true when KIRKFORGE_ENTERPRISE_MODE=yes", () => {
+    expect(isEnterpriseMode({ "KIRKFORGE_ENTERPRISE_MODE": "yes" })).toBe(true);
   });
 
-  it("returns false when 55NDEEP_ENTERPRISE_MODE=0", () => {
-    expect(isEnterpriseMode({ "55NDEEP_ENTERPRISE_MODE": "0" })).toBe(false);
+  it("returns false when KIRKFORGE_ENTERPRISE_MODE=0", () => {
+    expect(isEnterpriseMode({ "KIRKFORGE_ENTERPRISE_MODE": "0" })).toBe(false);
   });
 });
 
 describe("validateEnterpriseMode", () => {
   it("fails when auth is not configured", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/policy.json",
       AUDIT_SINK_TYPE: "file",
@@ -47,7 +47,7 @@ describe("validateEnterpriseMode", () => {
 
   it("passes when all critical controls are configured", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       HEALTH_API_KEY: "a".repeat(32),
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/policy.json",
@@ -64,7 +64,7 @@ describe("validateEnterpriseMode", () => {
 
   it("fails when storage is not durable", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       HEALTH_API_KEY: "a".repeat(32),
       MEMORY_BACKEND: "memory",
       POLICY_FILE_PATH: "/policy.json",
@@ -81,7 +81,7 @@ describe("validateEnterpriseMode", () => {
 
   it("fails when policy is not configured", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       HEALTH_API_KEY: "a".repeat(32),
       MEMORY_BACKEND: "sqlite",
       AUDIT_SINK_TYPE: "file",
@@ -96,7 +96,7 @@ describe("validateEnterpriseMode", () => {
 
   it("warns when secrets fall through to env-only", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       HEALTH_API_KEY: "a".repeat(32),
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/policy.json",
@@ -111,7 +111,7 @@ describe("validateEnterpriseMode", () => {
 
   it("accepts OIDC issuer as auth", () => {
     const result = validateEnterpriseMode({
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       OIDC_ISSUER: "https://auth.example.com",
       OIDC_AUDIENCE: "kirkforge",
       MEMORY_BACKEND: "sqlite",
@@ -136,7 +136,7 @@ describe("requireEnterpriseOrDev", () => {
   });
 
   it("validates when enterprise mode is on", () => {
-    const result = requireEnterpriseOrDev({ "55NDEEP_ENTERPRISE_MODE": "1" });
+    const result = requireEnterpriseOrDev({ "KIRKFORGE_ENTERPRISE_MODE": "1" });
     expect(result.ok).toBe(false);
   });
 });
@@ -148,12 +148,12 @@ describe("enterpriseStartupGate", () => {
   });
 
   it("throws in enterprise mode with missing controls", () => {
-    expect(() => enterpriseStartupGate(undefined, { "55NDEEP_ENTERPRISE_MODE": "1" })).toThrow();
+    expect(() => enterpriseStartupGate(undefined, { "KIRKFORGE_ENTERPRISE_MODE": "1" })).toThrow();
   });
 
   it("succeeds in enterprise mode with all controls", () => {
     const config = enterpriseStartupGate(undefined, {
-      "55NDEEP_ENTERPRISE_MODE": "1",
+      "KIRKFORGE_ENTERPRISE_MODE": "1",
       HEALTH_API_KEY: "a".repeat(32),
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/policy.json",

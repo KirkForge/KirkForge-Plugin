@@ -17,7 +17,7 @@ const DEFAULTS: KirkForgeConfig = {
   memory: { path: ".kirkforge/memory", retentionDays: 30 },
 };
 
-const CONFIG_ENV_KEYS = ["55NDEEP_CONFIG", "NDEEP_CONFIG", "NEEP_CONFIG"];
+const CONFIG_ENV_KEYS = ["KIRKFORGE_CONFIG", "KIRKFORGE_CONFIG", "KIRKFORGE_CONFIG_ALT"];
 
 export class ConfigService {
   private _config: KirkForgeConfig;

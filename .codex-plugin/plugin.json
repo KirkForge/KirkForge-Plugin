@@ -34,8 +34,8 @@
     "opencode",
     "deterministic"
   ],
-  "repository": "https://github.com/kirkforge/kirkforge",
-  "homepage": "https://github.com/kirkforge/kirkforge#readme",
+  "repository": "https://github.com/KirkForge/KirkForge-plugin",
+  "homepage": "https://github.com/KirkForge/KirkForge-plugin#readme",
   "engines": {
     "node": ">=20.0.0"
   }
