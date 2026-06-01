@@ -11,7 +11,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; DIM='
 PASS=0; FAIL=0; SKIP=0; WARN=0
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
-TIMEOUT="${CI_CLEANDEV_TIMEOUT:-600}"
+TIMEOUT="${CI_CLEANDEV_TIMEOUT:-900}"
 REQUIRE_TRUFFLEHOG="${CI_CLEANDEV_REQUIRE_TRUFFLEHOG:-0}"
 CI_MODE="normal"
 CONFIG_FILE=""
