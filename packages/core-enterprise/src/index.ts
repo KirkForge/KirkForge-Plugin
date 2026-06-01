@@ -278,6 +278,14 @@ export interface StartupLogger {
  * Startup gate: call this at application boot. In enterprise mode, it will
  * throw if critical controls are missing. In dev mode, it logs warnings.
  */
+/**
+ * Startup gate: call this at application boot. In enterprise mode, it will
+ * throw if critical controls are missing. In dev mode, it logs warnings.
+ *
+ * @deprecated Use requireEnterpriseOrDev() instead. The CLI bootstrap already
+ * uses requireEnterpriseOrDev directly — this function was dead code that has
+ * been reconnected to the same validation path for backward compatibility.
+ */
 export function enterpriseStartupGate(
   logger?: StartupLogger,
   env?: Record<string, string | undefined>,
@@ -288,20 +296,9 @@ export function enterpriseStartupGate(
     error: (m: string) => console.error(m),
   };
 
-  if (!isEnterpriseMode(env)) {
-    log.info("[enterprise] Running in developer mode. Enterprise controls not enforced.");
-    const result = requireEnterpriseOrDev(env);
-    if (result.ok) return result.value;
-    // Unreachable in dev mode, but satisfy the type checker
-    throw result.error;
-  }
-
-  log.info("[enterprise] Enterprise mode ENABLED. Validating required controls...");
-
-  const result = validateEnterpriseMode(env);
+  const result = requireEnterpriseOrDev(env);
   if (!result.ok) {
-    const error = result.error;
-    for (const v of error.violations) {
+    for (const v of result.error.violations) {
       if (v.severity === "critical") {
         log.error(`[enterprise] CRITICAL: ${v.control} — ${v.message}`);
         log.error(`[enterprise]   Remediation: ${v.remediation}`);
@@ -310,11 +307,15 @@ export function enterpriseStartupGate(
         log.warn(`[enterprise]   Remediation: ${v.remediation}`);
       }
     }
-    throw error;
+    throw result.error;
   }
 
   const config = result.value;
-  log.info("[enterprise] All critical controls validated. Starting in enterprise mode.");
+  if (isEnterpriseMode(env)) {
+    log.info("[enterprise] Enterprise mode ENABLED. All critical controls validated.");
+  } else {
+    log.info("[enterprise] Running in developer mode. Enterprise controls not enforced.");
+  }
   return config;
 }
 

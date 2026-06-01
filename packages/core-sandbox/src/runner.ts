@@ -296,9 +296,12 @@ export async function runSandboxed(
       cwd: config.cwd,
       env: childEnv as Record<string, string | undefined>,
       stdio: ["pipe", "pipe", "pipe"],
-      // Detach false — child is in the same process group
-      detached: false,
+      // Detach creates a new process group so we can kill the entire tree
+      // on timeout, including any grandchildren the child may have spawned.
+      detached: true,
     });
+    // Immediately unref so the parent doesn't wait for the detached child
+    child.unref();
 
     // ── Timeout ─────────────────────────────────────────────────────────
     const timeoutHandle = setTimeout(() => {
@@ -307,7 +310,13 @@ export async function runSandboxed(
         type: "time",
         message: `Process exceeded maxTimeMs=${constraints.maxTimeMs}`,
       });
-      child.kill("SIGKILL");
+      // Kill the entire process group (including grandchildren) rather than
+      // just the direct child. Without this, grandchildren survive past maxTimeMs.
+      try {
+        if (child.pid != null) process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Process group may already be gone — best effort
+      }
     }, constraints.maxTimeMs);
 
     // ── Stdout collection ────────────────────────────────────────────────
