@@ -53,7 +53,7 @@ spec:
         spec:
           containers:
             - name: backup
-              image: kirkforge:latest
+              image: ghcr.io/kirkforge/kirkforge:latest
               command: [
                   "node",
                   "-e",

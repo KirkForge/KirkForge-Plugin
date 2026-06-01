@@ -103,6 +103,30 @@ Internal tools are bundled and always available. External tools (tsc, pyright) a
 - **Memory is explicit.** `observe` and `recall` require `--memory <path>`. No ambient state.
 - **Host decides task outcome.** `observe --outcome` must come from the host's validator, never from verification status. Verifier pass ≠ task pass.
 
+
+## MCP Server
+
+KirkForge ships a Model Context Protocol server for direct integration with MCP hosts (Claude Desktop, Codex CLI, Copilot, etc.):
+
+```json
+{
+  "mcpServers": {
+    "kirkforge": {
+      "command": "npx",
+      "args": ["@kirkforge/mcp"]
+    }
+  }
+}
+```
+
+Or run directly:
+
+```bash
+npx tsx apps/mcp/src/index.ts
+```
+
+See [apps/mcp/README.md](apps/mcp/README.md) for the full tool list and configuration.
+
 ## Project stats
 
 - 34 packages (29 library + 5 lint engine + CLI)
@@ -124,7 +148,8 @@ Internal tools are bundled and always available. External tools (tsc, pyright) a
 | -------------- | -------------------------------------------------------------- |
 | Docker         | `docker build -t kirkforge . && docker run -p 9090:9090 kirkforge` |
 | Docker Compose | `docker-compose up -d`                                         |
-| Kubernetes     | `helm install kirkforge ./deploy/helm/kirkforge`                   |
+| GHCR           | `docker pull ghcr.io/kirkforge/kirkforge:latest`               |
+| Kubernetes     | `helm install kirkforge ./deploy/helm/kirkforge`               |
 
 ## Security and multi-tenancy
 

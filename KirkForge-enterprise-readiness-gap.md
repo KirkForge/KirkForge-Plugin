@@ -28,7 +28,7 @@ Dark-Moon pentest (2026-05). AI-assisted security review.
 | Enterprise startup gate | ✅ Working | Validates auth, audit, policy, storage before daemon start |
 | Rate limiting / quotas | ✅ Working | Per-tenant, sliding window, file persistence |
 | Health server | ✅ Working | Returns 405 for disallowed methods. 21 tests pass. |
-| Docker image | 🟡 Not published | Dockerfile works locally, no published `kirkforge/sandbox` image |
+| Docker image | ✅ GHCR workflow | `docker.yml` publishes `ghcr.io/kirkforge/kirkforge:latest` + `kirkforge-sandbox:latest` on push to main |
 | External pentest | 🟡 Not done | Dark-Moon review was AI-assisted, not a traditional pentest |
 | Admin UI | 🟡 Not built | Deferred |
 | Fleet management | 🟡 Not built | Deferred |

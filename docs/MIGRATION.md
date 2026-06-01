@@ -51,9 +51,9 @@ The `@kirkforge/plugin` package follows semantic versioning:
 ### Upgrading from v0 to v1
 
 1. Update workspace deps from `*` to `^1.0.0`
-2. `MemoryStore` now requires `backend` option (default: `"memory"`)
+2. `MemoryStore` constructor now takes a `MemoryAdapter` instance: `new MemoryStore(new InMemoryAdapter())`
 3. `verifyWorkspace` now returns `Result<ReducedStatePacket, Error>` instead of raw packet
-4. `recordObservation` requires explicit `MemoryStore` parameter
+4. `recordObservation` requires explicit `MemoryStore` instance (e.g. `new MemoryStore(new InMemoryAdapter())`)
 
 ## Helm Chart
 
