@@ -1,6 +1,6 @@
-import { ok } from "@55ndeep/core-types";
-import type { Result } from "@55ndeep/core-types";
-import type { EventBus } from "@55ndeep/core-events";
+import { ok } from "@kirkforge/core-types";
+import type { Result } from "@kirkforge/core-types";
+import type { EventBus } from "@kirkforge/core-events";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { relative, resolve, dirname } from "node:path";

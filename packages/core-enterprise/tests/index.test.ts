@@ -113,7 +113,7 @@ describe("validateEnterpriseMode", () => {
     const result = validateEnterpriseMode({
       "55NDEEP_ENTERPRISE_MODE": "1",
       OIDC_ISSUER: "https://auth.example.com",
-      OIDC_AUDIENCE: "55ndeep",
+      OIDC_AUDIENCE: "kirkforge",
       MEMORY_BACKEND: "sqlite",
       POLICY_FILE_PATH: "/policy.json",
       AUDIT_SINK_TYPE: "file",

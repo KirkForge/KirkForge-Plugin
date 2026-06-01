@@ -17,7 +17,7 @@
    ```
 3. Check network connectivity from the pod:
    ```bash
-   kubectl exec deploy/55ndeep -- curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models
+   kubectl exec deploy/kirkforge -- curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models
    ```
 
 ## Resolution
@@ -25,8 +25,8 @@
 1. If provider is down: wait for recovery. Circuit breaker auto-resets after cooldown (default 30s).
 2. If API key expired: rotate key via Vault/AWS Secrets Manager, update the secret:
    ```bash
-   kubectl delete secret 55ndeep-secret
-   helm upgrade 55ndeep ./deploy/helm/55ndeep --set auth.apiKey=$NEW_KEY
+   kubectl delete secret kirkforge-secret
+   helm upgrade kirkforge ./deploy/helm/kirkforge --set auth.apiKey=$NEW_KEY
    ```
 3. If rate-limited: reduce `orchestrator.maxConcurrent` in Helm values.
 

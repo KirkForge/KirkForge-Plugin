@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { EventBus } from "@55ndeep/core-events";
+import { EventBus } from "@kirkforge/core-events";
 import { StateReducer } from "../src/reducer.js";
 import { classifyTask } from "../src/classifier.js";
 import { decideCorrection } from "../src/correction-loop.js";
@@ -12,12 +12,12 @@ import { sha256Of } from "../src/path-safety.js";
 import { detectTaskProfile } from "../src/task-profile.js";
 import type { EmissionSchema } from "../src/task-profile.js";
 import { createVerificationEmitters } from "../src/emitter-factory.js";
-import type { VerifierPolicy } from "@55ndeep/correction-core";
+import type { VerifierPolicy } from "@kirkforge/correction-core";
 import { Orchestrator } from "../src/index.js";
 import type { OrchestratorConfig } from "../src/index.js";
-import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
+import { InMemoryAdapter, MemoryStore } from "@kirkforge/memory-palace";
 import type { TaskInput } from "../src/types.js";
-import { ok } from "@55ndeep/core-types";
+import { ok } from "@kirkforge/core-types";
 
 describe("StateReducer", () => {
   it("reduces signals to packet", async () => {
@@ -912,7 +912,7 @@ describe("task profile routing", () => {
   });
 
   it("persists unlabelled code blocks with the detected default extension", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-test-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-test-"));
     const agent = {
       execute: async () => ({
         ok: true,
@@ -944,7 +944,7 @@ describe("task profile routing", () => {
   });
 
   it("strips outer markdown fences from artifact file contents", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-test-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-test-"));
     const agent = {
       execute: async () => ({
         ok: true,
@@ -985,7 +985,7 @@ describe("hard-prompt artifact enforcement", () => {
   const pythonProfile = detectTaskProfile("write a python script");
 
   it("allows valid Python file in hard-prompt mode", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-hp-valid-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-hp-valid-"));
     try {
       const content = "```python\nprint('hello')\n```";
       const result = await executeHardPrompt(
@@ -1023,7 +1023,7 @@ describe("hard-prompt artifact enforcement", () => {
   });
 
   it("writes to profile default file regardless of code block language annotation", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-hp-wrongext-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-hp-wrongext-"));
     try {
       const content = "```typescript\n// see output.ts for details\nconsole.log('hi')\n```";
       const result = await executeHardPrompt(
@@ -1062,7 +1062,7 @@ describe("hard-prompt artifact enforcement", () => {
   });
 
   it("blocks path traversal in hard-prompt mode", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-hp-traversal-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-hp-traversal-"));
     try {
       const content = "```python\nimport os\n```";
       const result = await executeHardPrompt(
@@ -1096,7 +1096,7 @@ describe("hard-prompt artifact enforcement", () => {
   });
 
   it("hard-prompt always uses profile default file as output path", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-hp-signal-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-hp-signal-"));
     try {
       const content = "```typescript\n// Fix for output.ts\nconsole.log('hi')\n```";
       const result = await executeHardPrompt(
@@ -1369,7 +1369,7 @@ describe("artifact path and extension enforcement", () => {
   const pythonProfile = detectTaskProfile("write a python script");
 
   it("blocks python task emitting .ts file", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-ext-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-ext-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: output.ts\nconsole.log('hi')\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1383,7 +1383,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks no-dot filenames like Dockerfile under profile that does not allow empty extension", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-nodot-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-nodot-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: Dockerfile\nFROM ubuntu\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1396,7 +1396,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("allows no-dot filenames like Dockerfile when no profile is set", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-nodot-noprof-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-nodot-noprof-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: Dockerfile\nFROM ubuntu\n### END");
       const results = writeArtifacts(artifacts, cwd);
@@ -1410,7 +1410,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("does not give Makefile a fake extension", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-makefile-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-makefile-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: Makefile\nall:\n\techo hi\n### END");
       const results = writeArtifacts(artifacts, cwd);
@@ -1423,7 +1423,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks ../escape.py path escape", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-escape-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-escape-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: ../escape.py\nprint('nope')\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1437,7 +1437,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks absolute path", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-abs-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-abs-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: /etc/passwd\nroot:x:0:0\n### END");
       const results = writeArtifacts(artifacts, cwd);
@@ -1450,7 +1450,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks sibling-prefix path escape", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-sibling-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-sibling-"));
     try {
       const siblingPath = cwd + "-evil" + "/file.py";
       const { artifacts } = parseArtifacts(`### FILE: ${siblingPath}\nprint('nope')\n### END`);
@@ -1464,7 +1464,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("allows valid .py file for python profile", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-valid-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-valid-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: solution.py\nprint('hello')\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1477,7 +1477,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks .d.ts extension via python forbidden list (extracts .ts from last dot)", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-dts-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-dts-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: types.d.ts\ndeclare module 'x'\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1490,7 +1490,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks hidden dotfile .env", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-dotenv-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-dotenv-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: .env\nSECRET=123\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1505,7 +1505,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks hidden dotfile . gitignore", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-gitignore-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-gitignore-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: .gitignore\nnode_modules\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1518,7 +1518,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks .npmrc dotfile", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-npmrc-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-npmrc-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: .npmrc\nregistry=evil\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1531,7 +1531,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks long unknown extension that bypasses allowed list", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-longext-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-longext-"));
     try {
       const { artifacts } = parseArtifacts(
         "### FILE: payload.notallowedbutlong\nprint('nope')\n### END",
@@ -1547,7 +1547,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("allows valid .py file for Python profile (still works after hardening)", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-py-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-py-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: solution.py\nprint('hello')\n### END");
       const results = writeArtifacts(artifacts, cwd, pythonProfile);
@@ -1560,7 +1560,7 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks .env even without a profile", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-dotenv-noprof-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-dotenv-noprof-"));
     try {
       const { artifacts } = parseArtifacts("### FILE: .env\nSECRET=123\n### END");
       const results = writeArtifacts(artifacts, cwd);
@@ -1573,8 +1573,8 @@ describe("artifact path and extension enforcement", () => {
   });
 
   it("blocks symlink escape when parent dir is a symlink pointing outside cwd", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "55ndeep-artifact-symlink-"));
-    const outsideDir = mkdtempSync(join(tmpdir(), "55ndeep-artifact-outside-"));
+    const cwd = mkdtempSync(join(tmpdir(), "kirkforge-artifact-symlink-"));
+    const outsideDir = mkdtempSync(join(tmpdir(), "kirkforge-artifact-outside-"));
     try {
       mkdirSync(join(cwd, "src"), { recursive: true });
       symlinkSync(outsideDir, join(cwd, "src", "escape"));

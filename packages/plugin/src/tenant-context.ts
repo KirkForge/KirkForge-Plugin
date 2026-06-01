@@ -1,7 +1,7 @@
-import type { AuditLogger, AuditSink } from "@55ndeep/core-events";
-import { TenantRegistry } from "@55ndeep/core-tenancy";
-import type { QuotaManager } from "@55ndeep/core-enterprise";
-import type { MemoryStore } from "@55ndeep/memory-palace";
+import type { AuditLogger, AuditSink } from "@kirkforge/core-events";
+import { TenantRegistry } from "@kirkforge/core-tenancy";
+import type { QuotaManager } from "@kirkforge/core-enterprise";
+import type { MemoryStore } from "@kirkforge/memory-palace";
 
 // ── Tenant context ──────────────────────────────────────────────────────────
 //
@@ -57,7 +57,7 @@ export function createTenantAuditLogger(
  *   const ctx = await createTenantContext({
  *     tenantId: "t-abc123",
  *     actorId: "user-456",
- *     auditSink: new FileAuditSink({ filePath: "/var/log/55ndeep/audit.jsonl" }),
+ *     auditSink: new FileAuditSink({ filePath: "/var/log/kirkforge/audit.jsonl" }),
  *     quotaManager: quotaManager,
  *   });
  *
@@ -78,7 +78,7 @@ export async function createTenantContext(
   // Create tenant registry and memory store
   const registry = new TenantRegistry();
   // Ensure tenant is registered
-  registry.register(config.workspacePath ?? `/tmp/55ndeep/${tenantId}`);
+  registry.register(config.workspacePath ?? `/tmp/kirkforge/${tenantId}`);
 
   // Create tenant-scoped memory store
   const memoryResult = await registry.createMemoryStore(tenantId);
@@ -88,7 +88,7 @@ export async function createTenantContext(
   const memoryStore = memoryResult.value;
 
   // Create tenant-scoped audit logger
-  const { AuditLogger } = await import("@55ndeep/core-events");
+  const { AuditLogger } = await import("@kirkforge/core-events");
   const baseLogger = new AuditLogger(auditSink);
   const auditLogger = createTenantAuditLogger(baseLogger, tenantId, actorId);
 

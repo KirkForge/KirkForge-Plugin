@@ -1,7 +1,7 @@
 # Benchmark Methodology
 
 This document defines the methodology, versioning, and evidence standards
-for 55NDeep benchmarks. It distinguishes between **infrastructure smoke
+for KirkForge benchmarks. It distinguishes between **infrastructure smoke
 tests** (which validate that tools run at all) and **product performance
 claims** (which make assertions about verification quality, latency, or
 accuracy under controlled conditions).
@@ -31,7 +31,7 @@ performance claims.
 Every benchmark run must reference:
 
 - **Benchmark version**: `bench/vX.Y.Z`
-- **55NDeep version**: Git commit SHA or release tag
+- **KirkForge version**: Git commit SHA or release tag
 - **Task panel version**: `panel/vX.Y.Z`
 - **Date**: ISO 8601
 - **Environment**: Hardware specs, OS, Node version
@@ -106,7 +106,7 @@ CI should include a regression guard:
 ```markdown
 ## Benchmark Report: bench/vX.Y.Z
 
-- **55NDeep version**: commit SHA / release tag
+- **KirkForge version**: commit SHA / release tag
 - **Task panel**: panel/vX.Y.Z
 - **Date**: YYYY-MM-DD
 - **Environment**: [hardware, OS, Node version]

@@ -1,8 +1,8 @@
-import type { Agent } from "@55ndeep/agent-core";
-import type { TaskBrief } from "@55ndeep/prompt-core";
+import type { Agent } from "@kirkforge/agent-core";
+import type { TaskBrief } from "@kirkforge/prompt-core";
 import type { DelegationResult } from "./types.js";
 import type { OrchestratorResult } from "./types.js";
-import { ok, err } from "@55ndeep/core-types";
+import { ok, err } from "@kirkforge/core-types";
 import type { TaskProfile } from "./task-profile.js";
 import {
   writeArtifacts,

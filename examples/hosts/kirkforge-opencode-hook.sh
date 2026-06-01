@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 55ndeep-opencode-hook.sh
+# kirkforge-opencode-hook.sh
 #
 # Example: post-generation hook for OpenCode.
 # NOT an installed plugin. This is a contract-conforming sketch.
@@ -9,20 +9,20 @@
 # and records the host-provided task outcome.
 #
 # Usage:
-#   55ndeep-opencode-hook.sh \
+#   kirkforge-opencode-hook.sh \
 #     --workspace /path/to/project \
 #     --task-id t1 \
 #     --task-desc "add input validation" \
 #     --language typescript \
 #     --model opencode-model \
 #     --outcome fail \
-#     --memory ./55ndeep-memory.json \
+#     --memory ./kirkforge-memory.json \
 #     [--elapsed-ms 8000]
 #
 # Integration in OpenCode config (opencode.yaml):
 #   hooks:
 #     postGeneration:
-#       command: 55ndeep-opencode-hook.sh
+#       command: kirkforge-opencode-hook.sh
 #       args:
 #         --workspace: "{{workspace}}"
 #         --task-id: "{{taskId}}"
@@ -30,7 +30,7 @@
 #         --language: "{{language}}"
 #         --model: "{{model}}"
 #         --outcome: "{{outcome}}"
-#         --memory: ./55ndeep-memory.json
+#         --memory: ./kirkforge-memory.json
 #         --elapsed-ms: "{{elapsedMs}}"
 
 set -euo pipefail
@@ -78,24 +78,24 @@ case "$OUTCOME" in
 esac
 
 # Step 1: Verify workspace
-PACKET=$(55ndeep verify-workspace --workspace "$WORKSPACE" --language "$LANGUAGE" --task-id "$TASK_ID")
+PACKET=$(kirkforge verify-workspace --workspace "$WORKSPACE" --language "$LANGUAGE" --task-id "$TASK_ID")
 OVERALL=$(echo "$PACKET" | jq -r '.verification.overall')
 
-echo "[55ndeep] verification: $OVERALL" >&2
+echo "[kirkforge] verification: $OVERALL" >&2
 
 # Step 2: If verification failed, emit correction prompt to stdout
 # OpenCode reads stdout and appends the prompt to the next user message.
 if [[ "$OVERALL" != "pass" ]]; then
-  PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/55ndeep-packet.XXXXXX.json")
+  PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/kirkforge-packet.XXXXXX.json")
   echo "$PACKET" > "$PACKET_FILE"
   trap 'rm -f "$PACKET_FILE"' EXIT
 
-  CORRECTION=$(55ndeep prompt --packet "$PACKET_FILE" --language "$LANGUAGE")
+  CORRECTION=$(kirkforge prompt --packet "$PACKET_FILE" --language "$LANGUAGE")
   echo "$CORRECTION"
 fi
 
 # Step 3: Record task outcome (host-provided, not verifier-derived)
-55ndeep observe \
+kirkforge observe \
   --memory "$MEMORY_PATH" \
   --task-id "$TASK_ID" \
   --description "$TASK_DESC" \
@@ -105,4 +105,4 @@ fi
   --outcome "$OUTCOME" \
   --duration-ms "$ELAPSED_MS" >/dev/null
 
-echo "[55ndeep] observation recorded: outcome=$OUTCOME" >&2
+echo "[kirkforge] observation recorded: outcome=$OUTCOME" >&2

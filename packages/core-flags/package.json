@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-flags",
+  "name": "@kirkforge/core-flags",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./dist/index.js"
   },
   "dependencies": {
-    "@55ndeep/core-types": "*"
+    "@kirkforge/core-types": "*"
   },
   "files": [
     "dist/"

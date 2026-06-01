@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/correction-core",
+  "name": "@kirkforge/correction-core",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

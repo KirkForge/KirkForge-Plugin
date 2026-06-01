@@ -2,7 +2,7 @@
 
 ## API Versioning
 
-55NDeep uses URL-path versioning for its HTTP API. All routes are available under:
+KirkForge uses URL-path versioning for its HTTP API. All routes are available under:
 
 - `/v1/` — Current stable API (v1.x)
 - Root paths (`/healthz`, `/readyz`, `/metrics`) — Legacy compat (v0.x)
@@ -36,7 +36,7 @@
 
 ## Plugin API (npm)
 
-The `@55ndeep/plugin` package follows semantic versioning:
+The `@kirkforge/plugin` package follows semantic versioning:
 
 - **Patch (1.0.x)**: Bug fixes, no API changes
 - **Minor (1.x.0)**: New features, backward-compatible
@@ -66,7 +66,7 @@ The `@55ndeep/plugin` package follows semantic versioning:
 ### Upgrade steps
 
 ```bash
-helm upgrade 55ndeep ./deploy/helm/55ndeep \
+helm upgrade kirkforge ./deploy/helm/kirkforge \
   --set image.tag=v1.1.0 \
   --set auth.apiKey=$(openssl rand -hex 32)
 ```

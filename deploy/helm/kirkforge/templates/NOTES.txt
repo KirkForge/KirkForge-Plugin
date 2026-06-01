@@ -1,4 +1,4 @@
-55NDeep — Deterministic delegation plugin
+KirkForge — Deterministic delegation plugin
 
 🎉 Deployed: {{ .Release.Name }}
 
@@ -6,12 +6,12 @@ Get the service URL:
 {{- if .Values.ingress.enabled }}
   http{{ if .Values.ingress.tls }}s{{ end }}://{{ (index .Values.ingress.hosts 0).host }}
 {{- else if contains "NodePort" .Values.service.type }}
-  export NODE_PORT=$(kubectl get svc {{ include "55ndeep.fullname" . }} -o jsonpath='{.spec.ports[0].nodePort}')
+  export NODE_PORT=$(kubectl get svc {{ include "kirkforge.fullname" . }} -o jsonpath='{.spec.ports[0].nodePort}')
   echo "http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$NODE_PORT"
 {{- else if contains "LoadBalancer" .Values.service.type }}
-  Wait for external IP: kubectl get svc {{ include "55ndeep.fullname" . }} --watch
+  Wait for external IP: kubectl get svc {{ include "kirkforge.fullname" . }} --watch
 {{- else if contains "ClusterIP" .Values.service.type }}
-  kubectl port-forward svc/{{ include "55ndeep.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  kubectl port-forward svc/{{ include "kirkforge.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
 {{- end }}
 
 Health endpoints:
@@ -37,4 +37,4 @@ Health endpoints:
 ⚠️  Enterprise mode is enabled but NetworkPolicy is DISABLED. Enable networkPolicy in production.
 {{- end }}
 
-Monitor: kubectl logs -f deployment/{{ include "55ndeep.fullname" . }}
+Monitor: kubectl logs -f deployment/{{ include "kirkforge.fullname" . }}

@@ -1,6 +1,6 @@
-import type { LintRule } from "@55ndeep/tool-lint-core";
+import type { LintRule } from "@kirkforge/tool-lint-core";
 
-// 55ndeep-lint-disable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require
+// kirkforge-lint-disable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require
 export const safetyRules: LintRule[] = [
   {
     id: "no-eval",
@@ -147,4 +147,4 @@ export const safetyRules: LintRule[] = [
       "Hardcoded JWT — JWTs should be generated at runtime from secrets, never committed; if this is a test fixture, add a comment marking it as non-sensitive",
   },
 ];
-// 55ndeep-lint-enable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require
+// kirkforge-lint-enable no-eval no-new-func no-hardcoded-openai-key no-dynamic-require

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync as fsReadFileSync } from "node:fs";
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
 import {
   type SandboxConstraints,
   type SandboxResult,
@@ -63,7 +63,7 @@ export interface SandboxRunConfig {
   afterHook?: (context: SandboxContext, result: SandboxResult) => void;
 }
 
-export class SandboxExecutionError extends NDeepError {
+export class SandboxExecutionError extends KirkForgeError {
   violations: SandboxViolation[];
   constructor(message: string, violations: SandboxViolation[] = []) {
     super("SANDBOX_EXECUTION_ERROR", message, { violations });
@@ -413,7 +413,7 @@ export async function runSandboxed(
 // the Docker daemon to be available at runtime.
 
 export interface DockerSandboxConfig extends SandboxRunConfig {
-  /** Docker image to use. Default: "55ndeep/sandbox:latest". */
+  /** Docker image to use. Default: "kirkforge/sandbox:latest". */
   image?: string;
   /** Whether to pull the image if not available locally. Default: true. */
   pullImage?: boolean;
@@ -466,7 +466,7 @@ export async function runDockerSandboxed(
     );
   }
 
-  const image = config.image ?? "55ndeep/sandbox:latest";
+  const image = config.image ?? "kirkforge/sandbox:latest";
   const networkMode = config.networkMode ?? (constraints.networkAllowed ? "bridge" : "none");
   const _removeContainer = config.removeContainer ?? true;
 

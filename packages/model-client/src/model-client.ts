@@ -69,7 +69,7 @@ class CircuitBreaker {
   private _emitCbMetric(key: string, transition: string): void {
     try {
       // Try dynamic import for OTEL to avoid hard dependency
-      import("@55ndeep/core-telemetry")
+      import("@kirkforge/core-telemetry")
         .then((m) => {
           m.recordCircuitBreakerState?.(key, transition);
         })

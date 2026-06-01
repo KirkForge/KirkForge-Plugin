@@ -1,4 +1,4 @@
-import type { LintRule } from "@55ndeep/tool-lint-core";
+import type { LintRule } from "@kirkforge/tool-lint-core";
 
 export const perfRules: LintRule[] = [
   {

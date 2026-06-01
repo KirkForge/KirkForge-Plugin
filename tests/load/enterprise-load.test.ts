@@ -1,5 +1,5 @@
 /**
- * Enterprise load test baseline for 55NDeep auth, policy, quota, and audit
+ * Enterprise load test baseline for KirkForge auth, policy, quota, and audit
  * operations. These tests verify that enterprise-critical paths meet SLO
  * targets under concurrent load.
  *
@@ -12,10 +12,10 @@ import {
   authorizeTenant,
   actorFromApiKey,
   type Actor,
-} from "@55ndeep/core-rbac";
-import { PolicyEngine, DEFAULT_POLICY } from "@55ndeep/core-policy";
-import { QuotaManager, RateLimiter } from "@55ndeep/core-enterprise";
-import { WormAuditSink, chainHashOf, initialHash } from "@55ndeep/core-events";
+} from "@kirkforge/core-rbac";
+import { PolicyEngine, DEFAULT_POLICY } from "@kirkforge/core-policy";
+import { QuotaManager, RateLimiter } from "@kirkforge/core-enterprise";
+import { WormAuditSink, chainHashOf, initialHash } from "@kirkforge/core-events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -226,7 +226,7 @@ describe("Quota manager load baseline", () => {
 
 describe("WORM audit sink load baseline", () => {
   it("meets audit write p95 SLO", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-worm-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-load-worm-"));
     try {
       const sink = new WormAuditSink({
         directory: dir,
@@ -289,7 +289,7 @@ describe("WORM audit sink load baseline", () => {
   });
 
   it("WORM sink maintains chain integrity under load", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-integrity-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-load-integrity-"));
     try {
       const sink = new WormAuditSink({
         directory: dir,

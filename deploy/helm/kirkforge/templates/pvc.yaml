@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "55ndeep.fullname" . }}-memory
+  name: {{ include "kirkforge.fullname" . }}-memory
   labels:
-    {{- include "55ndeep.labels" . | nindent 4 }}
+    {{- include "kirkforge.labels" . | nindent 4 }}
 spec:
   {{- with .Values.persistence.storageClass }}
   storageClassName: {{ . | quote }}

@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import {
   type Actor,
   type OidcConfig,
@@ -11,10 +11,10 @@ import {
   actorFromApiKey,
   actorFromJwt,
   verifyJwt,
-} from "@55ndeep/core-rbac";
-import type { AuditLogger } from "@55ndeep/core-events";
+} from "@kirkforge/core-rbac";
+import type { AuditLogger } from "@kirkforge/core-events";
 
-// ── Auth middleware for 55NDeep services ─────────────────────────────────────
+// ── Auth middleware for KirkForge services ─────────────────────────────────────
 //
 // Provides authentication and authorization middleware that can be wired into
 // MCP handlers, HTTP servers, and CLI entrypoints. Handles:
@@ -27,7 +27,7 @@ import type { AuditLogger } from "@55ndeep/core-events";
 //
 // Usage in an HTTP server:
 //   const middleware = createAuthMiddleware({
-//     oidcConfig: { issuer: "https://auth.example.com", audience: "55ndeep-api" },
+//     oidcConfig: { issuer: "https://auth.example.com", audience: "kirkforge-api" },
 //     apiKey: process.env.HEALTH_API_KEY,
 //     auditLogger,
 //   });
@@ -331,7 +331,7 @@ export function parseGroupRoleMapping(envValue?: string): GroupRoleMapping | und
   for (const pair of envValue.split(",")) {
     const [role, group] = pair.trim().split(":");
     if (role && group) {
-      mapping[group.trim()] = role.trim() as import("@55ndeep/core-rbac").Role;
+      mapping[group.trim()] = role.trim() as import("@kirkforge/core-rbac").Role;
     }
   }
   return Object.keys(mapping).length > 0 ? mapping : undefined;

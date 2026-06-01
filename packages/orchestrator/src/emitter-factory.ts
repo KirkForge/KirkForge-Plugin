@@ -1,15 +1,15 @@
-import { createTSLintEngine } from "@55ndeep/tool-lint-ts";
-import { createPyLintEngine } from "@55ndeep/tool-lint-py";
-import { createShLintEngine } from "@55ndeep/tool-lint-sh";
-import { createCLintEngine } from "@55ndeep/tool-lint-c";
-import { createRsLintEngine } from "@55ndeep/tool-lint-rs";
-import { createGoLintEngine } from "@55ndeep/tool-lint-go";
-import { createSqlLintEngine } from "@55ndeep/tool-lint-sql";
-import { TscEmitter } from "@55ndeep/tool-tsc";
-import { PyrightEmitter } from "@55ndeep/tool-pyright";
-import { GitnexusEmitter } from "@55ndeep/tool-gitnexus";
-import { GraphifyEmitter } from "@55ndeep/tool-graphify";
-import type { EventBus } from "@55ndeep/core-events";
+import { createTSLintEngine } from "@kirkforge/tool-lint-ts";
+import { createPyLintEngine } from "@kirkforge/tool-lint-py";
+import { createShLintEngine } from "@kirkforge/tool-lint-sh";
+import { createCLintEngine } from "@kirkforge/tool-lint-c";
+import { createRsLintEngine } from "@kirkforge/tool-lint-rs";
+import { createGoLintEngine } from "@kirkforge/tool-lint-go";
+import { createSqlLintEngine } from "@kirkforge/tool-lint-sql";
+import { TscEmitter } from "@kirkforge/tool-tsc";
+import { PyrightEmitter } from "@kirkforge/tool-pyright";
+import { GitnexusEmitter } from "@kirkforge/tool-gitnexus";
+import { GraphifyEmitter } from "@kirkforge/tool-graphify";
+import type { EventBus } from "@kirkforge/core-events";
 import type { TaskLanguage } from "./task-profile.js";
 
 function hasJsTs(files?: string[]): boolean {
@@ -25,7 +25,7 @@ export function createVerificationEmitters(
 ) {
   const pythonOnly = language === "python" || (!language && !hasJsTs(files));
 
-  // Phase 1+2+3: 55NDeep native strict lint for all supported languages
+  // Phase 1+2+3: KirkForge native strict lint for all supported languages
   const tsLint = createTSLintEngine({ cwd, eventBus, files });
   const pyLint = createPyLintEngine({ cwd, eventBus, files });
 

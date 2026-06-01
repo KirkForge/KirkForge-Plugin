@@ -21,7 +21,7 @@ describe.skipIf(!hasBetterSqlite3)("SqliteAdapter", () => {
   let dbPath: string;
 
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), "55ndeep-sqlite-"));
+    dir = mkdtempSync(join(tmpdir(), "kirkforge-sqlite-"));
     dbPath = join(dir, "memory.db");
   });
 

@@ -1,5 +1,5 @@
-import type { AuthDecision } from "@55ndeep/core-rbac";
-import type { AuditLogger } from "@55ndeep/core-events";
+import type { AuthDecision } from "@kirkforge/core-rbac";
+import type { AuditLogger } from "@kirkforge/core-events";
 
 /**
  * Bridge RBAC auth decisions to the audit logger.

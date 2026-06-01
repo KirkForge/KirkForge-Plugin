@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/plugin",
+  "name": "@kirkforge/plugin",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,14 +11,14 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "^1.0.0",
-    "@55ndeep/core-events": "^1.0.0",
-    "@55ndeep/correction-core": "^1.0.0",
-    "@55ndeep/orchestrator": "^1.0.0",
-    "@55ndeep/memory-palace": "^1.0.0",
-    "@55ndeep/core-rbac": "^1.0.0",
-    "@55ndeep/core-tenancy": "^1.0.0",
-    "@55ndeep/core-enterprise": "^1.0.0"
+    "@kirkforge/core-types": "^1.0.0",
+    "@kirkforge/core-events": "^1.0.0",
+    "@kirkforge/correction-core": "^1.0.0",
+    "@kirkforge/orchestrator": "^1.0.0",
+    "@kirkforge/memory-palace": "^1.0.0",
+    "@kirkforge/core-rbac": "^1.0.0",
+    "@kirkforge/core-tenancy": "^1.0.0",
+    "@kirkforge/core-enterprise": "^1.0.0"
   },
   "devDependencies": {},
   "private": false,
@@ -33,7 +33,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/55ndeep/55ndeep.git",
+    "url": "https://github.com/kirkforge/kirkforge.git",
     "directory": "packages/plugin"
   },
   "keywords": [
@@ -44,7 +44,7 @@
     "claude-code",
     "opencode",
     "deterministic",
-    "55ndeep"
+    "kirkforge"
   ],
-  "author": "55NDeep Contributors"
+  "author": "KirkForge Contributors"
 }

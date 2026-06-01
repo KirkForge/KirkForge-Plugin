@@ -1,4 +1,4 @@
-import type { MemoryStore } from "@55ndeep/memory-palace";
+import type { MemoryStore } from "@kirkforge/memory-palace";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { homedir } from "node:os";
@@ -226,7 +226,7 @@ export class SloMonitor {
    * Default file path for SLO state persistence.
    */
   static defaultStatePath(): string {
-    return resolve(homedir(), ".55ndeep", "slo-state.json");
+    return resolve(homedir(), ".kirkforge", "slo-state.json");
   }
 }
 
@@ -415,6 +415,6 @@ export class AuthPolicySloMonitor {
    * Default file path for SLO state persistence.
    */
   static defaultStatePath(): string {
-    return resolve(homedir(), ".55ndeep", "slo-state.json");
+    return resolve(homedir(), ".kirkforge", "slo-state.json");
   }
 }

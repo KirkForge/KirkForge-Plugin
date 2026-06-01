@@ -18,7 +18,7 @@ Each language gets its own native-feeling emission contract:
 
 1. **Artifact mode** — the `### FILE:` / `### END` markers remain universal, but the prompt's `{{languageHint}}`, `{{defaultFile}}`, and `{{checkCommand}}` variables are populated from the detected task profile
 2. **Contract mode** (ts-contract) — `buildContractTemplate(language, hint)` generates a language-specific contract that asks for language-specific findings, idioms, and conventions
-3. **Correction prompts** — `toolNames(language)` in `@55ndeep/correction-core` substitutes the correct tool names (ruff/pyright/bandit for Python, eslint/tsc/secdev for TypeScript)
+3. **Correction prompts** — `toolNames(language)` in `@kirkforge/correction-core` substitutes the correct tool names (ruff/pyright/bandit for Python, eslint/tsc/secdev for TypeScript)
 4. **Verifier selection** — `emitter-factory.ts` routes Python files to ruff/pyright/bandit, TypeScript/JavaScript to eslint/tsc/secdev
 5. **Graphify** — only runs on TypeScript/TypeScript JSX files. Non-TS files receive `"skipped"` status with zero errors
 
@@ -26,6 +26,6 @@ Each language gets its own native-feeling emission contract:
 
 - 10 languages are supported through a single `detectTaskProfile()` function with regex-based classification
 - Default language is TypeScript — any unrecognized task gets the TypeScript profile
-- The `TaskLanguage` union type is the authoritative list of supported languages (defined in `@55ndeep/correction-core`)
-- `TaskProfile` and `detectTaskProfile()` live in the orchestrator; the `TaskLanguage` type itself is in `@55ndeep/correction-core`
+- The `TaskLanguage` union type is the authoritative list of supported languages (defined in `@kirkforge/correction-core`)
+- `TaskProfile` and `detectTaskProfile()` live in the orchestrator; the `TaskLanguage` type itself is in `@kirkforge/correction-core`
 - Language detection is static (regex matching on task description). Dynamic detection (by actual file extension inspection) happens in emitters as a fallback

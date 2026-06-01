@@ -1,5 +1,5 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
 
 // ── Per-tenant quotas and rate limits ──────────────────────────────────────
 //
@@ -55,7 +55,7 @@ export interface QuotaUsage {
   hourlyCorrections: number;
 }
 
-export class QuotaExceededError extends NDeepError {
+export class QuotaExceededError extends KirkForgeError {
   readonly quota: string;
   readonly limit: number;
   readonly current: number;

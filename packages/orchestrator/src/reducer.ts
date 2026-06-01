@@ -8,18 +8,18 @@ import type {
   ArtifactUnterminatedEvent,
   ArtifactTruncatedEvent,
   ArtifactEmittedEvent,
-} from "@55ndeep/core-types";
-import { ok } from "@55ndeep/core-types";
-import type { EventBus } from "@55ndeep/core-events";
+} from "@kirkforge/core-types";
+import { ok } from "@kirkforge/core-types";
+import type { EventBus } from "@kirkforge/core-events";
 import type {
   ReducedStatePacket,
   ArtifactEnforcement,
   VerifierPolicy,
   VerifierPolicyResult,
   VerifierSlot,
-} from "@55ndeep/correction-core";
+} from "@kirkforge/correction-core";
 
-export type { ReducedStatePacket } from "@55ndeep/correction-core";
+export type { ReducedStatePacket } from "@kirkforge/correction-core";
 
 type ReducerSignal =
   | VerifyLintEvent

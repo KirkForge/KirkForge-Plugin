@@ -1,11 +1,11 @@
-import type { DelegationMode, DelegationDecision } from "@55ndeep/core-types";
-import type { Actor } from "@55ndeep/core-rbac";
+import type { DelegationMode, DelegationDecision } from "@kirkforge/core-types";
+import type { Actor } from "@kirkforge/core-rbac";
 import type {
   ArtifactBlockedEvent,
   ArtifactUnterminatedEvent,
   ArtifactTruncatedEvent,
   ArtifactEmittedEvent,
-} from "@55ndeep/core-types";
+} from "@kirkforge/core-types";
 
 export interface TaskInput {
   taskId?: string;
@@ -81,13 +81,13 @@ export function extractEmissionFiles(result: DelegationResult): EmittedFileInfo[
   return [];
 }
 
-export type OrchestratorResult = import("@55ndeep/core-types").Result<DelegationResult, Error>;
+export type OrchestratorResult = import("@kirkforge/core-types").Result<DelegationResult, Error>;
 
 import type { ReducedStatePacket } from "./reducer.js";
 
 export interface DecompositionResult {
   rootTask: string;
-  tasks: import("@55ndeep/core-types").TaskNode[];
+  tasks: import("@kirkforge/core-types").TaskNode[];
   totalEstimatedTokens: number;
   rationale: string;
 }

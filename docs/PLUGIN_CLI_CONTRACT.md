@@ -1,8 +1,8 @@
-# 55NDeep Shell Adapter Contract
+# KirkForge Shell Adapter Contract
 
 > Stable contract for host CLIs integrating via the shell command adapter.
 
-The `55ndeep` CLI binary is a **shell adapter and reference runner**, not the product itself. The product is the deterministic verification, correction, and routing logic. Any host that can parse JSON from a subprocess can integrate.
+The `kirkforge` CLI binary is a **shell adapter and reference runner**, not the product itself. The product is the deterministic verification, correction, and routing logic. Any host that can parse JSON from a subprocess can integrate.
 
 ## General rules
 
@@ -22,13 +22,13 @@ The host CLI is the authority on task outcomes. `observe --outcome` must come fr
 
 ## Commands
 
-### `55ndeep doctor`
+### `kirkforge doctor`
 
 Probe local verification tools and report capabilities.
 
 ```sh
-55ndeep doctor            # compact JSON
-55ndeep doctor --pretty   # human-readable table
+kirkforge doctor            # compact JSON
+kirkforge doctor --pretty   # human-readable table
 ```
 
 **Output (JSON)**
@@ -51,7 +51,7 @@ Probe local verification tools and report capabilities.
 }
 ```
 
-External tools (eslint, tsc, ruff, pyright, bandit) are probed from PATH. Internal tools (secdev, gitnexus, graphify) are bundled with 55NDeep and always available.
+External tools (eslint, tsc, ruff, pyright, bandit) are probed from PATH. Internal tools (secdev, gitnexus, graphify) are bundled with KirkForge and always available.
 
 Language support varies. See the [Language support matrix](../README.md#language-support-matrix) for required vs. advisory verifier slots and v1 status per language.
 
@@ -59,12 +59,12 @@ Language support varies. See the [Language support matrix](../README.md#language
 
 ---
 
-### `55ndeep verify-workspace`
+### `kirkforge verify-workspace`
 
 Run deterministic verification on a workspace directory and emit a `ReducedStatePacket`.
 
 ```sh
-55ndeep verify-workspace --workspace /path/to/project [--file a.ts b.ts] [--language typescript] [--task-id id]
+kirkforge verify-workspace --workspace /path/to/project [--file a.ts b.ts] [--language typescript] [--task-id id]
 ```
 
 | Flag          | Required | Description                              |
@@ -82,12 +82,12 @@ A workspace path that does not exist still exits 0 — the packet will contain `
 
 ---
 
-### `55ndeep prompt`
+### `kirkforge prompt`
 
 Build a correction prompt from a `ReducedStatePacket` JSON file.
 
 ```sh
-55ndeep prompt --packet result.json [--language typescript]
+kirkforge prompt --packet result.json [--language typescript]
 ```
 
 | Flag         | Required | Description                              |
@@ -103,12 +103,12 @@ Build a correction prompt from a `ReducedStatePacket` JSON file.
 
 ---
 
-### `55ndeep observe`
+### `kirkforge observe`
 
 Record a task observation to a memory store file.
 
 ```sh
-55ndeep observe \
+kirkforge observe \
   --memory /path/to/mem.json \
   --task-id t1 \
   --description "fix auth bug" \
@@ -142,12 +142,12 @@ Record a task observation to a memory store file.
 
 ---
 
-### `55ndeep recall`
+### `kirkforge recall`
 
 Recall routing bias from past observations.
 
 ```sh
-55ndeep recall --memory /path/to/mem.json --description "fix auth bug" [--model gpt-4]
+kirkforge recall --memory /path/to/mem.json --description "fix auth bug" [--model gpt-4]
 ```
 
 | Flag            | Required | Description                   |
@@ -172,14 +172,14 @@ When no matching observations exist:
 
 ---
 
-### `55ndeep decompose`
+### `kirkforge decompose`
 
 Break a complex task into smaller, independently verifiable subtasks using a dedicated planning model. This is the only command in the contract that invokes an LLM.
 
 ```sh
-55ndeep decompose "Build a REST API with auth and rate limiting"
-55ndeep decompose "Build a REST API with auth and rate limiting" --json
-55ndeep decompose "Build a REST API with auth and rate limiting" --execute
+kirkforge decompose "Build a REST API with auth and rate limiting"
+kirkforge decompose "Build a REST API with auth and rate limiting" --json
+kirkforge decompose "Build a REST API with auth and rate limiting" --execute
 ```
 
 | Flag            | Required | Description                                                              |
@@ -279,13 +279,13 @@ Estimated tokens: ~2500
 
 **Subtask execution** (`--execute`): Each subtask is delegated in dependency order. Failed dependencies propagate — children of failed subtasks are skipped with `"error": "Skipped: dependency X failed"`. Each subtask gets one automatic retry on failure and a 5-minute timeout. The full execution result includes per-node status, tokens, duration, verdict, and output files.
 
-### `55ndeep recall-decomposition`
+### `kirkforge recall-decomposition`
 
 Recall a previously stored task decomposition from memory.
 
 ```sh
-55ndeep recall-decomposition "<task-id-or-description>"
-55ndeep recall-decomposition "<task-id-or-description>" --json
+kirkforge recall-decomposition "<task-id-or-description>"
+kirkforge recall-decomposition "<task-id-or-description>" --json
 ```
 
 | Flag                       | Required | Description                                    |
@@ -321,17 +321,17 @@ The minimal integration loop for a host CLI:
 
 ```
 1. Host writes generation output to workspace
-2. Host calls: 55ndeep verify-workspace --workspace /path
+2. Host calls: kirkforge verify-workspace --workspace /path
 3. Parse ReducedStatePacket from stdout
 4. If overall != "pass":
-     a. Host calls: 55ndeep prompt --packet result.json
+     a. Host calls: kirkforge prompt --packet result.json
      b. Parse correction prompt from stdout
      c. Host feeds prompt back into its model loop
      d. Host retries from step 1
 5. After task resolves (pass/fail/escalate):
-     Host calls: 55ndeep observe --memory mem.json ...
+     Host calls: kirkforge observe --memory mem.json ...
 6. On future tasks:
-     Host calls: 55ndeep recall --memory mem.json --description "..."
+     Host calls: kirkforge recall --memory mem.json --description "..."
      Uses routing bias to select mode/model
 ```
 
@@ -346,7 +346,7 @@ set -euo pipefail
 WORKSPACE="$1"
 
 # Step 1: verify
-PACKET=$(55ndeep verify-workspace --workspace "$WORKSPACE" --language typescript)
+PACKET=$(kirkforge verify-workspace --workspace "$WORKSPACE" --language typescript)
 echo "$PACKET" > result.json
 
 # Step 2: check overall
@@ -354,7 +354,7 @@ OVERALL=$(echo "$PACKET" | jq -r '.verification.overall')
 
 if [ "$OVERALL" != "pass" ]; then
   # Step 3: get correction prompt
-  PROMPT=$(55ndeep prompt --packet result.json --language typescript)
+  PROMPT=$(kirkforge prompt --packet result.json --language typescript)
   echo "Correction needed:"
   echo "$PROMPT"
   # Host would feed $PROMPT back into its model loop
@@ -363,8 +363,8 @@ fi
 # Step 4: record observation
 # TASK_OUTCOME is host-provided (pass/fail/escalate), not derived from verifier.
 # The host decides whether the task actually succeeded.
-55ndeep observe \
-  --memory ./55ndeep-memory.json \
+kirkforge observe \
+  --memory ./kirkforge-memory.json \
   --task-id "$TASK_ID" \
   --description "$TASK_DESC" \
   --language typescript \
@@ -396,11 +396,11 @@ Common anti-patterns to avoid:
 ```sh
 # WRONG: deriving outcome from verifier status
 OUTCOME=$(echo "$PACKET" | jq -r '.verification.overall')
-55ndeep observe --outcome "$OUTCOME" ...
+kirkforge observe --outcome "$OUTCOME" ...
 
 # WRONG: deriving outcome from correction-loop final action
 OUTCOME="$FINAL_ACTION"
-55ndeep observe --outcome "$OUTCOME" ...
+kirkforge observe --outcome "$OUTCOME" ...
 
 # CORRECT: outcome from host task validator
 if test_suite_passes; then
@@ -410,7 +410,7 @@ elif test_suite_fails; then
 else
   OUTCOME="escalate"
 fi
-55ndeep observe --outcome "$OUTCOME" ...
+kirkforge observe --outcome "$OUTCOME" ...
 ```
 
 ---
@@ -422,5 +422,5 @@ fi
 3. **Verifier fail is not exit 1.** The `ReducedStatePacket` is the product regardless of overall verdict. Only catastrophic failures (no packet producible) produce exit 1.
 4. **Memory is explicit.** `observe` and `recall` require `--memory <path>`. No ambient state, no global config.
 5. **`observe` maps `escalate` to `fail`.** The memory layer stores escalate outcomes as fail for routing bias purposes.
-6. **Task validators are separate from the verifier battery.** `observe --outcome` should be derived from `TaskValidationResult` or an equivalent host decision, never from `ReducedStatePacket.verification.overall`. See `taskOutcomeFromValidation()` in `@55ndeep/correction-core`.
-7. **The shell adapter is a reference runner, not the product.** The deterministic verification, correction, and routing logic is the product. The `55ndeep` binary is one way to access it.
+6. **Task validators are separate from the verifier battery.** `observe --outcome` should be derived from `TaskValidationResult` or an equivalent host decision, never from `ReducedStatePacket.verification.overall`. See `taskOutcomeFromValidation()` in `@kirkforge/correction-core`.
+7. **The shell adapter is a reference runner, not the product.** The deterministic verification, correction, and routing logic is the product. The `kirkforge` binary is one way to access it.

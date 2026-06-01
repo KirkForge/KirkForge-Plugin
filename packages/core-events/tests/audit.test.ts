@@ -162,7 +162,7 @@ describe("createAuditSink", () => {
   });
 
   it("creates file sink", () => {
-    const sink = createAuditSink({ type: "file", filePath: "/tmp/55ndeep-test-audit.jsonl" });
+    const sink = createAuditSink({ type: "file", filePath: "/tmp/kirkforge-test-audit.jsonl" });
     expect(sink.name).toBe("file");
   });
 

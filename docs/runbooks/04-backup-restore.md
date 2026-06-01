@@ -11,15 +11,15 @@ are in progress.
 ### Programmatic
 
 ```ts
-import { SqliteAdapter } from "@55ndeep/memory-palace/sqlite-adapter";
+import { SqliteAdapter } from "@kirkforge/memory-palace/sqlite-adapter";
 
-const adapter = new SqliteAdapter("/data/55ndeep/memory.db");
+const adapter = new SqliteAdapter("/data/kirkforge/memory.db");
 
-// Auto-named backup: creates /data/55ndeep/memory.db.backup.2026-05-22T12-00-00-000Z
+// Auto-named backup: creates /data/kirkforge/memory.db.backup.2026-05-22T12-00-00-000Z
 const result = await adapter.backup();
 
 // Named backup path
-const result2 = await adapter.backup("/backups/55ndeep/daily.db");
+const result2 = await adapter.backup("/backups/kirkforge/daily.db");
 
 if (result.ok) {
   console.log(`Backup created: ${result.value.filePath}`);
@@ -44,7 +44,7 @@ For production, schedule regular backups via cron or Kubernetes CronJob:
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: 55ndeep-backup
+  name: kirkforge-backup
 spec:
   schedule: "0 */6 * * *" # Every 6 hours
   jobTemplate:
@@ -53,12 +53,12 @@ spec:
         spec:
           containers:
             - name: backup
-              image: 55ndeep:latest
+              image: kirkforge:latest
               command: [
                   "node",
                   "-e",
                   "
-                  const { SqliteAdapter } = require('@55ndeep/memory-palace/sqlite-adapter');
+                  const { SqliteAdapter } = require('@kirkforge/memory-palace/sqlite-adapter');
                   const a = new SqliteAdapter(process.env.DB_PATH);
                   a.backup(process.env.BACKUP_PATH).then(r => {
                   if (r.ok) { console.log('Backup OK:', r.value.filePath); process.exit(0); }
@@ -67,9 +67,9 @@ spec:
                 ]
           env:
             - name: DB_PATH
-              value: /data/55ndeep/memory.db
+              value: /data/kirkforge/memory.db
             - name: BACKUP_PATH
-              value: /backups/55ndeep/hourly-$(date +%Y%m%d%H%M).db
+              value: /backups/kirkforge/hourly-$(date +%Y%m%d%H%M).db
 ```
 
 ### Backup Metadata
@@ -90,11 +90,11 @@ Each `backup()` call returns a `BackupMetadata` object:
 ### Programmatic
 
 ```ts
-const adapter = new SqliteAdapter("/data/55ndeep/memory.db");
+const adapter = new SqliteAdapter("/data/kirkforge/memory.db");
 
 // IMPORTANT: This overwrites the current database.
 // Create a backup first if you want to preserve current state.
-const restoreResult = await adapter.restore("/backups/55ndeep/daily.db");
+const restoreResult = await adapter.restore("/backups/kirkforge/daily.db");
 
 if (restoreResult.ok) {
   console.log(`Restored from: ${restoreResult.value.filePath}`);
@@ -108,23 +108,23 @@ if (restoreResult.ok) {
 1. **Stop the daemon** to prevent writes during restore:
 
    ```bash
-   kubectl scale deploy/55ndeep --replicas=0
+   kubectl scale deploy/kirkforge --replicas=0
    ```
 
 2. **Verify the backup integrity** (SHA-256 checksum):
 
    ```bash
-   sha256sum /backups/55ndeep/daily.db
+   sha256sum /backups/kirkforge/daily.db
    # Compare with the hash recorded at backup time
    ```
 
 3. **Restore from backup**:
 
    ```bash
-   kubectl exec deploy/55ndeep -- node -e "
-     const { SqliteAdapter } = require('@55ndeep/memory-palace/sqlite-adapter');
-     const a = new SqliteAdapter('/data/55ndeep/memory.db');
-     a.restore('/backups/55ndeep/daily.db').then(r => {
+   kubectl exec deploy/kirkforge -- node -e "
+     const { SqliteAdapter } = require('@kirkforge/memory-palace/sqlite-adapter');
+     const a = new SqliteAdapter('/data/kirkforge/memory.db');
+     a.restore('/backups/kirkforge/daily.db').then(r => {
        console.log(r.ok ? 'Restore OK' : 'Restore FAIL', r.ok ? r.value : r.error);
        process.exit(r.ok ? 0 : 1);
      });
@@ -135,7 +135,7 @@ if (restoreResult.ok) {
 
 5. **Restart the daemon**:
    ```bash
-   kubectl scale deploy/55ndeep --replicas=1
+   kubectl scale deploy/kirkforge --replicas=1
    ```
 
 ### Important Notes
@@ -150,15 +150,15 @@ if (restoreResult.ok) {
 ## Listing Backups
 
 ```ts
-const adapter = new SqliteAdapter("/data/55ndeep/memory.db");
+const adapter = new SqliteAdapter("/data/kirkforge/memory.db");
 
 // List auto-named backups in the database directory
 const backups = adapter.listBackups();
 // Returns sorted array of paths like:
-// ["/data/55ndeep/memory.db.backup.2026-05-22T00-00-00-000Z", ...]
+// ["/data/kirkforge/memory.db.backup.2026-05-22T00-00-00-000Z", ...]
 
 // List backups in a specific directory
-const customBackups = adapter.listBackups("/backups/55ndeep/");
+const customBackups = adapter.listBackups("/backups/kirkforge/");
 ```
 
 ## Retention Policy

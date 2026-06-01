@@ -1,5 +1,5 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
 
 // ── Enterprise mode ────────────────────────────────────────────────────────
 //
@@ -69,7 +69,7 @@ export interface EnterpriseViolation {
   remediation: string;
 }
 
-export class EnterpriseModeError extends NDeepError {
+export class EnterpriseModeError extends KirkForgeError {
   violations: EnterpriseViolation[];
   constructor(violations: EnterpriseViolation[]) {
     const msg = violations.map((v) => `[${v.severity}] ${v.control}: ${v.message}`).join("; ");

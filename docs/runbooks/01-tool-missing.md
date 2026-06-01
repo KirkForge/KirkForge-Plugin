@@ -21,7 +21,7 @@ which eslint tsc ruff pyright bandit git
    ```
 2. Rebuild the Docker image if using containerized deployment:
    ```bash
-   docker build -t 55ndeep .
+   docker build -t kirkforge .
    ```
 3. Verify with:
    ```bash

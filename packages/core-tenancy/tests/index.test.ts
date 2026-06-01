@@ -31,7 +31,7 @@ describe("TenantRegistry", () => {
   let registry: TenantRegistry;
 
   function setup() {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-tenancy-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-tenancy-test-"));
     registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
   }
 
@@ -191,7 +191,7 @@ describe("TenantRegistry resolvePath path traversal protection", () => {
   let registry: TenantRegistry;
 
   function setup() {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-traversal-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-traversal-test-"));
     registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
   }
 

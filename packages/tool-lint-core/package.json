@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/tool-lint-core",
+  "name": "@kirkforge/tool-lint-core",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-events": "*",
-    "@55ndeep/core-logging": "*"
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-events": "*",
+    "@kirkforge/core-logging": "*"
   },
   "devDependencies": {},
   "files": [

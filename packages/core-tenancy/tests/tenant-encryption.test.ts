@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { TenantEncryptionAdapter } from "../src/tenant-encryption.js";
-import { TenantKeyProvider } from "@55ndeep/core-secrets";
-import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "@55ndeep/memory-palace";
-import { ok, type Result } from "@55ndeep/core-types";
+import { TenantKeyProvider } from "@kirkforge/core-secrets";
+import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "@kirkforge/memory-palace";
+import { ok, type Result } from "@kirkforge/core-types";
 import { randomBytes } from "node:crypto";
 
 // ── In-memory adapter for testing ────────────────────────────────────────────

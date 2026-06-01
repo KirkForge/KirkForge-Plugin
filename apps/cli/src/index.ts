@@ -8,10 +8,10 @@ import {
   recordObservation,
   recallRoutingBias,
   verifyWorkspace,
-} from "@55ndeep/plugin";
-import { ReducedStatePacketSchema } from "@55ndeep/core-schemas";
-import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
-import { TenantRegistry } from "@55ndeep/core-tenancy";
+} from "@kirkforge/plugin";
+import { ReducedStatePacketSchema } from "@kirkforge/core-schemas";
+import { FileAdapter, MemoryStore } from "@kirkforge/memory-palace";
+import { TenantRegistry } from "@kirkforge/core-tenancy";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { URL } from "node:url";
@@ -40,7 +40,7 @@ function exitError(message: string, json?: boolean): never {
 }
 
 const program = new Command();
-program.name("55ndeep").description("Deterministic LLM output verification CLI").version(VERSION);
+program.name("kirkforge").description("Deterministic LLM output verification CLI").version(VERSION);
 
 program
   .command("delegate")
@@ -503,7 +503,7 @@ program
       memoryPath = opts.memory!;
     }
     if (opts.sqlite) {
-      const { SqliteAdapter } = await import("@55ndeep/memory-palace/sqlite-adapter");
+      const { SqliteAdapter } = await import("@kirkforge/memory-palace/sqlite-adapter");
       adapter = new SqliteAdapter(memoryPath);
     } else {
       adapter = new FileAdapter(memoryPath);
@@ -560,7 +560,7 @@ program
       memoryPath = opts.memory!;
     }
     if (opts.sqlite) {
-      const { SqliteAdapter } = await import("@55ndeep/memory-palace/sqlite-adapter");
+      const { SqliteAdapter } = await import("@kirkforge/memory-palace/sqlite-adapter");
       adapter = new SqliteAdapter(memoryPath);
     } else {
       adapter = new FileAdapter(memoryPath);
@@ -583,7 +583,7 @@ program
   .argument("<task-id-or-description>", "Task ID or description substring to search for")
   .option("--json", "JSON output")
   .action(async (query, opts) => {
-    const adapter = new FileAdapter(resolve(process.cwd(), ".55ndeep-memory.json"));
+    const adapter = new FileAdapter(resolve(process.cwd(), ".kirkforge-memory.json"));
     const memoryStore = new MemoryStore(adapter);
     const result = await memoryStore.recallDecomposition(query);
 
@@ -646,7 +646,7 @@ program
   .command("tools")
   .description("List registered verification tools")
   .action(async () => {
-    console.log("55NDeep Native Lint Engines (internal, always available):");
+    console.log("KirkForge Native Lint Engines (internal, always available):");
     console.log("  JS/TS:  tool-lint-ts (29 rules)");
     console.log("  Python: tool-lint-py (34 rules)");
     console.log("  Shell:  tool-lint-sh (9 rules)");
@@ -711,7 +711,7 @@ program
     }
 
     // Genesis hash matches the one in core-events/audit.ts
-    const GENESIS_INPUT = "55ndeep-audit-genesis";
+    const GENESIS_INPUT = "kirkforge-audit-genesis";
     const genesisHash = createHash("sha256")
       .update(GENESIS_INPUT, "utf-8")
       .digest("hex")

@@ -33,33 +33,33 @@ function makePacket(overrides?: Partial<ReducedStatePacket>): ReducedStatePacket
 describe("toolNames()", () => {
   it("returns eslint/tsc/secdev for typescript", () => {
     expect(toolNames("typescript")).toEqual({
-      lint: "55NDeep TypeScript lint engine",
+      lint: "KirkForge TypeScript lint engine",
       types: "tsc",
-      security: "55NDeep TypeScript lint engine (safety rules)",
+      security: "KirkForge TypeScript lint engine (safety rules)",
     });
   });
 
   it("returns eslint/tsc/secdev for javascript", () => {
     expect(toolNames("javascript")).toEqual({
-      lint: "55NDeep TypeScript lint engine",
+      lint: "KirkForge TypeScript lint engine",
       types: "tsc",
-      security: "55NDeep TypeScript lint engine (safety rules)",
+      security: "KirkForge TypeScript lint engine (safety rules)",
     });
   });
 
   it("returns ruff/pyright/bandit for python", () => {
     expect(toolNames("python")).toEqual({
-      lint: "55NDeep Python lint engine",
+      lint: "KirkForge Python lint engine",
       types: "pyright",
-      security: "55NDeep Python lint engine (safety rules)",
+      security: "KirkForge Python lint engine (safety rules)",
     });
   });
 
   it("returns shellcheck/bash -n/secdev for shell", () => {
     expect(toolNames("shell")).toEqual({
-      lint: "55NDeep shell lint engine",
+      lint: "KirkForge shell lint engine",
       types: "bash -n",
-      security: "55NDeep shell lint engine (safety rules)",
+      security: "KirkForge shell lint engine (safety rules)",
     });
   });
 
@@ -75,14 +75,14 @@ describe("toolNames()", () => {
 describe("buildCorrectionPrompt()", () => {
   it("includes correct tool names for python", () => {
     const prompt = buildCorrectionPrompt(makePacket(), "python");
-    expect(prompt).toContain("55NDeep Python lint engine");
+    expect(prompt).toContain("KirkForge Python lint engine");
     expect(prompt).toContain("pyright");
     expect(prompt).toContain("safety rules");
   });
 
   it("includes correct tool names for typescript", () => {
     const prompt = buildCorrectionPrompt(makePacket(), "typescript");
-    expect(prompt).toContain("55NDeep TypeScript lint engine");
+    expect(prompt).toContain("KirkForge TypeScript lint engine");
     expect(prompt).toContain("tsc");
     expect(prompt).toContain("safety rules");
   });

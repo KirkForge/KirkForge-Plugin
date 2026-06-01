@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const ToolSeveritySchema = z.enum(["info", "low", "medium", "high", "critical"]);
 
-export const NDeepConfigSchema = z.object({
+export const KirkForgeConfigSchema = z.object({
   workspace: z.string().default("."),
   orchestrator: z
     .object({
@@ -44,13 +44,13 @@ export const NDeepConfigSchema = z.object({
     .default({ level: "info", format: "json" }),
   memory: z
     .object({
-      path: z.string().default(".55ndeep/memory"),
+      path: z.string().default(".kirkforge/memory"),
       retentionDays: z.number().int().positive().default(30),
     })
-    .default({ path: ".55ndeep/memory", retentionDays: 30 }),
+    .default({ path: ".kirkforge/memory", retentionDays: 30 }),
 });
 
-export type NDeepConfig = z.infer<typeof NDeepConfigSchema>;
+export type KirkForgeConfig = z.infer<typeof KirkForgeConfigSchema>;
 
 export const VerifierSlotSchema = z.enum(["lint", "types", "security", "graph"]);
 

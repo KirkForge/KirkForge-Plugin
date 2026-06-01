@@ -2,12 +2,12 @@ import type {
   ReducedStatePacket,
   CorrectionDecision,
   VerifierSlot,
-} from "@55ndeep/correction-core";
-import { buildCorrectionPrompt } from "@55ndeep/correction-core";
-import type { TaskLanguage } from "@55ndeep/correction-core";
+} from "@kirkforge/correction-core";
+import { buildCorrectionPrompt } from "@kirkforge/correction-core";
+import type { TaskLanguage } from "@kirkforge/correction-core";
 
-export type { CorrectionConfig, CorrectionDecision } from "@55ndeep/correction-core";
-export { buildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
+export type { CorrectionConfig, CorrectionDecision } from "@kirkforge/correction-core";
+export { buildCorrectionPrompt, toolNames } from "@kirkforge/correction-core";
 
 export function decideCorrection(
   packet: ReducedStatePacket,

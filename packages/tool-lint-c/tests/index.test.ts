@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { rm } from "node:fs/promises";
 
-const BASE = resolve(tmpdir(), "55ndeep-lint-c-" + Date.now());
+const BASE = resolve(tmpdir(), "kirkforge-lint-c-" + Date.now());
 let n = 0;
 
 async function s(files: Record<string, string>) {

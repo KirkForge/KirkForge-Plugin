@@ -1,13 +1,13 @@
-import type { DelegationMode } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
-import { ok, err } from "@55ndeep/core-types";
-import { EventBus } from "@55ndeep/core-events";
-import type { Logger } from "@55ndeep/core-logging";
-import { scrubSecrets } from "@55ndeep/core-logging";
-import type { ModelConfig, ModelProviderConfig } from "@55ndeep/model-config";
-import { Agent } from "@55ndeep/agent-core";
-import type { TaskBrief } from "@55ndeep/prompt-core";
-import { BUILTIN_TEMPLATES, getContractTemplate } from "@55ndeep/prompt-core";
+import type { DelegationMode } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
+import { ok, err } from "@kirkforge/core-types";
+import { EventBus } from "@kirkforge/core-events";
+import type { Logger } from "@kirkforge/core-logging";
+import { scrubSecrets } from "@kirkforge/core-logging";
+import type { ModelConfig, ModelProviderConfig } from "@kirkforge/model-config";
+import { Agent } from "@kirkforge/agent-core";
+import type { TaskBrief } from "@kirkforge/prompt-core";
+import { BUILTIN_TEMPLATES, getContractTemplate } from "@kirkforge/prompt-core";
 import { classifyTask } from "./classifier.js";
 import { StateReducer } from "./reducer.js";
 import { decideCorrection } from "./correction-loop.js";
@@ -24,16 +24,16 @@ import { SloMonitor, AuthPolicySloMonitor, type SloReport } from "./slo-monitor.
 import { ClassifierMemory } from "./classifier-persistence.js";
 import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 import { extractWrittenFiles, extractEmissionFiles } from "./types.js";
-import type { MemoryStore } from "@55ndeep/memory-palace";
-import { QuotaManager } from "@55ndeep/core-enterprise";
-import type { Recommendation } from "@55ndeep/memory-palace";
+import type { MemoryStore } from "@kirkforge/memory-palace";
+import { QuotaManager } from "@kirkforge/core-enterprise";
+import type { Recommendation } from "@kirkforge/memory-palace";
 import type {
   ReducedStatePacket,
   CorrectionDecision,
   TaskValidationResult,
   TaskOutcome,
-} from "@55ndeep/correction-core";
-import { taskOutcomeFromValidation, makeSkippedValidation } from "@55ndeep/correction-core";
+} from "@kirkforge/correction-core";
+import { taskOutcomeFromValidation, makeSkippedValidation } from "@kirkforge/correction-core";
 import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { cpSync, mkdirSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
@@ -48,8 +48,8 @@ export { StateReducer } from "./reducer.js";
 export type { ReducedStatePacket } from "./reducer.js";
 export { createVerificationEmitters } from "./emitter-factory.js";
 export { decideCorrection } from "./correction-loop.js";
-export { buildCorrectionPrompt, toolNames } from "@55ndeep/correction-core";
-export type { CorrectionConfig, CorrectionDecision } from "@55ndeep/correction-core";
+export { buildCorrectionPrompt, toolNames } from "@kirkforge/correction-core";
+export type { CorrectionConfig, CorrectionDecision } from "@kirkforge/correction-core";
 export type { TaskInput, DelegationResult, OrchestratorResult } from "./types.js";
 export type { OrchestratorStats, HealthCheckResult } from "./types.js";
 export type {
@@ -141,9 +141,9 @@ export interface OrchestratorConfig {
   cwd?: string;
   decomposeProvider?: string;
   /** Policy engine for deny-by-default enforcement. If set, tools and models are checked before execution. */
-  policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
+  policyEngine?: import("@kirkforge/core-policy").PolicyEngine;
   /** Audit logger for policy deny events. */
-  auditLogger?: import("@55ndeep/core-events").AuditLogger;
+  auditLogger?: import("@kirkforge/core-events").AuditLogger;
   /** Per-tenant quota manager. If set, quotas are checked before execution. */
   quotaManager?: QuotaManager;
 }
@@ -168,8 +168,8 @@ export class Orchestrator {
   private _classifierMemory: ClassifierMemory | null = null;
   private _baselineSnapshotDir: string | null = null;
   private _isolatedBaselineDirs: string[] = [];
-  private _policyEngine?: import("@55ndeep/core-policy").PolicyEngine;
-  private _auditLogger?: import("@55ndeep/core-events").AuditLogger;
+  private _policyEngine?: import("@kirkforge/core-policy").PolicyEngine;
+  private _auditLogger?: import("@kirkforge/core-events").AuditLogger;
   private _quotaManager?: QuotaManager;
 
   constructor(config: OrchestratorConfig) {
@@ -213,7 +213,7 @@ export class Orchestrator {
           task.actor,
         );
         return err(
-          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+          new KirkForgeError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
             policyHash: modelDecision.policyHash,
           }),
@@ -229,7 +229,7 @@ export class Orchestrator {
           task.actor,
         );
         return err(
-          new NDeepError("POLICY_DENIED", toolDecision.reason, {
+          new KirkForgeError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
             policyHash: toolDecision.policyHash,
           }),
@@ -687,7 +687,7 @@ export class Orchestrator {
     action: "model.deny" | "tool.deny",
     reason: string,
     policyHash: string,
-    actor?: import("@55ndeep/core-rbac").Actor,
+    actor?: import("@kirkforge/core-rbac").Actor,
   ): void {
     // Track policy deny for SLO monitoring
     this._authPolicySlo.record({
@@ -1174,7 +1174,7 @@ export class Orchestrator {
     taskId: string,
     originalCwd: string,
   ): Promise<OrchestratorResult> {
-    const turnWorkspace = mkdtempSync(join(tmpdir(), "55ndeep-turn-"));
+    const turnWorkspace = mkdtempSync(join(tmpdir(), "kirkforge-turn-"));
     try {
       cpSync(originalCwd, turnWorkspace, {
         recursive: true,
@@ -1210,7 +1210,7 @@ export class Orchestrator {
     baselineDir?: string,
   ): Promise<string> {
     try {
-      const tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-validator-"));
+      const tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-validator-"));
 
       if (emittedFiles && emittedFiles.length > 0) {
         // Copy baseline workspace first so validators (e.g. tsc, linters) have
@@ -1285,7 +1285,7 @@ export class Orchestrator {
 
   private _ensureBaselineSnapshot(): string {
     if (this._baselineSnapshotDir) return this._baselineSnapshotDir;
-    const snapshotDir = mkdtempSync(join(tmpdir(), "55ndeep-baseline-"));
+    const snapshotDir = mkdtempSync(join(tmpdir(), "kirkforge-baseline-"));
     cpSync(this.cwd, snapshotDir, {
       recursive: true,
       dereference: false,
@@ -1489,7 +1489,7 @@ export class Orchestrator {
   async decomposeTask(
     task: TaskInput,
   ): Promise<
-    import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error>
+    import("@kirkforge/core-types").Result<import("./types.js").DecompositionResult, Error>
   > {
     if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
     const _taskId = task.taskId ?? `task-${Date.now()}`;
@@ -1509,7 +1509,7 @@ export class Orchestrator {
           task.actor,
         );
         return err(
-          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+          new KirkForgeError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
             policyHash: modelDecision.policyHash,
           }),
@@ -1525,7 +1525,7 @@ export class Orchestrator {
           task.actor,
         );
         return err(
-          new NDeepError("POLICY_DENIED", toolDecision.reason, {
+          new KirkForgeError("POLICY_DENIED", toolDecision.reason, {
             rule: toolDecision.rule,
             policyHash: toolDecision.policyHash,
           }),
@@ -1595,9 +1595,9 @@ export class Orchestrator {
 
   async executeDecomposition(
     taskId: string,
-    actor?: import("@55ndeep/core-rbac").Actor,
+    actor?: import("@kirkforge/core-rbac").Actor,
   ): Promise<
-    import("@55ndeep/core-types").Result<import("./types.js").DecompositionExecutionResult, Error>
+    import("@kirkforge/core-types").Result<import("./types.js").DecompositionExecutionResult, Error>
   > {
     if (this._shuttingDown) return err(new Error("Orchestrator is shutting down"));
     if (!this.memoryStore)
@@ -1621,7 +1621,7 @@ export class Orchestrator {
       if (!modelDecision.allowed) {
         this._auditPolicyDeny("model.deny", modelDecision.reason, modelDecision.policyHash, actor);
         return err(
-          new NDeepError("POLICY_DENIED", modelDecision.reason, {
+          new KirkForgeError("POLICY_DENIED", modelDecision.reason, {
             rule: modelDecision.rule,
             policyHash: modelDecision.policyHash,
           }),
@@ -1639,7 +1639,7 @@ export class Orchestrator {
             actor,
           );
           return err(
-            new NDeepError(
+            new KirkForgeError(
               "POLICY_DENIED",
               `Tool policy denies language "${lang}" in decomposition: ${toolDecision.reason}`,
               { rule: toolDecision.rule, policyHash: toolDecision.policyHash, language: lang },
@@ -1801,7 +1801,7 @@ export class Orchestrator {
 
   private _parseDecomposition(
     raw: string,
-  ): import("@55ndeep/core-types").Result<import("./types.js").DecompositionResult, Error> {
+  ): import("@kirkforge/core-types").Result<import("./types.js").DecompositionResult, Error> {
     let jsonStr = raw.trim();
     const codeBlock = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
     if (codeBlock) jsonStr = codeBlock[1]!.trim();
@@ -1846,7 +1846,7 @@ export class Orchestrator {
     }
 
     const validComplexities = new Set(["trivial", "simple", "moderate", "complex"]);
-    const nodes: import("@55ndeep/core-types").TaskNode[] = [];
+    const nodes: import("@kirkforge/core-types").TaskNode[] = [];
     const ids = new Set<string>();
 
     for (let i = 0; i < tasks.length; i++) {
@@ -1864,7 +1864,7 @@ export class Orchestrator {
         description: String(t.description ?? "").slice(0, 500),
         language: String(t.language ?? "text"),
         dependsOn: Array.isArray(t.dependsOn) ? (t.dependsOn as unknown[]).map(String) : [],
-        estimatedComplexity: complexity as import("@55ndeep/core-types").EstimatedComplexity,
+        estimatedComplexity: complexity as import("@kirkforge/core-types").EstimatedComplexity,
         outputFiles: Array.isArray(t.outputFiles)
           ? (t.outputFiles as unknown[]).map(String).slice(0, 20)
           : [],
@@ -1918,9 +1918,9 @@ export class Orchestrator {
   }
 
   private _topologicalSort(
-    nodes: import("@55ndeep/core-types").TaskNode[],
-  ): import("@55ndeep/core-types").Result<import("@55ndeep/core-types").TaskNode[], Error> {
-    const byId = new Map<string, import("@55ndeep/core-types").TaskNode>();
+    nodes: import("@kirkforge/core-types").TaskNode[],
+  ): import("@kirkforge/core-types").Result<import("@kirkforge/core-types").TaskNode[], Error> {
+    const byId = new Map<string, import("@kirkforge/core-types").TaskNode>();
     for (const n of nodes) byId.set(n.id, n);
 
     const inDegree = new Map<string, number>();
@@ -1941,7 +1941,7 @@ export class Orchestrator {
       if (deg === 0) queue.push(id);
     }
 
-    const sorted: import("@55ndeep/core-types").TaskNode[] = [];
+    const sorted: import("@kirkforge/core-types").TaskNode[] = [];
     while (queue.length > 0) {
       const id = queue.shift()!;
       sorted.push(byId.get(id)!);

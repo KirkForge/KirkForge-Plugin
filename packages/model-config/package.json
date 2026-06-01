@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/model-config",
+  "name": "@kirkforge/model-config",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,10 +11,10 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-errors": "*",
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-errors": "*",
     "zod": "^4.4.3",
-    "@55ndeep/core-secrets": "*"
+    "@kirkforge/core-secrets": "*"
   },
   "devDependencies": {},
   "files": [

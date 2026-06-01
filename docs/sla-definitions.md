@@ -1,6 +1,6 @@
-# 55NDeep Service Level Agreement Definitions
+# KirkForge Service Level Agreement Definitions
 
-This document defines the SLAs for 55NDeep enterprise deployments. These SLAs
+This document defines the SLAs for KirkForge enterprise deployments. These SLAs
 apply to the **managed service** layer; self-hosted deployments should adjust
 targets based on their infrastructure.
 

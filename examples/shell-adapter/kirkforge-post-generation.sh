@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 55NDeep post-generation shell adapter
+# KirkForge post-generation shell adapter
 #
 # Deterministic verification + correction prompt + observation recording.
 # No model calls. Requires jq.
 #
 # Usage:
-#   55ndeep-post-generation.sh \
+#   kirkforge-post-generation.sh \
 #     --workspace /path/to/project \
 #     --task-id t1 \
 #     --task-desc "fix auth bug" \
@@ -24,8 +24,8 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-if ! command -v 55ndeep &>/dev/null; then
-  echo "Error: 55ndeep CLI is required but not found in PATH" >&2
+if ! command -v kirkforge &>/dev/null; then
+  echo "Error: kirkforge CLI is required but not found in PATH" >&2
   exit 1
 fi
 
@@ -91,11 +91,11 @@ esac
 # --- Step 1: Verify workspace (fail-closed: treat failure as correction) ------
 echo "Verifying workspace: $WORKSPACE" >&2
 
-PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/55ndeep-packet.XXXXXX.json")
+PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/kirkforge-packet.XXXXXX.json")
 trap 'rm -f "$PACKET_FILE"' EXIT
 
 set +e
-VERIFY_OUTPUT=$(55ndeep verify-workspace \
+VERIFY_OUTPUT=$(kirkforge verify-workspace \
   --workspace "$WORKSPACE" \
   --language "$LANGUAGE" \
   --task-id "$TASK_ID" 2>/dev/null)
@@ -113,7 +113,7 @@ else
 
   # --- Step 2: Build correction prompt if needed --------------------------------
   if [[ "$OVERALL" != "pass" ]]; then
-    CORRECTION_PROMPT=$(55ndeep prompt \
+    CORRECTION_PROMPT=$(kirkforge prompt \
       --packet "$PACKET_FILE" \
       --language "$LANGUAGE")
 
@@ -125,7 +125,7 @@ fi
 # --- Step 3: Record observation ------------------------------------------------
 # OUTCOME is host-provided (pass/fail/escalate), not derived from the verifier.
 # The host decides whether the task actually passed, not the verifier.
-55ndeep observe \
+kirkforge observe \
   --memory "$MEMORY_PATH" \
   --task-id "$TASK_ID" \
   --description "$TASK_DESC" \

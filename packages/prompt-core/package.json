@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/prompt-core",
+  "name": "@kirkforge/prompt-core",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

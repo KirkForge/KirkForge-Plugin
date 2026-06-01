@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-telemetry",
+  "name": "@kirkforge/core-telemetry",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     ".": "./dist/index.js"
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-logging": "*",
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-logging": "*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.76.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.218.0",

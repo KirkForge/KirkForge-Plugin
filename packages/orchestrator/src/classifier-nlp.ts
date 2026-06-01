@@ -1,5 +1,5 @@
 /**
- * TF-IDF based task classifier for 55NDeep.
+ * TF-IDF based task classifier for KirkForge.
  *
  * Uses a lightweight term-frequency / inverse-document-frequency vectorizer
  * to classify task descriptions into delegation modes (artifact, schema-contract,
@@ -9,7 +9,7 @@
  * curated task archetypes. Cosine similarity against archetype centroids.
  */
 
-import type { DelegationMode } from "@55ndeep/core-types";
+import type { DelegationMode } from "@kirkforge/core-types";
 import type { ClassifierMemory } from "./classifier-persistence.js";
 
 // ── Task archetypes ────────────────────────────────────────────────────────

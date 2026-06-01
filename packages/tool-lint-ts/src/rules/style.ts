@@ -1,6 +1,6 @@
-import type { LintRule } from "@55ndeep/tool-lint-core";
+import type { LintRule } from "@kirkforge/tool-lint-core";
 
-// 55ndeep-lint-disable no-var no-debugger
+// kirkforge-lint-disable no-var no-debugger
 export const styleRules: LintRule[] = [
   {
     id: "no-var",
@@ -39,4 +39,4 @@ export const styleRules: LintRule[] = [
     message: "Magic number detected; extract to a named constant",
   },
 ];
-// 55ndeep-lint-enable no-var no-debugger
+// kirkforge-lint-enable no-var no-debugger

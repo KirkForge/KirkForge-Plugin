@@ -9,7 +9,7 @@
 
 Prove that `BENCH_VALIDATOR_MODE=native` correctly:
 
-- passes `--validator` into 55ndeep run
+- passes `--validator` into kirkforge run
 - populates `finalVerdict` and `sourceOfTruth` from CLI JSON output
 - runs the TBench validator inline during the correction loop
 
@@ -45,7 +45,7 @@ All 6 rows contain `finalVerdict` and `sourceOfTruth` from the CLI JSON output:
 
 ### Native validator integration works ✅
 
-The `--validator` flag was correctly passed to 55ndeep run. The `taskValidation` object in each row
+The `--validator` flag was correctly passed to kirkforge run. The `taskValidation` object in each row
 confirms the internal `__validate-tbench` command was invoked (visible in the `validator` field
 as the full shell command), and `taskValidation.status` matches `finalVerdict`.
 

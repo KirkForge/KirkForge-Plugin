@@ -17,7 +17,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-OUTPUT="${1:-$REPO_ROOT/55ndeep-plugin-publish.zip}"
+OUTPUT="${1:-$REPO_ROOT/kirkforge-plugin-publish.zip}"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -31,7 +31,7 @@ fi
 echo "Cleanliness pre-check: OK"
 
 echo "--- Creating temp zip from git-tracked source files ---"
-TMPZIP="$TMPDIR/55ndeep-plugin-publish-tmp.zip"
+TMPZIP="$TMPDIR/kirkforge-plugin-publish-tmp.zip"
 git ls-files -z | xargs -0 zip -q "$TMPZIP"
 FILE_COUNT=$(unzip -l "$TMPZIP" | tail -1 | awk '{print $2}')
 echo "Temp zip: $(du -h "$TMPZIP" | cut -f1), ${FILE_COUNT} files"

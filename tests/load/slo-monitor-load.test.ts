@@ -1,5 +1,5 @@
 /**
- * Load test baseline for 55NDeep SLO monitor operations.
+ * Load test baseline for KirkForge SLO monitor operations.
  *
  * Validates that AuthPolicySloMonitor and SloMonitor compute
  * reports efficiently under load.
@@ -9,8 +9,8 @@ import {
   AuthPolicySloMonitor,
   SloMonitor,
   ENTERPRISE_SLO_TARGETS,
-} from "@55ndeep/orchestrator/slo-monitor";
-import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
+} from "@kirkforge/orchestrator/slo-monitor";
+import { InMemoryAdapter, MemoryStore } from "@kirkforge/memory-palace";
 
 function percentile(arr: number[], p: number): number {
   const sorted = [...arr].sort((a, b) => a - b);

@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/model-client",
+  "name": "@kirkforge/model-client",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@55ndeep/model-config": "*",
+    "@kirkforge/model-config": "*",
     "zod": "^4.4.3",
-    "@55ndeep/core-telemetry": "*",
+    "@kirkforge/core-telemetry": "*",
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {},

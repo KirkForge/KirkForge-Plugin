@@ -2,7 +2,7 @@
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["packages/plugin/src/index.ts"],
   "out": "docs/api",
-  "name": "55NDeep",
+  "name": "KirkForge",
   "includeVersion": true,
   "readme": "none",
   "excludePrivate": true,

@@ -30,7 +30,7 @@ Every KirkForge repo lives in `/home/kirk/Madlab/Clean-Live/`:
 ```
 /home/kirk/Madlab/Clean-Live/
 ├── REPORULES.md              ← this file
-├── 55NDeep-plugin/            → github.com/KirkForge/55NDeep-plugin
+├── KirkForge-plugin/            → github.com/KirkForge/KirkForge-plugin
 ├── PicoSentry/               → github.com/KirkForge/PicoSentry
 ├── ForagerFlow/              → github.com/KirkForge/ForagerFlow
 ├── Dopaflow/                 → github.com/KirkForge/Dopaflow

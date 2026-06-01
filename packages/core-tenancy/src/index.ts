@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { resolve, join, isAbsolute } from "node:path";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { ok, err, type Result } from "@55ndeep/core-types";
-import type { TenantKeyProvider } from "@55ndeep/core-secrets";
-import { MemoryStore, type MemoryAdapter } from "@55ndeep/memory-palace";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import type { TenantKeyProvider } from "@kirkforge/core-secrets";
+import { MemoryStore, type MemoryAdapter } from "@kirkforge/memory-palace";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,14 +17,14 @@ export interface TenantHandle {
   label: string;
   /** Absolute workspace path this tenant is bound to. */
   workspacePath: string;
-  /** Tenant-scoped storage directory (.55ndeep/tenants/<id>). */
+  /** Tenant-scoped storage directory (.kirkforge/tenants/<id>). */
   storageDir: string;
   /** Created timestamp (ISO). */
   createdAt: string;
 }
 
 export interface TenantRegistryConfig {
-  /** Base directory for tenant storage. Defaults to ~/.55ndeep/tenants. */
+  /** Base directory for tenant storage. Defaults to ~/.kirkforge/tenants. */
   storageRoot?: string;
 }
 
@@ -68,7 +68,7 @@ export class TenantRegistry {
   private tenants = new Map<string, TenantHandle>();
 
   constructor(config: TenantRegistryConfig = {}) {
-    this.storageRoot = config.storageRoot ?? join(homedir(), ".55ndeep", "tenants");
+    this.storageRoot = config.storageRoot ?? join(homedir(), ".kirkforge", "tenants");
     this._loadIndex();
   }
 

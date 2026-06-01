@@ -6,7 +6,7 @@
 #
 # Environment variables:
 #   WORKERS        (required) comma-separated Ollama model names
-#   TBENCH_DIR     task corpus directory (default: $HOME/Madlab/archeived/Harness_research/55NDeep/Testsuite_tasks when present)
+#   TBENCH_DIR     task corpus directory (default: $HOME/Madlab/archeived/Harness_research/KirkForge/Testsuite_tasks when present)
 #   TASKS          comma-separated task names (default: built-in list)
 #   MAX_CORRECTIONS correction turns per worker (default: 2)
 #   VALIDATOR_BACKEND docker | local | auto (default: docker)
@@ -33,7 +33,7 @@ if [[ -z "${WORKERS:-}" ]]; then
 fi
 
 # ── Default TBENCH_DIR ─────────────────────────────────────────────────────
-DEFAULT_TBENCH_DIR="$HOME/Madlab/archeived/Harness_research/55NDeep/Testsuite_tasks"
+DEFAULT_TBENCH_DIR="$HOME/Madlab/archeived/Harness_research/KirkForge/Testsuite_tasks"
 if [[ -z "${TBENCH_DIR:-}" ]]; then
   if [[ -d "$DEFAULT_TBENCH_DIR" ]]; then
     TBENCH_DIR="$DEFAULT_TBENCH_DIR"

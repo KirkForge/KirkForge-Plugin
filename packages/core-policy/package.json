@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-policy",
+  "name": "@kirkforge/core-policy",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-errors": "*"
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-errors": "*"
   },
   "files": [
     "dist/"

@@ -29,7 +29,7 @@ describe.skipIf(!hasBetterSqlite3 || process.env.CI)("SqliteAdapter load test", 
   let dbPath: string;
 
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), "55ndeep-sqlite-load-"));
+    dir = mkdtempSync(join(tmpdir(), "kirkforge-sqlite-load-"));
     dbPath = join(dir, "load-test.db");
   });
 

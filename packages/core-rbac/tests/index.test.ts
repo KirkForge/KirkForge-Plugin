@@ -183,7 +183,7 @@ describe("resolveRole", () => {
 });
 
 describe("validateJwtClaims", () => {
-  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
   const now = Date.now();
 
   it("accepts valid claims", () => {
@@ -191,7 +191,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 + 3600,
         iat: now / 1000 - 60,
       },
@@ -206,7 +206,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://evil.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 + 3600,
         iat: now / 1000 - 60,
       },
@@ -239,7 +239,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 - 100,
         iat: now / 1000 - 3600,
       },
@@ -257,7 +257,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 + 7200,
         iat: now / 1000 + 3600,
       },
@@ -275,7 +275,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: ["55ndeep", "other"],
+        aud: ["kirkforge", "other"],
         exp: now / 1000 + 3600,
         iat: now / 1000 - 60,
       },
@@ -291,7 +291,7 @@ describe("validateJwtClaims", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 - 60,
         iat: now / 1000 - 3600,
       },
@@ -303,7 +303,7 @@ describe("validateJwtClaims", () => {
 });
 
 describe("actorFromJwt", () => {
-  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
 
   it("extracts actor from claims with group mapping", () => {
     const mapping: GroupRoleMapping = { admins: "admin", devs: "developer" };
@@ -311,7 +311,7 @@ describe("actorFromJwt", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: 9999999999,
         iat: 1000,
         groups: ["devs"],
@@ -328,7 +328,7 @@ describe("actorFromJwt", () => {
 
   it("defaults to viewer without groups", () => {
     const result = actorFromJwt(
-      { sub: "user1", iss: "https://auth.example.com", aud: "55ndeep", exp: 9999999999, iat: 1000 },
+      { sub: "user1", iss: "https://auth.example.com", aud: "kirkforge", exp: 9999999999, iat: 1000 },
       config,
     );
     expect(result.ok).toBe(true);
@@ -461,11 +461,11 @@ describe("authorizeTenant with audit hook", () => {
 });
 
 describe("negative auth scenarios", () => {
-  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+  const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
 
   it("rejects JWT with missing required claims", () => {
     const result = validateJwtClaims(
-      { sub: "", iss: "https://auth.example.com", aud: "55ndeep", exp: 9999999999, iat: 1000 },
+      { sub: "", iss: "https://auth.example.com", aud: "kirkforge", exp: 9999999999, iat: 1000 },
       config,
     );
     // Empty sub is technically valid per spec, but our claims validator accepts it
@@ -478,7 +478,7 @@ describe("negative auth scenarios", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com/", // trailing slash
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: 9999999999,
         iat: 1000,
       },
@@ -504,7 +504,7 @@ describe("negative auth scenarios", () => {
       {
         sub: "user1",
         iss: "https://auth.example.com",
-        aud: "55ndeep",
+        aud: "kirkforge",
         exp: now / 1000 - 86400, // expired 24h ago
         iat: now / 1000 - 100000,
       },

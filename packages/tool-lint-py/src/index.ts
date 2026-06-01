@@ -1,5 +1,5 @@
-import { LintEngine } from "@55ndeep/tool-lint-core";
-import type { LintEngineOptions, LintReport } from "@55ndeep/tool-lint-core";
+import { LintEngine } from "@kirkforge/tool-lint-core";
+import type { LintEngineOptions, LintReport } from "@kirkforge/tool-lint-core";
 import { styleRules } from "./rules/style.js";
 import { correctRules } from "./rules/correct.js";
 import { safetyRules } from "./rules/safety.js";

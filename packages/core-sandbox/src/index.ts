@@ -1,8 +1,8 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import { normalize } from "node:path";
-import { NDeepError } from "@55ndeep/core-errors";
+import { KirkForgeError } from "@kirkforge/core-errors";
 
-// ── Sandboxed execution for 55NDeep ─────────────────────────────────────────
+// ── Sandboxed execution for KirkForge ─────────────────────────────────────────
 //
 // Provides constrained execution environments for tool/verifier invocations
 // and generated code. Enterprise deployments MUST configure sandbox limits
@@ -130,7 +130,7 @@ export interface SandboxContext {
 
 // ── Sandbox error ──────────────────────────────────────────────────────────
 
-export class SandboxError extends NDeepError {
+export class SandboxError extends KirkForgeError {
   constructor(code: string, message: string, context?: Record<string, unknown>) {
     super(code, message, context);
     this.name = "SandboxError";

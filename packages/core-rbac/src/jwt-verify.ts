@@ -2,8 +2,8 @@ import { jwtVerify, createRemoteJWKSet, createLocalJWKSet, type JWTVerifyGetKey 
 
 // Track JWKS instances for cache clearing in tests
 const jwksInstances: ReturnType<typeof createRemoteJWKSet>[] = [];
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { AuthError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { AuthError } from "@kirkforge/core-errors";
 import type { OidcConfig, JwtClaims, GroupRoleMapping } from "./index.js";
 
 // ── JOSE/JWKS JWT verification ─────────────────────────────────────────────

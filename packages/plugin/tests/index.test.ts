@@ -12,7 +12,7 @@ import {
   toolNames,
 } from "../src/index.js";
 import type { ReducedStatePacket, TaskLanguage } from "../src/index.js";
-import { MemoryStore, InMemoryAdapter } from "@55ndeep/memory-palace";
+import { MemoryStore, InMemoryAdapter } from "@kirkforge/memory-palace";
 
 function makeFailPacket(): ReducedStatePacket {
   return {
@@ -111,7 +111,7 @@ describe("doctor()", () => {
 
 describe("verifyWorkspace()", () => {
   it("returns err for nonexistent workspace directory", async () => {
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-vw-test-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-vw-test-"));
     try {
       const result = await verifyWorkspace({
         workspace: join(tmp, "nonexistent-path-xyz"),
@@ -125,7 +125,7 @@ describe("verifyWorkspace()", () => {
   });
 
   it("returns ok(packet) for empty workspace directory", async () => {
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-vw-test-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-vw-test-"));
     try {
       const result = await verifyWorkspace({
         workspace: tmp,
@@ -142,7 +142,7 @@ describe("verifyWorkspace()", () => {
   });
 
   it("never returns err for a verifiable workspace (verifier failure is data)", async () => {
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-vw-test-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-vw-test-"));
     try {
       const result = await verifyWorkspace({
         workspace: tmp,
@@ -156,7 +156,7 @@ describe("verifyWorkspace()", () => {
   });
 
   it("uses Python emitters/policy when description implies Python and no language is given", async () => {
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-vw-test-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-vw-test-"));
     try {
       const result = await verifyWorkspace({
         workspace: tmp,
@@ -170,7 +170,7 @@ describe("verifyWorkspace()", () => {
   });
 
   it("sanitizes file paths that escape workspace", async () => {
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-vw-test-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-vw-test-"));
     try {
       mkdirSync(join(tmp, "src"), { recursive: true });
       writeFileSync(join(tmp, "src", "app.ts"), "const x = 1;");
@@ -215,7 +215,7 @@ describe("buildCorrectionPrompt()", () => {
   it("includes Python tooling for Python language", () => {
     const packet = makeFailPacket();
     const prompt = buildCorrectionPrompt(packet, { language: "python" });
-    expect(prompt).toContain("55NDeep Python lint engine");
+    expect(prompt).toContain("KirkForge Python lint engine");
     expect(prompt).toContain("pyright");
     expect(prompt).toContain("safety rules");
   });
@@ -398,7 +398,7 @@ describe("createPluginCore()", () => {
 
   it("verifyWorkspace works as bound method", async () => {
     const core = createPluginCore();
-    const tmp = mkdtempSync(join(tmpdir(), "55ndeep-core-vw-"));
+    const tmp = mkdtempSync(join(tmpdir(), "kirkforge-core-vw-"));
     try {
       const result = await core.verifyWorkspace({
         workspace: tmp,
@@ -415,7 +415,7 @@ describe("createPluginCore()", () => {
     const core = createPluginCore();
     const packet = makeFailPacket();
     const prompt = core.buildCorrectionPrompt(packet, { language: "python" });
-    expect(prompt).toContain("55NDeep Python lint engine");
+    expect(prompt).toContain("KirkForge Python lint engine");
     expect(prompt).toContain("pyright");
     expect(prompt).toContain("safety rules");
   });
@@ -425,18 +425,18 @@ describe("exported types and values", () => {
   it("toolNames returns correct mapping for typescript", () => {
     const ts = toolNames("typescript");
     expect(ts).toEqual({
-      lint: "55NDeep TypeScript lint engine",
+      lint: "KirkForge TypeScript lint engine",
       types: "tsc",
-      security: "55NDeep TypeScript lint engine (safety rules)",
+      security: "KirkForge TypeScript lint engine (safety rules)",
     });
   });
 
   it("toolNames returns correct mapping for python", () => {
     const py = toolNames("python");
     expect(py).toEqual({
-      lint: "55NDeep Python lint engine",
+      lint: "KirkForge Python lint engine",
       types: "pyright",
-      security: "55NDeep Python lint engine (safety rules)",
+      security: "KirkForge Python lint engine (safety rules)",
     });
   });
 

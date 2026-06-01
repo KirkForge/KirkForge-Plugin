@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-types",
+  "name": "@kirkforge/core-types",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

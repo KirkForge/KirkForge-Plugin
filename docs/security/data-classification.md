@@ -1,6 +1,6 @@
 # Data classification & retention
 
-This document is a starting point for enterprise/security review. It explains what data 55NDeep _can_ store, why it exists, and how to minimize/retain/delete it.
+This document is a starting point for enterprise/security review. It explains what data KirkForge _can_ store, why it exists, and how to minimize/retain/delete it.
 
 > **Principle:** Minimize sensitive data. Prefer hashes/metadata over raw content. Make retention configurable. Provide deletion paths.
 
@@ -77,4 +77,4 @@ Enterprise deployments should support:
 
 ## Non-goals
 
-55NDeep is not a records-management system. For long-term retention, export audit events to a SIEM or object storage with lifecycle policies.
+KirkForge is not a records-management system. For long-term retention, export audit events to a SIEM or object storage with lifecycle policies.

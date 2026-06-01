@@ -1,6 +1,6 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
-import type { SecretsManager } from "@55ndeep/core-secrets";
-import { ConfigError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import type { SecretsManager } from "@kirkforge/core-secrets";
+import { ConfigError } from "@kirkforge/core-errors";
 import { ModelConfigSchema, type ModelConfig, type ModelProviderConfig } from "./schemas.js";
 
 const DEFAULTS = {

@@ -1,4 +1,4 @@
-// 55ndeep-lint-disable no-eval no-hardcoded-openai-key no-var
+// kirkforge-lint-disable no-eval no-hardcoded-openai-key no-var
 import { describe, it, expect, afterAll } from "vitest";
 import { createTSLintEngine } from "../src/index.js";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { rm } from "node:fs/promises";
 
-const BASE_DIR = resolve(tmpdir(), `55ndeep-lint-test-${Date.now()}`);
+const BASE_DIR = resolve(tmpdir(), `kirkforge-lint-test-${Date.now()}`);
 let testCounter = 0;
 
 async function setup(files: Record<string, string>) {
@@ -106,5 +106,5 @@ describe("tool-lint-ts", () => {
     const engine = createTSLintEngine({ cwd: BASE_DIR });
     expect(engine.emit).toBeDefined();
   });
-  // 55ndeep-lint-enable no-eval no-hardcoded-openai-key no-var
+  // kirkforge-lint-enable no-eval no-hardcoded-openai-key no-var
 });

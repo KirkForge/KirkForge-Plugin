@@ -1,13 +1,13 @@
 {
-  "id": "55ndeep",
-  "name": "55NDeep",
+  "id": "kirkforge",
+  "name": "KirkForge",
   "version": "1.0.0",
   "description": "Deterministic verification, correction, and routing layer for coding agents. Plugs into Codex, Claude Code, OpenCode, and LangChain-style systems.",
-  "author": "55NDeep Contributors",
+  "author": "KirkForge Contributors",
   "license": "Apache-2.0",
   "entrypoint": {
     "type": "npm",
-    "package": "@55ndeep/plugin",
+    "package": "@kirkforge/plugin",
     "path": "./dist/index.js"
   },
   "permissions": {
@@ -34,8 +34,8 @@
     "opencode",
     "deterministic"
   ],
-  "repository": "https://github.com/55ndeep/55ndeep",
-  "homepage": "https://github.com/55ndeep/55ndeep#readme",
+  "repository": "https://github.com/kirkforge/kirkforge",
+  "homepage": "https://github.com/kirkforge/kirkforge#readme",
   "engines": {
     "node": ">=20.0.0"
   }

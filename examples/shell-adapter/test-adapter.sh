@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Contract tests for 55ndeep-post-generation.sh
+# Contract tests for kirkforge-post-generation.sh
 #
 # Validates the shell adapter contract:
-# - missing jq/55ndeep fails cleanly
+# - missing jq/kirkforge fails cleanly
 # - bare flags fail cleanly (require_value guard)
 # - invalid --outcome fails cleanly
 # - verifier fail emits correction prompt to stdout
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ADAPTER="$SCRIPT_DIR/55ndeep-post-generation.sh"
+ADAPTER="$SCRIPT_DIR/kirkforge-post-generation.sh"
 CLI_DIST="$(cd "$SCRIPT_DIR/../.." && pwd)/apps/cli/dist/index.js"
 NODE="$(command -v node)"
 
@@ -70,19 +70,19 @@ assert_stdout_empty() {
 }
 
 # Create a temporary directory with PATH override
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/55ndeep-adapter-test.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kirkforge-adapter-test.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-# Create a 55ndeep wrapper script that delegates to node + the CLI dist
+# Create a kirkforge wrapper script that delegates to node + the CLI dist
 mkdir -p "$WORK_DIR/bin"
-cat > "$WORK_DIR/bin/55ndeep" << 'WRAPPER'
+cat > "$WORK_DIR/bin/kirkforge" << 'WRAPPER'
 #!/usr/bin/env bash
-exec "$(command -v node)" "$(dirname "$0")/55ndeep-cli-dist.js" "$@"
+exec "$(command -v node)" "$(dirname "$0")/kirkforge-cli-dist.js" "$@"
 WRAPPER
-chmod +x "$WORK_DIR/bin/55ndeep"
-ln -s "$CLI_DIST" "$WORK_DIR/bin/55ndeep-cli-dist.js"
+chmod +x "$WORK_DIR/bin/kirkforge"
+ln -s "$CLI_DIST" "$WORK_DIR/bin/kirkforge-cli-dist.js"
 
-# Test PATH with 55ndeep available
+# Test PATH with kirkforge available
 PATH_WITH="$WORK_DIR/bin:$PATH"
 # Test PATH without key deps
 PATH_NO_JQ=""
@@ -114,13 +114,13 @@ else
   ((FAIL++)) || true
 fi
 
-# --- Test 2: Missing 55ndeep CLI fails cleanly ---
-echo "Test 2: Missing 55ndeep CLI fails with exit 1"
-# Strip 55ndeep from PATH: remove node_modules/.bin (npm adds it) and our wrapper
+# --- Test 2: Missing kirkforge CLI fails cleanly ---
+echo "Test 2: Missing kirkforge CLI fails with exit 1"
+# Strip kirkforge from PATH: remove node_modules/.bin (npm adds it) and our wrapper
 PATH_NO_CLI="$(echo "$PATH" | tr ':' '\n' | grep -v 'node_modules/.bin' | grep -v "$WORK_DIR/bin" | tr '\n' ':')"
 RESULT=$(env PATH="$PATH_NO_CLI" bash "$ADAPTER" --workspace /tmp 2>&1) && RC=0 || RC=$?
-assert_exit "missing 55ndeep" 1 "$RC" || true
-assert_stderr_contains "missing 55ndeep" "55ndeep CLI is required" "$RESULT" || true
+assert_exit "missing kirkforge" 1 "$RC" || true
+assert_stderr_contains "missing kirkforge" "kirkforge CLI is required" "$RESULT" || true
 
 # --- Test 3: Bare --workspace flag fails cleanly ---
 echo "Test 3: Bare --workspace flag (no value) fails with exit 1"
@@ -207,9 +207,9 @@ echo "Test 9: Verifier pass scenario — no correction prompt on stdout"
 # return a passing packet and verify the adapter skips the correction prompt.
 MOCK_WS="$WORK_DIR/pass-workspace"
 mkdir -p "$MOCK_WS"
-# Create a mock 55ndeep that returns a passing packet
+# Create a mock kirkforge that returns a passing packet
 mkdir -p "$WORK_DIR/mock-bin"
-cat > "$WORK_DIR/mock-bin/55ndeep" << 'MOCK_EOF'
+cat > "$WORK_DIR/mock-bin/kirkforge" << 'MOCK_EOF'
 #!/usr/bin/env bash
 case "$1" in
   verify-workspace)
@@ -222,7 +222,7 @@ case "$1" in
     echo "mock: unknown command $1" >&2; exit 1 ;;
 esac
 MOCK_EOF
-chmod +x "$WORK_DIR/mock-bin/55ndeep"
+chmod +x "$WORK_DIR/mock-bin/kirkforge"
 RESULT_OUT=$(mktemp "${WORK_DIR}/result9.out.XXXXXX")
 RESULT_ERR=$(mktemp "${WORK_DIR}/result9.err.XXXXXX")
 env PATH="$WORK_DIR/mock-bin:$PATH" bash "$ADAPTER" \

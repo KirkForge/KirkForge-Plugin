@@ -4,8 +4,8 @@ import { promisify } from "node:util";
 import { writeFileSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { buildCorrectionPrompt, recallRoutingBias, verifyWorkspace } from "@55ndeep/plugin";
-import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
+import { buildCorrectionPrompt, recallRoutingBias, verifyWorkspace } from "@kirkforge/plugin";
+import { FileAdapter, MemoryStore } from "@kirkforge/memory-palace";
 
 const execFileAsync = promisify(execFile);
 
@@ -51,7 +51,7 @@ const validPacket = {
 };
 
 function makeTmpDir() {
-  return mkdtempSync(join(tmpdir(), "55ndeep-cli-test-"));
+  return mkdtempSync(join(tmpdir(), "kirkforge-cli-test-"));
 }
 
 function cleanTmpDir(dir: string) {
@@ -128,10 +128,10 @@ describe("buildCorrectionPrompt", () => {
     const pyPacket = structuredClone(validPacket);
     pyPacket.verification.security = { findings: 2, critical: 0, high: 1 };
     const output = buildCorrectionPrompt(pyPacket, { language: "python" });
-    expect(output).toContain("55NDeep Python lint engine");
+    expect(output).toContain("KirkForge Python lint engine");
     expect(output).toContain("pyright");
     // bandit surfaces only when security findings are present
-    expect(output).toContain("55NDeep Python lint engine (safety rules)");
+    expect(output).toContain("KirkForge Python lint engine (safety rules)");
   });
 
   it("includes security findings when present", () => {

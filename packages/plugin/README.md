@@ -1,18 +1,18 @@
-# @55ndeep/plugin
+# @kirkforge/plugin
 
-Public API surface for the 55NDeep deterministic verification, correction, and routing layer.
+Public API surface for the KirkForge deterministic verification, correction, and routing layer.
 
 ## Install
 
 ```bash
-npm install @55ndeep/plugin
+npm install @kirkforge/plugin
 ```
 
 ## Usage
 
 ```ts
-import { createPluginCore } from "@55ndeep/plugin";
-import { MemoryStore } from "@55ndeep/memory-palace";
+import { createPluginCore } from "@kirkforge/plugin";
+import { MemoryStore } from "@kirkforge/memory-palace";
 
 const memory = new MemoryStore({ backend: "memory" });
 const plugin = createPluginCore({ memoryStore: memory });
@@ -36,7 +36,7 @@ console.log("Available tools:", report.languages);
 
 ## API
 
-See the full TypeDoc-generated API reference at [docs.55ndeep.dev](https://docs.55ndeep.dev).
+See the full TypeDoc-generated API reference at [docs.kirkforge.dev](https://docs.kirkforge.dev).
 
 ### `createPluginCore(config?)`
 

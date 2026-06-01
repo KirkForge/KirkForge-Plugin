@@ -13,7 +13,7 @@ Security patches are applied to the latest stable release only.
 
 **Do not open a public issue.**
 
-Email: `security@55ndeep.dev`
+Email: `security@kirkforge.dev`
 
 - Expect an initial acknowledgment within **48 hours**.
 - We'll keep you informed of progress every 5 business days.
@@ -22,9 +22,9 @@ Email: `security@55ndeep.dev`
 
 ## Threat Model (Summary)
 
-55NDeep is a **deterministic verification and routing layer** for coding agents. Its security boundary assumes:
+KirkForge is a **deterministic verification and routing layer** for coding agents. Its security boundary assumes:
 
-1. The host agent (Codex, Claude Code, OpenCode) is trusted to invoke 55NDeep with valid input.
+1. The host agent (Codex, Claude Code, OpenCode) is trusted to invoke KirkForge with valid input.
 2. External tools (eslint, tsc, ruff, bandit) run in a sandboxed or trusted environment.
 3. Secrets are managed externally via Vault → AWS → GCP → env chain (see `core-secrets`).
 4. All file paths are sanitized via `safeRelativePath()` to prevent directory traversal.

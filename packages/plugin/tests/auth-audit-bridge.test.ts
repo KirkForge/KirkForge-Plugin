@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MemoryAuditSink, AuditLogger } from "@55ndeep/core-events";
-import { authorize, authorizeTenant, type Actor } from "@55ndeep/core-rbac";
+import { MemoryAuditSink, AuditLogger } from "@kirkforge/core-events";
+import { authorize, authorizeTenant, type Actor } from "@kirkforge/core-rbac";
 import { createAuthAuditHook } from "../src/auth-audit-bridge.js";
 
 describe("createAuthAuditHook", () => {

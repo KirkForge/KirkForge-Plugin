@@ -256,7 +256,7 @@ describe("inferOutcome (writeTaskObservation)", () => {
 
 describe("FileAdapter", () => {
   it("persists and reloads across instances", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-mem-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-mem-"));
     const filePath = join(dir, "memory.json");
     try {
       const a1 = new FileAdapter(filePath);
@@ -280,7 +280,7 @@ describe("FileAdapter", () => {
   });
 
   it("returns empty for missing file", async () => {
-    const a = new FileAdapter("/tmp/nonexistent-55ndeep/memory.json");
+    const a = new FileAdapter("/tmp/nonexistent-kirkforge/memory.json");
     const r = await a.read("anything");
     expect(r.ok && r.value).toBeNull();
   });
@@ -288,7 +288,7 @@ describe("FileAdapter", () => {
 
 describe("FileAdapter corruption safety", () => {
   it("corrupted memory file does not become empty memory silently", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-mem-corrupt-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-mem-corrupt-"));
     const filePath = join(dir, "memory.json");
     try {
       writeFileSync(filePath, "NOT VALID JSON {{{{");
@@ -315,7 +315,7 @@ describe("FileAdapter corruption safety", () => {
   });
 
   it("non-array JSON is rejected as corrupted", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-mem-nonarray-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-mem-nonarray-"));
     const filePath = join(dir, "memory.json");
     try {
       writeFileSync(filePath, '{"key": "value"}');
@@ -339,7 +339,7 @@ describe("FileAdapter corruption safety", () => {
   });
 
   it("write creates valid JSON", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-mem-write-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-mem-write-"));
     const filePath = join(dir, "memory.json");
     try {
       const adapter = new FileAdapter(filePath);
@@ -403,7 +403,7 @@ describe("FileAdapter corruption safety", () => {
   });
 
   it("concurrent writes are serialized per instance (documented limitation)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-mem-concurrent-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-mem-concurrent-"));
     const filePath = join(dir, "memory.json");
     try {
       const adapter = new FileAdapter(filePath);

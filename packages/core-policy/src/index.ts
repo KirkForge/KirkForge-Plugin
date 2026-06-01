@@ -1,9 +1,9 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError, ValidationError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError, ValidationError } from "@kirkforge/core-errors";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// ── Policy engine for 55NDeep ─────────────────────────────────────────────────
+// ── Policy engine for KirkForge ─────────────────────────────────────────────────
 //
 // Deny-by-default policy enforcement. Every action must be explicitly allowed
 // by policy, or it is denied. Policy is loaded from a JSON file or fetched from
@@ -92,7 +92,7 @@ export interface PolicyDecision {
 
 // ── Policy errors ───────────────────────────────────────────────────────────
 
-export class PolicyDeniedError extends NDeepError {
+export class PolicyDeniedError extends KirkForgeError {
   decision: PolicyDecision;
   constructor(decision: PolicyDecision) {
     super("POLICY_DENIED", decision.reason, {
@@ -104,7 +104,7 @@ export class PolicyDeniedError extends NDeepError {
   }
 }
 
-export class PolicyLoadError extends NDeepError {
+export class PolicyLoadError extends KirkForgeError {
   constructor(message: string, cause?: string) {
     super("POLICY_LOAD_ERROR", message, { cause });
     this.name = "PolicyLoadError";
@@ -520,7 +520,7 @@ export interface SignedPolicyBundle {
   signedAt: string;
 }
 
-export class PolicySignatureError extends NDeepError {
+export class PolicySignatureError extends KirkForgeError {
   constructor(message: string, cause?: string) {
     super("POLICY_SIGNATURE_ERROR", message, { cause });
     this.name = "PolicySignatureError";

@@ -1,6 +1,6 @@
 # Key Rotation
 
-This document describes how to rotate cryptographic keys in 55NDeep for
+This document describes how to rotate cryptographic keys in KirkForge for
 enterprise deployments. Key rotation limits the blast radius of key compromise
 and is required by SOC 2 (CC6.1), ISO 27001 (A.10.1.2), and PCI DSS (3.6).
 
@@ -19,17 +19,17 @@ and is required by SOC 2 (CC6.1), ISO 27001 (A.10.1.2), and PCI DSS (3.6).
 ### 1. JWT Signing Key (OIDC)
 
 JWT signing keys are managed by the upstream identity provider (e.g., Keycloak,
-Okta, Auth0). 55NDeep consumes the JWKS endpoint and caches keys for the
+Okta, Auth0). KirkForge consumes the JWKS endpoint and caches keys for the
 duration configured in `OidcConfig.jwksUri`.
 
 **To rotate:**
 
 1. Add a new signing key in the IdP. The IdP publishes both keys in JWKS.
-2. 55NDeep automatically picks up the new key on next JWKS cache refresh (30s cooldown).
+2. KirkForge automatically picks up the new key on next JWKS cache refresh (30s cooldown).
 3. Old tokens signed with the previous key remain valid until expiry.
 4. After all old tokens have expired, remove the old key from the IdP.
 
-**No downtime or configuration change is needed in 55NDeep.**
+**No downtime or configuration change is needed in KirkForge.**
 
 ### 2. Policy Signing HMAC Key
 
@@ -42,7 +42,7 @@ Policy bundles are signed with `signPolicyHmac()` and verified with
 2. Set `55NDEEP_POLICY_HMAC_KEY` to the new key in your deployment environment.
 3. Re-sign all policy bundles with the new key:
    ```bash
-   55ndeep policy sign --key "$NEW_HMAC_KEY" policy.json
+   kirkforge policy sign --key "$NEW_HMAC_KEY" policy.json
    ```
 4. Deploy the new key and re-signed policies simultaneously.
 5. During the transition window, maintain both old and new keys in the
@@ -82,7 +82,7 @@ how many old versions are kept.
 
 1. Generate a new API key: `openssl rand -hex 32`
 2. Update `55NDEEP_API_KEY` (or `HEALTH_API_KEY`) in the deployment environment.
-3. Restart the 55NDeep process. Active sessions using the old key are immediately
+3. Restart the KirkForge process. Active sessions using the old key are immediately
    invalidated.
 
 **For zero-downtime rotation:**
@@ -187,7 +187,7 @@ openssl rand -hex 32
 export 55NDEEP_TENANT_KEK=<64-hex-char-key>
 
 # Start daemon
-55ndeep serve
+kirkforge serve
 ```
 
 In enterprise mode, the bootstrap will:

@@ -19,7 +19,7 @@ describe.skipIf(!hasBetterSqlite3 || process.env.CI)("SqliteAdapter backup/resto
   let dir: string;
 
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), "55ndeep-backup-"));
+    dir = mkdtempSync(join(tmpdir(), "kirkforge-backup-"));
   });
 
   afterAll(() => {

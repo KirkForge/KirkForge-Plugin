@@ -1,4 +1,4 @@
-# Contributing to 55NDeep
+# Contributing to KirkForge
 
 ## Commit Convention
 
@@ -21,8 +21,8 @@ Follow the rules in `REPORULES.md`. In short:
 ## Development Setup
 
 ```bash
-git clone https://github.com/KirkForge/55NDeep-plugin.git
-cd 55NDeep-plugin
+git clone https://github.com/KirkForge/KirkForge-plugin.git
+cd KirkForge-plugin
 npm ci
 npm run build
 ```

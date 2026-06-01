@@ -1,6 +1,6 @@
-# @55ndeep/core-types
+# @kirkforge/core-types
 
-Shared TypeScript types for the 55NDeep monorepo. Provides the `Result<T,E>` pattern used throughout all packages.
+Shared TypeScript types for the KirkForge monorepo. Provides the `Result<T,E>` pattern used throughout all packages.
 
 ## Key exports
 

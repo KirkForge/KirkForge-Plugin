@@ -1,4 +1,4 @@
-// 55ndeep-lint-disable no-var
+// kirkforge-lint-disable no-var
 import { describe, it, expect, afterAll } from "vitest";
 import { LintEngine, RuleRegistry } from "../src/index.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { existsSync } from "node:fs";
 import type { LintRule } from "../src/index.js";
 
-const baseDir = resolve(tmpdir(), "55ndeep-lint-core-tests-" + Date.now());
+const baseDir = resolve(tmpdir(), "kirkforge-lint-core-tests-" + Date.now());
 let testSeq = 0;
 
 function testDir(label: string): string {
@@ -226,4 +226,4 @@ afterAll(async () => {
     await rm(baseDir, { recursive: true, force: true });
   } catch {}
 });
-// 55ndeep-lint-enable no-var
+// kirkforge-lint-enable no-var

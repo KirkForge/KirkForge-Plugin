@@ -1,5 +1,5 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
 import { QuotaManager, type TenantQuota, type QuotaUsage } from "./quotas.js";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -42,7 +42,7 @@ interface PersistedQuotaState {
   contentHash: string;
 }
 
-export class QuotaPersistenceError extends NDeepError {
+export class QuotaPersistenceError extends KirkForgeError {
   constructor(message: string, cause?: string) {
     super("QUOTA_PERSISTENCE_ERROR", message, { cause });
     this.name = "QuotaPersistenceError";

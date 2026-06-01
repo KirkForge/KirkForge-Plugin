@@ -1,5 +1,5 @@
 import type { TaskInput } from "./types.js";
-import type { DelegationDecision, DelegationMode } from "@55ndeep/core-types";
+import type { DelegationDecision, DelegationMode } from "@kirkforge/core-types";
 import { classifyHybrid } from "./classifier-nlp.js";
 import type { ClassifierMemory } from "./classifier-persistence.js";
 

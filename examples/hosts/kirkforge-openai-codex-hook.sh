@@ -1,33 +1,27 @@
 #!/usr/bin/env bash
-# 55ndeep-claude-code-hook.sh
+# kirkforge-openai-codex-hook.sh
 #
-# Example: post-generation hook for Claude Code (Anthropic's CLI).
+# Example: post-generation hook for OpenAI Codex CLI.
 # NOT an installed plugin. This is a contract-conforming sketch.
 #
-# Claude Code can invoke shell commands between turns via its hook system.
-# This script verifies the workspace, emits a correction prompt if needed,
-# and records the host-provided task outcome.
+# Codex writes files, then calls this script.
+# The script verifies, builds a correction prompt if needed, and records
+# the host-provided task outcome. Codex decides whether the task passed.
 #
 # Usage:
-#   55ndeep-claude-code-hook.sh \
+#   kirkforge-openai-codex-hook.sh \
 #     --workspace /path/to/project \
 #     --task-id t1 \
-#     --task-desc "refactor payment module" \
+#     --task-desc "implement user auth" \
 #     --language typescript \
-#     --model claude-sonnet-4-20250514 \
-#     --outcome escalate \
-#     --memory ./55ndeep-memory.json \
-#     [--elapsed-ms 12000]
+#     --model codex-1 \
+#     --outcome pass \
+#     --memory ./kirkforge-memory.json \
+#     [--elapsed-ms 10000]
 #
-# Integration in Claude Code settings (.claude/settings.json):
-#   {
-#     "hooks": {
-#       "postGeneration": {
-#         "command": "55ndeep-claude-code-hook.sh",
-#         "args": ["--workspace", "{{workspace}}", "--task-id", "{{taskId}}", ...]
-#       }
-#     }
-#   }
+# In Codex's config (codex.yaml or equivalent):
+#   hooks:
+#     postGeneration: kirkforge-openai-codex-hook.sh --workspace $WORKSPACE ...
 
 set -euo pipefail
 
@@ -35,7 +29,7 @@ WORKSPACE=""
 TASK_ID=""
 TASK_DESC=""
 LANGUAGE="typescript"
-MODEL=""
+MODEL="codex-1"
 OUTCOME=""
 MEMORY_PATH=""
 ELAPSED_MS="0"
@@ -74,31 +68,31 @@ case "$OUTCOME" in
 esac
 
 # Step 1: Verify workspace
-PACKET=$(55ndeep verify-workspace --workspace "$WORKSPACE" --language "$LANGUAGE" --task-id "$TASK_ID")
+PACKET=$(kirkforge verify-workspace --workspace "$WORKSPACE" --language "$LANGUAGE" --task-id "$TASK_ID")
 OVERALL=$(echo "$PACKET" | jq -r '.verification.overall')
 
-echo "[55ndeep] verification: $OVERALL" >&2
+echo "[kirkforge] verification: $OVERALL" >&2
 
 # Step 2: If verification failed, emit correction prompt to stdout
-# Claude Code reads stdout and feeds it back as a user message.
+# Codex reads stdout and injects the prompt into its next model turn.
 if [[ "$OVERALL" != "pass" ]]; then
-  PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/55ndeep-packet.XXXXXX.json")
+  PACKET_FILE=$(mktemp "${TMPDIR:-/tmp}/kirkforge-packet.XXXXXX.json")
   echo "$PACKET" > "$PACKET_FILE"
   trap 'rm -f "$PACKET_FILE"' EXIT
 
-  CORRECTION=$(55ndeep prompt --packet "$PACKET_FILE" --language "$LANGUAGE")
+  CORRECTION=$(kirkforge prompt --packet "$PACKET_FILE" --language "$LANGUAGE")
   echo "$CORRECTION"
 fi
 
 # Step 3: Record task outcome (host-provided, not verifier-derived)
-55ndeep observe \
+kirkforge observe \
   --memory "$MEMORY_PATH" \
   --task-id "$TASK_ID" \
   --description "$TASK_DESC" \
   --language "$LANGUAGE" \
   --mode hard-prompt \
-  --model "${MODEL:-unknown}" \
+  --model "$MODEL" \
   --outcome "$OUTCOME" \
   --duration-ms "$ELAPSED_MS" >/dev/null
 
-echo "[55ndeep] observation recorded: outcome=$OUTCOME" >&2
+echo "[kirkforge] observation recorded: outcome=$OUTCOME" >&2

@@ -195,7 +195,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ruff --version
 pyright --version
 bandit --version
-55ndeep doctor --pretty
+kirkforge doctor --pretty
 ```
 
 Then rerun the same panel. The expected improvement is not necessarily higher `taskPass`. The expected improvement is that `finalAction`, required verifier policy, and task validation stop disagreeing for preventable environment reasons.

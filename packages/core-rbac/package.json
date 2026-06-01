@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-rbac",
+  "name": "@kirkforge/core-rbac",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-errors": "*",
-    "@55ndeep/core-types": "*",
+    "@kirkforge/core-errors": "*",
+    "@kirkforge/core-types": "*",
     "jose": "^6.2.3"
   },
   "files": [

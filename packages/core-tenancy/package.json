@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-tenancy",
+  "name": "@kirkforge/core-tenancy",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/memory-palace": "*",
-    "@55ndeep/core-secrets": "*"
+    "@kirkforge/core-types": "*",
+    "@kirkforge/memory-palace": "*",
+    "@kirkforge/core-secrets": "*"
   },
   "devDependencies": {},
   "files": [

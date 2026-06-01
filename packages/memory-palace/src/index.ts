@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import { readFile, writeFile, mkdir, rename, copyFile } from "node:fs/promises";
 import { openSync, writeFileSync, fsyncSync, closeSync, rmSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -501,11 +501,11 @@ export class MemoryStore {
       const adapter = new SqliteAdapter(dbPath);
       return new MemoryStore(adapter, options);
     }
-    // Default to SQLite at ~/.55ndeep/memory.db for daemon/enterprise safety.
-    // CODEX_HOME overrides the base directory; fallback to ~/.55ndeep.
+    // Default to SQLite at ~/.kirkforge/memory.db for daemon/enterprise safety.
+    // CODEX_HOME overrides the base directory; fallback to ~/.kirkforge.
     const home =
       process.env.CODEX_HOME ??
-      resolve(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".55ndeep");
+      resolve(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".kirkforge");
     const defaultPath = resolve(home, "memory.db");
     try {
       const { SqliteAdapter } = await import("./sqlite-adapter.js");
@@ -513,7 +513,7 @@ export class MemoryStore {
       return new MemoryStore(adapter, options);
     } catch {
       // SQLite unavailable (e.g. better-sqlite3 not present) — fall back to FileAdapter
-      const adapter = new FileAdapter(resolve(process.cwd(), ".55ndeep-memory.json"));
+      const adapter = new FileAdapter(resolve(process.cwd(), ".kirkforge-memory.json"));
       return new MemoryStore(adapter, options);
     }
   }
@@ -568,7 +568,7 @@ export class MemoryStore {
   async writeDecomposition(
     taskId: string,
     description: string,
-    tasks: import("@55ndeep/core-types").TaskNode[],
+    tasks: import("@kirkforge/core-types").TaskNode[],
     language: string,
   ): Promise<Result<void, Error>> {
     const id = `decomp-${taskId}-${Date.now()}`;
@@ -593,7 +593,7 @@ export class MemoryStore {
       {
         taskId: string;
         description: string;
-        tasks: import("@55ndeep/core-types").TaskNode[];
+        tasks: import("@kirkforge/core-types").TaskNode[];
         timestamp: string;
       } | null,
       Error
@@ -612,7 +612,7 @@ export class MemoryStore {
       return ok({
         taskId: byId.taskId,
         description: byId.description,
-        tasks: (byId.properties.tasks as import("@55ndeep/core-types").TaskNode[]) ?? [],
+        tasks: (byId.properties.tasks as import("@kirkforge/core-types").TaskNode[]) ?? [],
         timestamp: byId.timestamp,
       });
     }
@@ -634,7 +634,7 @@ export class MemoryStore {
       return ok({
         taskId: best.taskId,
         description: best.description,
-        tasks: (best.properties.tasks as import("@55ndeep/core-types").TaskNode[]) ?? [],
+        tasks: (best.properties.tasks as import("@kirkforge/core-types").TaskNode[]) ?? [],
         timestamp: best.timestamp,
       });
     }

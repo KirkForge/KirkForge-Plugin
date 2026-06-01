@@ -10,7 +10,7 @@ Label: **archived TBench post-hoc validator evidence**
 This run used the archived validator-capable Harness task set:
 
 ```text
-TBENCH_DIR=/path/to/research/55NDeep/Testsuite_tasks
+TBENCH_DIR=/path/to/research/KirkForge/Testsuite_tasks
 ```
 
 Configuration:
@@ -30,7 +30,7 @@ Workers:
 - `glm-5.1:cloud`
 - `deepseek-v4-flash:cloud`
 
-Important caveat: this benchmark runner still performs **post-hoc TBench validation** after the 55NDeep correction loop. It does not yet use the new native `55ndeep run --validator` runtime path. Therefore the report has real `taskValidation.status` and `taskPass`, but it does not contain `finalVerdict` or `sourceOfTruth`.
+Important caveat: this benchmark runner still performs **post-hoc TBench validation** after the KirkForge correction loop. It does not yet use the new native `kirkforge run --validator` runtime path. Therefore the report has real `taskValidation.status` and `taskPass`, but it does not contain `finalVerdict` or `sourceOfTruth`.
 
 ## Summary
 
@@ -141,7 +141,7 @@ Use this run as discovery data, not final v1 proof.
 The next benchmark should run fewer tasks through the native validator path:
 
 ```text
-55ndeep run "<task prompt>" --validator "<archived task validator command>" --json
+kirkforge run "<task prompt>" --validator "<archived task validator command>" --json
 ```
 
 The target evidence shape is:

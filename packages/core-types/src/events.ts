@@ -173,7 +173,7 @@ export interface ArtifactEmittedEvent {
   timestamp: string;
 }
 
-export type NDeepEvent =
+export type KirkForgeEvent =
   | VerifyLintEvent
   | VerifyTypesEvent
   | VerifySecurityEvent
@@ -185,4 +185,4 @@ export type NDeepEvent =
   | ArtifactTruncatedEvent
   | ArtifactEmittedEvent;
 
-export type NDeepEventKind = NDeepEvent["kind"];
+export type KirkForgeEventKind = KirkForgeEvent["kind"];

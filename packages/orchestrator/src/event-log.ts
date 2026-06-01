@@ -1,9 +1,9 @@
-import type { EventBus } from "@55ndeep/core-events";
-import type { NDeepEvent } from "@55ndeep/core-types";
+import type { EventBus } from "@kirkforge/core-events";
+import type { KirkForgeEvent } from "@kirkforge/core-types";
 import { mkdirSync, openSync, appendFileSync, closeSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { createHmac } from "node:crypto";
-import type { Logger } from "@55ndeep/core-logging";
+import type { Logger } from "@kirkforge/core-logging";
 
 /**
  * Append-only event log writer with hash chaining for tamper detection.
@@ -33,7 +33,7 @@ export class EventLogger {
     if (!secret) {
       throw new Error("EventLogger requires EVENT_LOG_HMAC_SECRET env var or explicit hmacSecret");
     }
-    this.path = logPath ?? resolve(process.cwd(), ".55ndeep/event-log.jsonl");
+    this.path = logPath ?? resolve(process.cwd(), ".kirkforge/event-log.jsonl");
     this.hmacKey = Buffer.from(secret, "utf-8");
 
     // Recover prevHash and sequence by reading last line of existing log
@@ -69,7 +69,7 @@ export class EventLogger {
   }
 
   private _wire(): void {
-    const eventKinds: NDeepEvent["kind"][] = [
+    const eventKinds: KirkForgeEvent["kind"][] = [
       "verify.lint",
       "verify.types",
       "verify.security",
@@ -151,7 +151,7 @@ export class EventLogger {
     }
   }
 
-  private _append(event: NDeepEvent): void {
+  private _append(event: KirkForgeEvent): void {
     if (!this._ensureOpen()) return;
 
     const currentSeq = this.seq;

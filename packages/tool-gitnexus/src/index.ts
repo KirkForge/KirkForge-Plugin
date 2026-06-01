@@ -1,6 +1,6 @@
-import { ok, err } from "@55ndeep/core-types";
-import type { Result } from "@55ndeep/core-types";
-import type { EventBus } from "@55ndeep/core-events";
+import { ok, err } from "@kirkforge/core-types";
+import type { Result } from "@kirkforge/core-types";
+import type { EventBus } from "@kirkforge/core-events";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";

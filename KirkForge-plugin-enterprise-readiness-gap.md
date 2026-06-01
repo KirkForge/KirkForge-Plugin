@@ -1,4 +1,4 @@
-# 55NDeep — Security & Deployment Checklist
+# KirkForge — Security & Deployment Checklist
 
 > Honest status of every security and deployment feature. No padding, no spin.
 
@@ -28,7 +28,7 @@ Dark-Moon pentest (2026-05). AI-assisted security review.
 | Enterprise startup gate | ✅ Working | Validates auth, audit, policy, storage before daemon start |
 | Rate limiting / quotas | ✅ Working | Per-tenant, sliding window, file persistence |
 | Health server | ⚠️ Minor bug | PUT/DELETE return 500 instead of 405. 3 test failures. |
-| Docker image | 🟡 Not published | Dockerfile works locally, no published `55ndeep/sandbox` image |
+| Docker image | 🟡 Not published | Dockerfile works locally, no published `kirkforge/sandbox` image |
 | External pentest | 🟡 Not done | Dark-Moon review was AI-assisted, not a traditional pentest |
 | Admin UI | 🟡 Not built | Deferred |
 | Fleet management | 🟡 Not built | Deferred |

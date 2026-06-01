@@ -50,7 +50,7 @@
 - **executeDecomposition**: New orchestrator method walks the sorted task tree, delegates each subtask in dependency order, propagates dependency failures (children of failed deps are skipped with clear error messages), and returns a structured `DecompositionExecutionResult` with per-node `SubtaskExecutionResult` entries.
 - **`--execute` flag on decompose**: Chains decompose → execute in one command. Prints a compact summary with ✓/✗ status, tokens, duration, and output files per subtask. JSON mode serializes the full result.
 - **`recall-decomposition` CLI**: Recalls previously stored decompositions from memory for inspection or re-execution.
-- **DECOMPOSE_TEMPLATE**: Zod-validated prompt template (`@55ndeep/prompt-core`) with schema-contract response shaping. Validates `id`, `description`, `language`, `dependsOn`, `estimatedComplexity` (enum), `outputFiles`, and `verificationHint` at both template and parse time.
+- **DECOMPOSE_TEMPLATE**: Zod-validated prompt template (`@kirkforge/prompt-core`) with schema-contract response shaping. Validates `id`, `description`, `language`, `dependsOn`, `estimatedComplexity` (enum), `outputFiles`, and `verificationHint` at both template and parse time.
 - **Defensive topological re-sort**: `executeDecomposition` re-sorts stored tasks before execution, guarding against corrupted or hand-edited memory stores. Cycle detection surfaces invalid dependency graphs.
 - **Subtask retry & timeout**: Each delegate call gets one automatic retry on failure and a 5-minute per-subtask timeout via `Promise.race`.
 - **Bracket heuristic**: Robust JSON extraction handles prose brackets, markdown code fences, nested `[DEPRECATED]` markers in strings, `src/[id]/page.tsx` paths, and whitespace-heavy model output. Fuzz-tested for edge cases.
@@ -100,7 +100,7 @@
 - **Dockerfile CMD**: Changed from `--help` to `serve` — container no longer exits immediately.
 - **docker-compose**: Added explicit `command: ["serve"]` to prevent container exit loop.
 - **CLI `serve` command**: New daemon command starts `HealthServer` and blocks until SIGTERM/SIGINT. Registers graceful shutdown hook on both signals. Health server properly transitions through `ready → not_ready → stop`.
-- **HealthServer export**: Added `./health-server` export to `@55ndeep/orchestrator` package.json exports map.
+- **HealthServer export**: Added `./health-server` export to `@kirkforge/orchestrator` package.json exports map.
 - **`/metrics` endpoint**: Returns JSON-format stats (not Prometheus exposition). For Prometheus, use the OpenTelemetry OTLP pipeline (`OTEL_EXPORTER_OTLP_ENDPOINT`).
 - **Helm configmap.yaml**: Added missing ConfigMap template that `deployment.yaml` referenced for checksum annotations.
 
@@ -156,7 +156,7 @@
 
 - **Empty-emission correction prompt**: When artifact or schema-contract modes produce zero files, the correction prompt now includes a clear message telling the worker to emit at least one file instead of returning a useless generic prompt.
 - **validator-contract test semantic drift**: Test now imports the production `finalVerdictFromValidation` from truth-model.ts. Error/skipped validator status correctly maps to `"unknown"` instead of `"error"`.
-- **walkFiles duplication eliminated**: Shared `walkFiles` utility extracted to `@55ndeep/core-logging` and used by both `tool-python` and `tool-secdev`. Consistent exclusion rules across both packages.
+- **walkFiles duplication eliminated**: Shared `walkFiles` utility extracted to `@kirkforge/core-logging` and used by both `tool-python` and `tool-secdev`. Consistent exclusion rules across both packages.
 - **MemoryAdapter.persist() properly typed**: `persist()` added to the `MemoryAdapter` interface. Removed `(adapter as any).persist()` casts throughout the orchestrator.
 - **gracefulShutdown order**: Event bus now drained before memory persists, preventing lost events on shutdown.
 - **runCorrectionLoop catch block**: Internal exceptions now caught, logged, and translated to escalate outcomes with memory observations instead of throwing raw errors.
@@ -164,7 +164,7 @@
 - **buildCorrectionPrompt safe fallback**: Unknown languages fall back to generic tool names instead of throwing.
 - **ClassifierMemory cross-run learning**: `loadFromStore()` now called at the start of each `runCorrectionLoop`, enabling the NLP classifier to learn from previous sessions.
 - **CLI workspace path validation**: `--workspace` now validated with `existsSync` before registering a tenant handle.
-- **TenantRegistry persistence**: Tenant registry now persists to `~/.55ndeep/tenants/index.json` across sessions.
+- **TenantRegistry persistence**: Tenant registry now persists to `~/.kirkforge/tenants/index.json` across sessions.
 - **Exclude filter depth**: cpSync filters in `_runIsolatedTurn` and `_createIsolatedWorkspace` now check all path segments for `node_modules`, `.git`, `dist`, `.tsbuildinfo`, not just the first.
 - **Orchestrator concurrency guard**: `_busy` flag prevents concurrent `runCorrectionLoop` calls on a single instance with a clear error message.
 - **Classifier confidence**: Formula now reduces confidence for single weak signals (`margin / max(1, highest) * min(1, highest / 20)` instead of plain `margin / max(1, highest)`).
@@ -181,7 +181,7 @@
 
 ### Framing
 
-55NDeep is a **deterministic verification gate** that commoditizes model choice. Frontier thinks. Mid-tier works. Token cost per line of working code drops because the user isn't burning frontier tokens on what a mid-tier model + tool loop can handle. The system escalates to frontier only when the verifier gate says the cheap model genuinely can't fix the issue.
+KirkForge is a **deterministic verification gate** that commoditizes model choice. Frontier thinks. Mid-tier works. Token cost per line of working code drops because the user isn't burning frontier tokens on what a mid-tier model + tool loop can handle. The system escalates to frontier only when the verifier gate says the cheap model genuinely can't fix the issue.
 
 On Docker-validated tbench tasks: glm-5-1 and deepseek-v4-flash pass at 1,650–2,500 tokens/pass. Frontier-class glm-4-7 burns 5,000+.
 
@@ -213,7 +213,7 @@ On Docker-validated tbench tasks: glm-5-1 and deepseek-v4-flash pass at 1,650–
 - **`README.md`**: Architecture diagram, quick start, configuration, commands reference
 - **`state.md`**: Package inventory, test coverage, known limitations, architecture invariants
 - **`changelog.md`**: This file
-- **Removed**: `conversation.md`, `BEGIN_HERE.md`, `REPORULES.md`, architecture review (`55_ndeep_cli_honest_architecture_review.md`), all legacy benchmark reports (`test_run*.md`, `SCAVENGE_REPORT.md`, `opencode-run-report*.md`)
+- **Removed**: `conversation.md`, `BEGIN_HERE.md`, `REPORULES.md`, architecture review (`kirkforge_cli_honest_architecture_review.md`), all legacy benchmark reports (`test_run*.md`, `SCAVENGE_REPORT.md`, `opencode-run-report*.md`)
 
 ### Tests
 
@@ -239,11 +239,11 @@ Prior development history exists in the sandbox at `/path/to/runtime-sandbox/ben
 
 ### Phase 3: Native strict lint for all 8 supported languages (2026-05-20)
 
-- **`@55ndeep/tool-lint-sh`**: 9 inline rules detecting unquoted variables, curl-bash-pipe, rm -rf \*, sudo, eval, and more. File-level shebang check via shared engine.
-- **`@55ndeep/tool-lint-c`**: 10 rules covering safety (no-gets, no-strcpy, no-sprintf, no-system), style (no-malloc-cast, no-ternary-nest, no-goto, no-magic-numbers), and correctness (no-void-main, no-missing-include-guard). Supports .c/.cc/.cpp/.cxx/.h/.hpp/.hxx extensions.
-- **`@55ndeep/tool-lint-rs`**: 8 rules for safety (no-unwrap, no-unsafe, no-expect-in-prod), performance (no-clone-on-copy), maintainability (no-todo, no-dbg), and style (no-println-in-lib).
-- **`@55ndeep/tool-lint-go`**: 7 rules for safety (no-panic), correctness (no-unhandled-error), style (no-global-var, no-naked-return), performance (no-defer-in-loop), and maintainability (no-init-side-effect, no-string-title).
-- **`@55ndeep/tool-lint-sql`**: 6 rules for safety (no-drop-table, no-truncate, no-unsafe-delete, no-dynamic-injection), performance (no-select-star), and correctness (no-implicit-join).
+- **`@kirkforge/tool-lint-sh`**: 9 inline rules detecting unquoted variables, curl-bash-pipe, rm -rf \*, sudo, eval, and more. File-level shebang check via shared engine.
+- **`@kirkforge/tool-lint-c`**: 10 rules covering safety (no-gets, no-strcpy, no-sprintf, no-system), style (no-malloc-cast, no-ternary-nest, no-goto, no-magic-numbers), and correctness (no-void-main, no-missing-include-guard). Supports .c/.cc/.cpp/.cxx/.h/.hpp/.hxx extensions.
+- **`@kirkforge/tool-lint-rs`**: 8 rules for safety (no-unwrap, no-unsafe, no-expect-in-prod), performance (no-clone-on-copy), maintainability (no-todo, no-dbg), and style (no-println-in-lib).
+- **`@kirkforge/tool-lint-go`**: 7 rules for safety (no-panic), correctness (no-unhandled-error), style (no-global-var, no-naked-return), performance (no-defer-in-loop), and maintainability (no-init-side-effect, no-string-title).
+- **`@kirkforge/tool-lint-sql`**: 6 rules for safety (no-drop-table, no-truncate, no-unsafe-delete, no-dynamic-injection), performance (no-select-star), and correctness (no-implicit-join).
 - **Full test coverage**: 30 tests across all 8 lint packages. Tests verify rule detection, clean-pass cases, and file-filter scoping.
-- **All 3 phases complete**: `emitter-factory.ts` routes all 8 languages through native `@55ndeep/tool-lint-*` engines. Deprecated: ESLint (tool-eslint), Ruff/Bandit (tool-python lint). Kept: tsc, gitnexus, graphify.
+- **All 3 phases complete**: `emitter-factory.ts` routes all 8 languages through native `@kirkforge/tool-lint-*` engines. Deprecated: ESLint (tool-eslint), Ruff/Bandit (tool-python lint). Kept: tsc, gitnexus, graphify.
 - **Benchmark vs Ruff**: 100% finding parity (24/24), ~138ms/100 files vs Ruff's ~90ms.

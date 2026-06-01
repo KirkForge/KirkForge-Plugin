@@ -1,4 +1,4 @@
-export type { NDeepEvent, NDeepEventKind } from "./events.js";
+export type { KirkForgeEvent, KirkForgeEventKind } from "./events.js";
 export type {
   VerifyLintEvent,
   VerifyTypesEvent,

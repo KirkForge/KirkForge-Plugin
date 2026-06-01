@@ -1,9 +1,9 @@
-import type { NDeepEvent, NDeepEventKind } from "@55ndeep/core-types";
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { HandlerError, BufferOverflowError, IdempotencyError } from "@55ndeep/core-errors";
+import type { KirkForgeEvent, KirkForgeEventKind } from "@kirkforge/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { HandlerError, BufferOverflowError, IdempotencyError } from "@kirkforge/core-errors";
 import { createHash } from "crypto";
 
-export type EventHandler<T extends NDeepEvent = NDeepEvent> = (
+export type EventHandler<T extends KirkForgeEvent = KirkForgeEvent> = (
   event: T,
 ) => Promise<Result<void, HandlerError>>;
 
@@ -21,7 +21,7 @@ function sha256(input: string): string {
   return createHash("sha256").update(input).digest("hex");
 }
 
-function makeEventId(event: NDeepEvent): string {
+function makeEventId(event: KirkForgeEvent): string {
   const payload = "value" in event ? (event as { value: unknown }).value : "";
   // Include timestamp to distinguish events with identical kind/stream/sequence
   const ts = "timestamp" in event ? event.timestamp : new Date().toISOString();
@@ -41,8 +41,8 @@ function now(): string {
 }
 
 export class EventBus {
-  private _handlers = new Map<NDeepEventKind, Set<EventHandler>>();
-  private _buffer: NDeepEvent[] = [];
+  private _handlers = new Map<KirkForgeEventKind, Set<EventHandler>>();
+  private _buffer: KirkForgeEvent[] = [];
   private _bufferCapacity: number;
   private _idempotency = new Map<string, IdempotencyEntry>();
   private _idempotencySize: number;
@@ -59,7 +59,7 @@ export class EventBus {
     this._idempotencyTtlMs = options.idempotencyTtlMs ?? 300000;
   }
 
-  on<T extends NDeepEvent>(kind: T["kind"], handler: EventHandler<T>): () => void {
+  on<T extends KirkForgeEvent>(kind: T["kind"], handler: EventHandler<T>): () => void {
     const set = this._handlers.get(kind) ?? new Set();
     set.add(handler as EventHandler);
     this._handlers.set(kind, set);
@@ -67,14 +67,14 @@ export class EventBus {
   }
 
   emit(
-    event: NDeepEvent,
+    event: KirkForgeEvent,
   ): Promise<Result<void, HandlerError | BufferOverflowError | IdempotencyError>> {
     if (!this._running || this._shuttingDown) {
       return Promise.resolve(err(new HandlerError("emit", new Error("EventBus is not running"))));
     }
 
     if (this._buffer.length >= this._bufferCapacity) {
-      const overflowEvent: NDeepEvent = {
+      const overflowEvent: KirkForgeEvent = {
         kind: "event.bus.overflowed",
         schemaVersion: "v3",
         sequence: ++this._sequence,
@@ -99,7 +99,7 @@ export class EventBus {
     return this._process(event);
   }
 
-  private async _process(event: NDeepEvent): Promise<Result<void, HandlerError>> {
+  private async _process(event: KirkForgeEvent): Promise<Result<void, HandlerError>> {
     const handlers = this._handlers.get(event.kind);
     if (!handlers || handlers.size === 0) return ok(undefined);
 

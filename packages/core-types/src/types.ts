@@ -30,7 +30,7 @@ export interface TokenBudget {
   exceeded: boolean;
 }
 
-export interface NDeepConfig {
+export interface KirkForgeConfig {
   workspace: string;
   orchestrator: {
     maxConcurrentWorkers: number;
@@ -54,7 +54,7 @@ export interface NDeepConfig {
   };
 }
 
-export interface NDeepErrorInfo {
+export interface KirkForgeErrorInfo {
   code: string;
   message: string;
   cause?: Error;

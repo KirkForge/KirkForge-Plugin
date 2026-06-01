@@ -1,4 +1,4 @@
-# @55ndeep/orchestrator
+# @kirkforge/orchestrator
 
 Verification pipeline engine. Coordinates lint, type-check, security, change-tracking, and graph analysis emitters, then reduces results via `StateReducer` into a `ReducedStatePacket`.
 

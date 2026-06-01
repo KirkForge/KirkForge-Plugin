@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { AuthMiddleware } from "../src/auth-middleware.js";
-import { MemoryAuditSink, AuditLogger } from "@55ndeep/core-events";
-import { authorizeTenant, type Actor } from "@55ndeep/core-rbac";
+import { MemoryAuditSink, AuditLogger } from "@kirkforge/core-events";
+import { authorizeTenant, type Actor } from "@kirkforge/core-rbac";
 
 // ── Full auth chain integration test ──────────────────────────────────────
 //

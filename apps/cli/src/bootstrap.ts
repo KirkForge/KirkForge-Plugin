@@ -1,27 +1,27 @@
-import { EventBus } from "@55ndeep/core-events";
-import { Logger } from "@55ndeep/core-logging";
-import { ConfigService } from "@55ndeep/core-config";
-import { buildModelConfigAsync } from "@55ndeep/model-config";
-import { Orchestrator } from "@55ndeep/orchestrator";
-import { MemoryStore } from "@55ndeep/memory-palace";
-import { createSecretsManager, TenantKeyProvider } from "@55ndeep/core-secrets";
-import { initTelemetry, shutdownTelemetry, isTracingEnabled } from "@55ndeep/core-telemetry";
-import type { SecretsManager } from "@55ndeep/core-secrets";
+import { EventBus } from "@kirkforge/core-events";
+import { Logger } from "@kirkforge/core-logging";
+import { ConfigService } from "@kirkforge/core-config";
+import { buildModelConfigAsync } from "@kirkforge/model-config";
+import { Orchestrator } from "@kirkforge/orchestrator";
+import { MemoryStore } from "@kirkforge/memory-palace";
+import { createSecretsManager, TenantKeyProvider } from "@kirkforge/core-secrets";
+import { initTelemetry, shutdownTelemetry, isTracingEnabled } from "@kirkforge/core-telemetry";
+import type { SecretsManager } from "@kirkforge/core-secrets";
 import {
   isEnterpriseMode,
   requireEnterpriseOrDev,
   type EnterpriseConfig,
   QuotaManager,
   QuotaPersistence,
-} from "@55ndeep/core-enterprise";
-import { PolicyEngine } from "@55ndeep/core-policy";
-import { TenantRegistry } from "@55ndeep/core-tenancy";
+} from "@kirkforge/core-enterprise";
+import { PolicyEngine } from "@kirkforge/core-policy";
+import { TenantRegistry } from "@kirkforge/core-tenancy";
 import {
   AuditLogger,
   MemoryAuditSink,
   createAuditSink,
   type AuditSink,
-} from "@55ndeep/core-events";
+} from "@kirkforge/core-events";
 import { readFileSync } from "fs";
 import { URL } from "node:url";
 
@@ -53,7 +53,7 @@ export interface BootstrapOpts {
 export interface BootstrapResult {
   orchestrator: Orchestrator;
   configService: ConfigService;
-  modelConfig: import("@55ndeep/model-config").ModelConfig;
+  modelConfig: import("@kirkforge/model-config").ModelConfig;
   eventBus: EventBus;
   logger: Logger;
   memoryStore: MemoryStore;
@@ -132,7 +132,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const otelEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   if (otelEndpoint && !opts.noOtel) {
     initTelemetry({
-      serviceName: "55ndeep",
+      serviceName: "kirkforge",
       serviceVersion: VERSION,
       otlpEndpoint: otelEndpoint,
       logger,
@@ -154,7 +154,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
           graphify: { enabled: false },
         },
         logging: { level: "info", format: "json" },
-        memory: { path: ".55ndeep/memory", retentionDays: 30 },
+        memory: { path: ".kirkforge/memory", retentionDays: 30 },
       });
 
   // ── Policy engine ─────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const auditSinkType = process.env.AUDIT_SINK_TYPE ?? process.env["55NDEEP_AUDIT_SINK"] ?? "none";
 
   if (auditSinkType === "file") {
-    const filePath = process.env.AUDIT_FILE_PATH ?? "/var/lib/55ndeep/audit/audit.jsonl";
+    const filePath = process.env.AUDIT_FILE_PATH ?? "/var/lib/kirkforge/audit/audit.jsonl";
     auditSink = createAuditSink({ type: "file", filePath });
     logger.info(`[bootstrap] Audit sink: file (${filePath})`);
   } else if (auditSinkType === "http") {
@@ -246,7 +246,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   }
 
   // ── Memory ───────────────────────────────────────────────────────────
-  const _memoryPath = configService.get().memory.path || ".55ndeep/memory.json";
+  const _memoryPath = configService.get().memory.path || ".kirkforge/memory.json";
   const _memoryBackend = process.env.MEMORY_BACKEND ?? process.env["55NDEEP_MEMORY_BACKEND"];
 
   // ── Tenant registry (single instance used by both memory and returned) ──
@@ -296,7 +296,7 @@ export async function createBootstrap(opts: BootstrapOpts): Promise<BootstrapRes
   const quotaManager = new QuotaManager();
   if (enterpriseConfig.enabled) {
     // In enterprise mode, set up quota persistence for cross-process durability
-    const quotaPersistencePath = process.env.QUOTA_PERSISTENCE_PATH ?? ".55ndeep/quotas.json";
+    const quotaPersistencePath = process.env.QUOTA_PERSISTENCE_PATH ?? ".kirkforge/quotas.json";
     const quotaPersistence = new QuotaPersistence(quotaManager, { filePath: quotaPersistencePath });
     const loadResult = quotaPersistence.load();
     if (loadResult.ok) {

@@ -1,5 +1,5 @@
-import type { TaskValidationResult } from "@55ndeep/correction-core";
-import type { ReducedStatePacket } from "@55ndeep/correction-core";
+import type { TaskValidationResult } from "@kirkforge/correction-core";
+import type { ReducedStatePacket } from "@kirkforge/correction-core";
 
 // ── Truth-model: single source of verdict computation ────────────────────
 //

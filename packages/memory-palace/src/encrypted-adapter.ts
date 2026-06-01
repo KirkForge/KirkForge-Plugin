@@ -8,7 +8,7 @@
  */
 
 import type { MemoryAdapter, MemoryObject, MemoryQuery, MemoryStats } from "./index.js";
-import { ok, type Result } from "@55ndeep/core-types";
+import { ok, type Result } from "@kirkforge/core-types";
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";

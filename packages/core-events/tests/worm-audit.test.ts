@@ -8,7 +8,7 @@ let testCounter = 0;
 
 function freshDir(): string {
   testCounter++;
-  return join(tmpdir(), `55ndeep-worm-test-${Date.now()}-${testCounter}`);
+  return join(tmpdir(), `kirkforge-worm-test-${Date.now()}-${testCounter}`);
 }
 
 describe.sequential("WormAuditSink", () => {

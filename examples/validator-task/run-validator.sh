@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Step 1: Verify workspace (deterministic) ==="
-55ndeep verify-workspace --workspace "$SCRIPT_DIR" --language python
+kirkforge verify-workspace --workspace "$SCRIPT_DIR" --language python
 
 echo ""
 echo "=== Step 2: Run local task validator (pytest) ==="
@@ -19,7 +19,7 @@ fi
 echo ""
 echo "=== Step 3: Record observation (host-provided outcome) ==="
 echo "Task outcome: $OUTCOME"
-echo "Run: 55ndeep observe --memory /tmp/validator-task-mem.json \\"
+echo "Run: kirkforge observe --memory /tmp/validator-task-mem.json \\"
 echo "  --task-id validator-task-example \\"
 echo "  --description 'add two numbers' \\"
 echo "  --language python --mode artifact --model example \\"

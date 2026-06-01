@@ -1,14 +1,14 @@
-# ── 55NDeep Daemon Mode ───────────────────────────────────────────────────
+# ── KirkForge Daemon Mode ───────────────────────────────────────────────────
 # Runs the verifier as a long-lived health-checkable service.
 # Use with an OTel collector for tracing/metrics export.
 
 version: "3.9"
 
 services:
-  55ndeep:
+  kirkforge:
     build: .
-    image: 55ndeep:latest
-    container_name: 55ndeep
+    image: kirkforge:latest
+    container_name: kirkforge
     restart: unless-stopped
     ports:
       - "9090:9090" # health endpoint
@@ -25,16 +25,16 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
-      - 55ndeep-memory:/app/.55ndeep
+      - kirkforge-memory:/app/.kirkforge
       - ${WORKSPACE_DIR:-./workspace}:/workspace:ro
     command: ["serve"]
     networks:
-      - 55ndeep-net
+      - kirkforge-net
 
   # Optional OTel collector for traces + metrics
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: 55ndeep-otel
+    container_name: kirkforge-otel
     restart: unless-stopped
     command: ["--config=/etc/otel-collector-config.yml"]
     volumes:
@@ -43,12 +43,12 @@ services:
       - "4317:4317" # OTLP gRPC
       - "4318:4318" # OTLP HTTP
     networks:
-      - 55ndeep-net
+      - kirkforge-net
     profiles:
       - observability
 
 volumes:
-  55ndeep-memory:
+  kirkforge-memory:
 
 networks:
-  55ndeep-net:
+  kirkforge-net:

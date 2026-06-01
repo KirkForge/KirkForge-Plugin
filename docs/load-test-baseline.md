@@ -1,6 +1,6 @@
 # Load Test Baseline & SLO Targets
 
-This document defines the performance baselines and SLO targets for 55NDeep
+This document defines the performance baselines and SLO targets for KirkForge
 core operations. Baseline numbers are measured on typical CI runner hardware
 (2-core, 4GB RAM) and should be re-benchmarked when significant changes land.
 

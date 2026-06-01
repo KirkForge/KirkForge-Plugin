@@ -1,4 +1,4 @@
-# @55ndeep/core-tenancy
+# @kirkforge/core-tenancy
 
 Multi-tenant isolation layer. Scopes storage, events, and configuration to individual tenants.
 

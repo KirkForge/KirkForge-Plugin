@@ -1,4 +1,4 @@
-# AGENTS.md — 55NDeep Development Guide
+# AGENTS.md — KirkForge Development Guide
 
 **See also**: [REPORULES.md](../REPORULES.md) — multi-machine sync, git identity, SSH auth, and new-repo bootstrap.
 
@@ -13,7 +13,7 @@
 
 ## Project structure
 
-55NDeep is a monorepo with 34 packages:
+KirkForge is a monorepo with 34 packages:
 
 ```
 packages/

@@ -1,8 +1,8 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import { timingSafeEqual } from "node:crypto";
-import { AuthError } from "@55ndeep/core-errors";
+import { AuthError } from "@kirkforge/core-errors";
 
-// ── RBAC for 55NDeep ───────────────────────────────────────────────────────
+// ── RBAC for KirkForge ───────────────────────────────────────────────────────
 //
 // Role-based access control with deny-by-default enforcement.
 // Roles: Admin, Operator, Developer, Viewer
@@ -239,10 +239,10 @@ export interface GroupRoleMapping {
 }
 
 const DEFAULT_GROUP_ROLE_MAPPING: GroupRoleMapping = {
-  "55ndeep-admins": "admin",
-  "55ndeep-operators": "operator",
-  "55ndeep-developers": "developer",
-  "55ndeep-viewers": "viewer",
+  "kirkforge-admins": "admin",
+  "kirkforge-operators": "operator",
+  "kirkforge-developers": "developer",
+  "kirkforge-viewers": "viewer",
   admins: "admin",
   operators: "operator",
   developers: "developer",

@@ -1,7 +1,7 @@
-# 55NDeep Strict Lint — Implementation Plan
+# KirkForge Strict Lint — Implementation Plan
 
 > **Status: ALL 3 PHASES COMPLETE** ✅ (2026-05-20)
-> Replace all external linters with 55NDeep-owned strict lint engines.
+> Replace all external linters with KirkForge-owned strict lint engines.
 > 3 phases, 8 languages, shared engine core, ~5,000 lines of new code.
 
 ## Overview
@@ -59,7 +59,7 @@ packages/
 
 ---
 
-## Shared Engine: `@55ndeep/tool-lint-core`
+## Shared Engine: `@kirkforge/tool-lint-core`
 
 ```ts
 interface LintRule {
@@ -109,7 +109,7 @@ interface LintFinding {
 
 ---
 
-## Phase 1: TypeScript / JavaScript Rules (`@55ndeep/tool-lint-ts`) ✅ IMPLEMENTED
+## Phase 1: TypeScript / JavaScript Rules (`@kirkforge/tool-lint-ts`) ✅ IMPLEMENTED
 
 ### STYLE (8 rules)
 
@@ -176,7 +176,7 @@ interface LintFinding {
 
 ---
 
-## Phase 2: Python Rules (`@55ndeep/tool-lint-py`)
+## Phase 2: Python Rules (`@kirkforge/tool-lint-py`)
 
 ### STYLE (8 rules)
 
@@ -239,7 +239,7 @@ interface LintFinding {
 
 ## Phase 3: Shell, C/C++, Rust, Go, SQL
 
-### Shell (`@55ndeep/tool-lint-sh`) — 10 rules
+### Shell (`@kirkforge/tool-lint-sh`) — 10 rules
 
 | Rule              | Pattern                       | Severity |
 | ----------------- | ----------------------------- | -------- |
@@ -254,7 +254,7 @@ interface LintFinding {
 | no-rm-rf-star     | `rm -rf *`                    | critical |
 | max-lines         | >200 lines                    | info     |
 
-### C/C++ (`@55ndeep/tool-lint-c`) — 10 rules
+### C/C++ (`@kirkforge/tool-lint-c`) — 10 rules
 
 | Rule                     | Pattern                       | Severity |
 | ------------------------ | ----------------------------- | -------- |
@@ -269,7 +269,7 @@ interface LintFinding {
 | no-goto                  | `goto `                       | med      |
 | max-func-lines           | >100 lines per function       | low      |
 
-### Rust (`@55ndeep/tool-lint-rs`) — 8 rules
+### Rust (`@kirkforge/tool-lint-rs`) — 8 rules
 
 | Rule              | Pattern                  | Severity |
 | ----------------- | ------------------------ | -------- |
@@ -282,7 +282,7 @@ interface LintFinding {
 | no-dbg            | `dbg!()`                 | low      |
 | max-params        | >4 params                | low      |
 
-### Go (`@55ndeep/tool-lint-go`) — 7 rules
+### Go (`@kirkforge/tool-lint-go`) — 7 rules
 
 | Rule                | Pattern                         | Severity |
 | ------------------- | ------------------------------- | -------- |
@@ -294,7 +294,7 @@ interface LintFinding {
 | no-defer-in-loop    | `defer` in for loop             | med      |
 | no-string-title     | `strings.Title`                 | low      |
 
-### SQL (`@55ndeep/tool-lint-sql`) — 6 rules
+### SQL (`@kirkforge/tool-lint-sql`) — 6 rules
 
 | Rule                     | Pattern                       | Severity |
 | ------------------------ | ----------------------------- | -------- |
@@ -311,10 +311,10 @@ interface LintFinding {
 
 | Step      | Task                                             | Session |
 | --------- | ------------------------------------------------ | ------- |
-| 1         | Build `@55ndeep/tool-lint-core` shared engine    | 1 ✅    |
-| 2         | Build `@55ndeep/tool-lint-ts` 29 rules           | 1 ✅    |
+| 1         | Build `@kirkforge/tool-lint-core` shared engine    | 1 ✅    |
+| 2         | Build `@kirkforge/tool-lint-ts` 29 rules           | 1 ✅    |
 | 3         | Wire into emitter-factory, replace ESLint        | 1 ✅    |
-| 4         | Build `@55ndeep/tool-lint-py` 34 rules           | 1 ✅    |
+| 4         | Build `@kirkforge/tool-lint-py` 34 rules           | 1 ✅    |
 | 5         | Wire Python lint, deprecate Ruff+Bandit          | 1 ✅    |
 | 6         | Build Phase 3 packages (Shell, C, Rust, Go, SQL) | 2 ✅    |
 | 7         | Tests for all 8 lint packages (30 new tests)     | 3 ✅    |
@@ -347,10 +347,10 @@ interface LintFinding {
 
 ### PyrightEmitter extracted
 
-- New `@55ndeep/tool-pyright` package — standalone PyrightEmitter with helpers, mirroring `tool-tsc`
+- New `@kirkforge/tool-pyright` package — standalone PyrightEmitter with helpers, mirroring `tool-tsc`
   - Includes discoverPythonFiles, path sanitization, missing-tool detection (ENOENT → skipped)
   - 7 tests (skipped, empty files, missing tool, path sanitization, taskId, durationMs)
-- `emitter-factory.ts` imports from `@55ndeep/tool-pyright` instead of `@55ndeep/tool-python`
+- `emitter-factory.ts` imports from `@kirkforge/tool-pyright` instead of `@kirkforge/tool-python`
 
 ### Deprecated packages removed from disk
 

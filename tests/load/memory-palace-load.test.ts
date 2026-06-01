@@ -1,5 +1,5 @@
 /**
- * Load test baseline for 55NDeep memory-palace operations.
+ * Load test baseline for KirkForge memory-palace operations.
  *
  * This test documents SLO targets for core operations and measures
  * actual performance against those targets. Run with:
@@ -10,7 +10,7 @@
  * modern hardware. Adjust thresholds if your CI runner is slower.
  */
 import { describe, it, expect } from "vitest";
-import { InMemoryAdapter, FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
+import { InMemoryAdapter, FileAdapter, MemoryStore } from "@kirkforge/memory-palace";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -228,7 +228,7 @@ describe("InMemoryAdapter load baseline", () => {
 
 describe.skipIf(process.env.CI)("FileAdapter load baseline", () => {
   it("meets file write p95 SLO", { timeout: 60_000 }, async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-file-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-load-file-"));
     try {
       const filePath = join(dir, "memory.json");
       const adapter = new FileAdapter(filePath);
@@ -258,7 +258,7 @@ describe.skipIf(process.env.CI)("FileAdapter load baseline", () => {
   });
 
   it("meets file write throughput SLO", { timeout: 60_000 }, async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-throughput-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-load-throughput-"));
     try {
       const filePath = join(dir, "memory.json");
       const adapter = new FileAdapter(filePath);
@@ -289,7 +289,7 @@ describe.skipIf(process.env.CI)("FileAdapter load baseline", () => {
   });
 
   it("meets file read p95 SLO", { timeout: 60_000 }, async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-load-read-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-load-read-"));
     try {
       const filePath = join(dir, "memory.json");
       const adapter = new FileAdapter(filePath);

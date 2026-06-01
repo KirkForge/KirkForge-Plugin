@@ -1,10 +1,10 @@
-# 55NDeep Plugin Strategy
+# KirkForge Plugin Strategy
 
-> 55NDeep is not a standalone agent framework. It is a deterministic delegation plugin for coding agents — a verification, correction, and empirical routing layer that plugs into Codex, Claude Code, OpenCode, LangChain-style systems, and internal agent stacks.
+> KirkForge is not a standalone agent framework. It is a deterministic delegation plugin for coding agents — a verification, correction, and empirical routing layer that plugs into Codex, Claude Code, OpenCode, LangChain-style systems, and internal agent stacks.
 
 ## 1. Product boundary
 
-### What 55NDeep owns
+### What KirkForge owns
 
 | Domain                           | Responsibility                                                                                                                                                                                                          |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -25,7 +25,7 @@
 | **User approval flow**          | Confirming, rejecting, or modifying proposed changes    |
 | **Terminal/session management** | Shell integration, working directory, process lifecycle |
 
-The boundary is deliberate. 55NDeep never calls a model during verification. It never writes to the user's project workspace during verification. It may persist memory and audit observations through `recordObservation` to its own data directory. It never authenticates with a provider. It returns structured data and lets the host decide what to do next.
+The boundary is deliberate. KirkForge never calls a model during verification. It never writes to the user's project workspace during verification. It may persist memory and audit observations through `recordObservation` to its own data directory. It never authenticates with a provider. It returns structured data and lets the host decide what to do next.
 
 ---
 
@@ -33,20 +33,20 @@ The boundary is deliberate. 55NDeep never calls a model during verification. It 
 
 ```
 host CLI delegates task → worker model emits files
-  → 55NDeep verifies workspace/run dir
-  → 55NDeep returns ReducedStatePacket
-  → 55NDeep builds compact correction prompt (if needed)
+  → KirkForge verifies workspace/run dir
+  → KirkForge returns ReducedStatePacket
+  → KirkForge builds compact correction prompt (if needed)
   → host CLI retries/escalates
-  → 55NDeep records observation
+  → KirkForge records observation
 ```
 
 Detailed:
 
 1. The host CLI (Codex, Claude Code, OpenCode) finishes a generation turn and has written files to disk.
 2. The host calls `verifyWorkspace({ workspace, files, language? })`.
-3. 55NDeep runs the language-appropriate verifier battery in parallel. For TypeScript, this is ESLint, tsc, secdev, gitnexus, and graphify; for Python, ruff, pyright, bandit, and gitnexus. No model calls occur.
-4. The `StateReducer` folds all signals into one `ReducedStatePacket` (defined in `@55ndeep/correction-core`) with an overall `pass | warn | fail` verdict.
-5. If the verdict is not `pass`, the host can call `buildCorrectionPrompt(packet, context)` (from `@55ndeep/correction-core`) to get a compact prompt describing exactly what failed and where.
+3. KirkForge runs the language-appropriate verifier battery in parallel. For TypeScript, this is ESLint, tsc, secdev, gitnexus, and graphify; for Python, ruff, pyright, bandit, and gitnexus. No model calls occur.
+4. The `StateReducer` folds all signals into one `ReducedStatePacket` (defined in `@kirkforge/correction-core`) with an overall `pass | warn | fail` verdict.
+5. If the verdict is not `pass`, the host can call `buildCorrectionPrompt(packet, context)` (from `@kirkforge/correction-core`) to get a compact prompt describing exactly what failed and where.
 6. The host feeds that prompt into its own model loop for a retry.
 7. After the task resolves (pass, fail, or escalate), the host calls `recordObservation(observation)` so that future similar tasks can benefit from empirical routing.
 
@@ -56,9 +56,9 @@ The plugin flow maps to a three-role model:
 
 - **Brain** (expensive): The orchestrator — the host CLI or correction loop controller that plans, delegates, and decides next action.
 - **Brawn** (cheap): The worker model that generates code from prompts.
-- **Verifier** (free): 55NDeep — deterministic state inspection. No model calls.
+- **Verifier** (free): KirkForge — deterministic state inspection. No model calls.
 
-This framing makes clear that 55NDeep is the Verifier role. It does not compete with the Brain or the Brawn; it makes both more effective by catching deterministic failures before they consume another model turn.
+This framing makes clear that KirkForge is the Verifier role. It does not compete with the Brain or the Brawn; it makes both more effective by catching deterministic failures before they consume another model turn.
 
 ---
 
@@ -159,11 +159,11 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ## 4. What it is not
 
-55NDeep explicitly does **not** aim to:
+KirkForge explicitly does **not** aim to:
 
-- **Replace Codex, Claude Code, or OpenCode.** 55NDeep is a verification and routing layer they call, not a competitor.
+- **Replace Codex, Claude Code, or OpenCode.** KirkForge is a verification and routing layer they call, not a competitor.
 - **Build a full chat client.** The host owns the UX, session, and display.
-- **Own provider auth long term.** Model configuration is the host's responsibility. 55NDeep may accept a model config for correction-prompt token estimation, but it will never store or refresh API keys.
+- **Own provider auth long term.** Model configuration is the host's responsibility. KirkForge may accept a model config for correction-prompt token estimation, but it will never store or refresh API keys.
 - **Treat memory as persona/prompt mythology.** Memory observations are empirical records of what mode and model worked for similar tasks, not personality injection.
 - **Accept verifier success as benchmark success.** `verifyWorkspace` returning `pass` does not mean the task is done. Task validators, provided by the host, are the authority on task completion.
 - **Claim cheap models beat frontier models.** The claim is cost-reduced delegation through deterministic emissions, not that small models beat frontier models. Verification makes any model's output more reliable. It does not make a smaller model produce better code than a larger one on open-ended tasks. The value is in deterministic state inspection, not in model comparison.
@@ -174,17 +174,17 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ### Shell command adapter (any host)
 
-The host calls the `55ndeep` CLI binary as a subprocess. No Node dependency in the host. The host pipes JSON between calls.
+The host calls the `kirkforge` CLI binary as a subprocess. No Node dependency in the host. The host pipes JSON between calls.
 
 ```sh
 # verify workspace
-55ndeep verify-workspace --workspace /path/to/project
+kirkforge verify-workspace --workspace /path/to/project
 
 # build correction prompt if needed
-55ndeep prompt --packet result.json
+kirkforge prompt --packet result.json
 
 # record task outcome (host-provided)
-55ndeep observe --memory mem.json --task-id t1 --description "fix auth" \
+kirkforge observe --memory mem.json --task-id t1 --description "fix auth" \
   --language typescript --mode hard-prompt --model gpt-4 \
   --outcome pass --duration-ms 5000
 
@@ -197,7 +197,7 @@ Requires no Node dependency in the host. The host pipes JSON between calls. Suit
 
 ### Node library adapter
 
-The host imports 55NDeep as a Node package:
+The host imports KirkForge as a Node package:
 
 ```ts
 import {
@@ -206,7 +206,7 @@ import {
   recordObservation,
   recallRoutingBias,
   doctor,
-} from "@55ndeep/plugin";
+} from "@kirkforge/plugin";
 
 const packet = await verifyWorkspace({ workspace: "/path/to/project", files: ["changed.ts"] });
 const prompt = buildCorrectionPrompt(packet, { language: "typescript" });
@@ -219,12 +219,12 @@ Suitable for OpenCode, any Node-based CLI, or Electron-based tools.
 
 ### Native plugin adapter
 
-The host mounts 55NDeep as a first-class plugin with lifecycle hooks:
+The host mounts KirkForge as a first-class plugin with lifecycle hooks:
 
 ```ts
 // In the host's plugin registration
 host.registerVerificationPlugin({
-  name: "55ndeep",
+  name: "kirkforge",
   onFileChange: async (files) => verifyWorkspace({ workspace, files }),
   onTaskComplete: async (task) => recordObservation(task),
   onTaskStart: async (task) => recallRoutingBias(task),
@@ -250,16 +250,16 @@ None of these integrations exist yet. This document defines the target surface; 
 | PR    | Description                                                                                                                                                                                                       | Status |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | PR 4  | Extract `plugin` package from existing orchestrator, reducer, verifier, and memory code. Define the stable API surface described in §3.                                                                           | Done   |
-| PR 5  | Add `doctor()` / `ToolCapabilityReport` to `plugin` and CLI command `55ndeep doctor`.                                                                                                                             | Done   |
-| PR 6  | Add `55ndeep prompt --packet` CLI command.                                                                                                                                                                        | Done   |
-| PR 7  | Add `55ndeep observe` CLI command with `--memory` path.                                                                                                                                                           | Done   |
+| PR 5  | Add `doctor()` / `ToolCapabilityReport` to `plugin` and CLI command `kirkforge doctor`.                                                                                                                             | Done   |
+| PR 6  | Add `kirkforge prompt --packet` CLI command.                                                                                                                                                                        | Done   |
+| PR 7  | Add `kirkforge observe` CLI command with `--memory` path.                                                                                                                                                           | Done   |
 | PR 8  | Add CLI subprocess tests for doctor, prompt, and observe (stdout, stderr, exit codes).                                                                                                                            | Done   |
-| PR 9  | Add `55ndeep recall` CLI command. Completes minimal memory loop: observe → recall.                                                                                                                                | Done   |
-| PR 10 | Add `55ndeep verify-workspace` CLI command. Completes shell adapter surface.                                                                                                                                      | Done   |
+| PR 9  | Add `kirkforge recall` CLI command. Completes minimal memory loop: observe → recall.                                                                                                                                | Done   |
+| PR 10 | Add `kirkforge verify-workspace` CLI command. Completes shell adapter surface.                                                                                                                                      | Done   |
 | PR 11 | Document plugin CLI contract. See [PLUGIN_CLI_CONTRACT.md](./PLUGIN_CLI_CONTRACT.md).                                                                                                                             | Done   |
 | PR 12 | Add runnable shell adapter example with `--outcome` arg and `require_value` guard.                                                                                                                                | Done   |
 | PR 13 | Update README to reference plugin strategy and clarify plugin-not-framework positioning.                                                                                                                          | Done   |
-| PR 20 | Extract `@55ndeep/correction-core` — single source of truth for `toolNames`, `buildCorrectionPrompt`, `ReducedStatePacket`, `TaskLanguage`.                                                                       | Done   |
+| PR 20 | Extract `@kirkforge/correction-core` — single source of truth for `toolNames`, `buildCorrectionPrompt`, `ReducedStatePacket`, `TaskLanguage`.                                                                       | Done   |
 | PR 25 | Add `TaskValidationResult`, `TaskOutcome`, `taskOutcomeFromValidation`, `isTaskPass`, `makeSkippedValidation` to correction-core.                                                                                 | Done   |
 | PR 26 | Add `normalizeTaskValidation()` and `makeBenchmarkRow()` in correction-core for bench-side task validator adapter.                                                                                                | Done   |
 | PR 34 | Extract `EmissionSchema` type — the shared source for artifact rules, prompt hints, and verifier policy. `TaskProfile` is now an alias of `EmissionSchema`.                                                       | Done   |
@@ -269,8 +269,8 @@ None of these integrations exist yet. This document defines the target surface; 
 | PR 42 | Add benchmark verifier preflight — detect missing Python tools before spending model tokens. `verifierPreflight` field in report JSON.                                                                            | Done   |
 | PR 47 | Add native task validator verdicts to correction loop — `--validator` flag, `FinalVerdict`, `SourceOfTruth`, `taskPass` as true/false/null.                                                                       | Done   |
 | PR 49 | Recenter documentation around plugin product identity. Brain/Brawn/Verifier framing, benchmark as evidence infrastructure, CLI as shell adapter.                                                                  | Done   |
-| PR 50 | Rename public plugin package from `@55ndeep/plugin-core` to `@55ndeep/plugin`. Folder rename, all imports updated.                                                                                                | Done   |
-| PR 51 | Post-`@55ndeep/plugin` rename validator benchmark. 4 tasks × 4 workers. All 16 cells `missing-validator`. Infra audit, not model quality.                                                                         | Done   |
+| PR 50 | Rename public plugin package from `@kirkforge/plugin-core` to `@kirkforge/plugin`. Folder rename, all imports updated.                                                                                                | Done   |
+| PR 51 | Post-`@kirkforge/plugin` rename validator benchmark. 4 tasks × 4 workers. All 16 cells `missing-validator`. Infra audit, not model quality.                                                                         | Done   |
 | PR 52 | Validator-capable task inventory and benchmark `taskPass` tri-state fix. No validator-capable tasks found on current host.                                                                                        | Done   |
 | PR 53 | Prepare v1 release evidence documentation. RC status, evidence index, roadmap update, local validator example.                                                                                                    | Done   |
 
@@ -278,10 +278,10 @@ None of these integrations exist yet. This document defines the target surface; 
 
 ## 7. Non-goals
 
-55NDeep explicitly does **not** aim to:
+KirkForge explicitly does **not** aim to:
 
-- **Replace Codex, Claude Code, or OpenCode.** 55NDeep is a verification and routing layer they call, not a competitor.
+- **Replace Codex, Claude Code, or OpenCode.** KirkForge is a verification and routing layer they call, not a competitor.
 - **Build a full chat client.** The host owns the UX, session, and display.
-- **Own provider auth long term.** Model configuration is the host's responsibility. 55NDeep may accept a model config for correction-prompt token estimation, but it will never store or refresh API keys.
+- **Own provider auth long term.** Model configuration is the host's responsibility. KirkForge may accept a model config for correction-prompt token estimation, but it will never store or refresh API keys.
 - **Treat memory as persona/prompt mythology.** Memory observations are empirical records of what mode and model worked for similar tasks, not personality injection.
 - **Accept verifier success as benchmark success.** `verifyWorkspace` returning `pass` does not mean the task is done. Task validators, provided by the host, are the authority on task completion.

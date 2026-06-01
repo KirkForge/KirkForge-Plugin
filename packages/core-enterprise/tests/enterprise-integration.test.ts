@@ -21,7 +21,7 @@ describe("Enterprise mode integration", () => {
     MEMORY_BACKEND: "sqlite",
     POLICY_FILE_PATH: "/tmp/test-policy.json",
     AUDIT_SINK_TYPE: "file",
-    AUDIT_FILE_PATH: "/tmp/55ndeep-test-audit.jsonl",
+    AUDIT_FILE_PATH: "/tmp/kirkforge-test-audit.jsonl",
   };
 
   it("rejects startup without auth in enterprise mode", () => {
@@ -105,7 +105,7 @@ describe("Quota + RateLimiter integration", () => {
   });
 
   it("quota persistence round-trips correctly", () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-quota-int-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-quota-int-"));
     try {
       const mgr = new QuotaManager();
       mgr.setQuota("tenant-a", { maxConcurrentTasks: 8, maxDailyTokens: 5000000 });

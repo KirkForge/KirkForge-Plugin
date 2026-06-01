@@ -6,7 +6,7 @@ import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import type { Logger } from "@55ndeep/core-logging";
+import type { Logger } from "@kirkforge/core-logging";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ export function isTracingEnabled(): boolean {
 
 export function getTracer(): Tracer {
   if (_tracer) return _tracer;
-  return trace.getTracer("55ndeep", "1.0.0");
+  return trace.getTracer("kirkforge", "1.0.0");
 }
 
 // ── Span helpers ───────────────────────────────────────────────────────────
@@ -183,31 +183,31 @@ let _activeTasks: UpDownCounter | null = null;
 
 function ensureMetrics(): void {
   if (!_enabled) return;
-  const meter = metrics.getMeter("55ndeep", "1.0.0");
+  const meter = metrics.getMeter("kirkforge", "1.0.0");
 
   if (!_delegationCounter) {
-    _delegationCounter = meter.createCounter("55ndeep.delegations.total", {
+    _delegationCounter = meter.createCounter("kirkforge.delegations.total", {
       description: "Total number of delegated tasks",
     });
   }
   if (!_delegationDuration) {
-    _delegationDuration = meter.createHistogram("55ndeep.delegation.duration_ms", {
+    _delegationDuration = meter.createHistogram("kirkforge.delegation.duration_ms", {
       description: "Delegation duration in milliseconds",
       unit: "ms",
     });
   }
   if (!_tokenCounter) {
-    _tokenCounter = meter.createCounter("55ndeep.tokens.total", {
+    _tokenCounter = meter.createCounter("kirkforge.tokens.total", {
       description: "Total tokens consumed across all providers",
     });
   }
   if (!_errorCounter) {
-    _errorCounter = meter.createCounter("55ndeep.errors.total", {
+    _errorCounter = meter.createCounter("kirkforge.errors.total", {
       description: "Total errors by category",
     });
   }
   if (!_activeTasks) {
-    _activeTasks = meter.createUpDownCounter("55ndeep.tasks.active", {
+    _activeTasks = meter.createUpDownCounter("kirkforge.tasks.active", {
       description: "Number of currently active tasks",
     });
   }
@@ -258,8 +258,8 @@ export function taskStarted(): void {
 export function recordCircuitBreakerState(key: string, transition: string): void {
   if (!_enabled) return;
   try {
-    const meter = metrics.getMeter("55ndeep", "1.0.0");
-    const cbCounter = meter.createCounter("55ndeep.circuit_breaker.transitions", {
+    const meter = metrics.getMeter("kirkforge", "1.0.0");
+    const cbCounter = meter.createCounter("kirkforge.circuit_breaker.transitions", {
       description: "Circuit breaker state transitions",
     });
     cbCounter.add(1, { provider: key, transition });

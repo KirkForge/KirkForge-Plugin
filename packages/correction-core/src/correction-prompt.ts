@@ -3,7 +3,7 @@ import type { TaskLanguage } from "./task-language.js";
 
 /**
  * Returns the tool names used in correction prompts for each language.
- * After v8.5 all lint/security is handled by 55NDeep native engines —
+ * After v8.5 all lint/security is handled by KirkForge native engines —
  * only type-checking remains an external tool dependency (tsc/pyright).
  */
 export function toolNames(language?: TaskLanguage): {
@@ -14,47 +14,47 @@ export function toolNames(language?: TaskLanguage): {
   switch (language) {
     case "python":
       return {
-        lint: "55NDeep Python lint engine",
+        lint: "KirkForge Python lint engine",
         types: "pyright",
-        security: "55NDeep Python lint engine (safety rules)",
+        security: "KirkForge Python lint engine (safety rules)",
       };
     case "typescript":
     case "javascript":
       return {
-        lint: "55NDeep TypeScript lint engine",
+        lint: "KirkForge TypeScript lint engine",
         types: "tsc",
-        security: "55NDeep TypeScript lint engine (safety rules)",
+        security: "KirkForge TypeScript lint engine (safety rules)",
       };
     case "shell":
       return {
-        lint: "55NDeep shell lint engine",
+        lint: "KirkForge shell lint engine",
         types: "bash -n",
-        security: "55NDeep shell lint engine (safety rules)",
+        security: "KirkForge shell lint engine (safety rules)",
       };
     case "cpp":
     case "c":
       return {
-        lint: "55NDeep C/C++ lint engine",
+        lint: "KirkForge C/C++ lint engine",
         types: "gcc/g++ -fsyntax-only",
-        security: "55NDeep C/C++ lint engine (safety rules)",
+        security: "KirkForge C/C++ lint engine (safety rules)",
       };
     case "rust":
       return {
-        lint: "55NDeep Rust lint engine",
+        lint: "KirkForge Rust lint engine",
         types: "rustc --emit=metadata",
-        security: "55NDeep Rust lint engine (safety rules)",
+        security: "KirkForge Rust lint engine (safety rules)",
       };
     case "go":
       return {
-        lint: "55NDeep Go lint engine",
+        lint: "KirkForge Go lint engine",
         types: "go vet",
-        security: "55NDeep Go lint engine (safety rules)",
+        security: "KirkForge Go lint engine (safety rules)",
       };
     case "sql":
       return {
-        lint: "55NDeep SQL lint engine",
+        lint: "KirkForge SQL lint engine",
         types: "database validator",
-        security: "55NDeep SQL lint engine (safety rules)",
+        security: "KirkForge SQL lint engine (safety rules)",
       };
     default:
       return { lint: "lint", types: "type-check", security: "security scanner" };

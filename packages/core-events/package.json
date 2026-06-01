@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-events",
+  "name": "@kirkforge/core-events",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,8 +11,8 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-errors": "*"
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-errors": "*"
   },
   "devDependencies": {},
   "files": [

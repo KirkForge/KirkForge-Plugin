@@ -3,9 +3,9 @@ import {
   taskOutcomeFromValidation,
   isTaskPass,
   makeSkippedValidation,
-} from "@55ndeep/correction-core";
-import type { TaskValidationResult } from "@55ndeep/correction-core";
-import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
+} from "@kirkforge/correction-core";
+import type { TaskValidationResult } from "@kirkforge/correction-core";
+import { InMemoryAdapter, MemoryStore } from "@kirkforge/memory-palace";
 import { finalVerdictFromValidation } from "../src/truth-model.js";
 
 /**

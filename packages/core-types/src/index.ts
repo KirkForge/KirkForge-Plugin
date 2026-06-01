@@ -11,8 +11,8 @@ export type {
   DelegationMode,
   DelegationDecision,
   TokenBudget,
-  NDeepConfig,
-  NDeepErrorInfo,
+  KirkForgeConfig,
+  KirkForgeErrorInfo,
   PipelineResult,
   PipelineStepResult,
   SystemMetrics,
@@ -20,7 +20,7 @@ export type {
   TaskNode,
 } from "./types.js";
 export { SCHEMA_VERSION } from "./types.js";
-export type { NDeepEvent, NDeepEventKind } from "./events.js";
+export type { KirkForgeEvent, KirkForgeEventKind } from "./events.js";
 export type {
   VerifyLintEvent,
   VerifyTypesEvent,

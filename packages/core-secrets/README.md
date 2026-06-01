@@ -1,4 +1,4 @@
-# @55ndeep/core-secrets
+# @kirkforge/core-secrets
 
 Chained secrets resolution: Vault → AWS → GCP → environment. Implements the secrets chain defined in the architecture with failover between providers.
 

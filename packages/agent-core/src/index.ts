@@ -1,11 +1,11 @@
 import { z } from "zod";
-import type { Result } from "@55ndeep/core-types";
-import { ok, err } from "@55ndeep/core-types";
-import { ConfigError } from "@55ndeep/core-errors";
-import type { ModelProviderConfig, ModelConfig } from "@55ndeep/model-config";
-import { ModelClient } from "@55ndeep/model-client";
-import type { PromptTemplate, TaskBrief } from "@55ndeep/prompt-core";
-import { compilePrompt, BUILTIN_TEMPLATES } from "@55ndeep/prompt-core";
+import type { Result } from "@kirkforge/core-types";
+import { ok, err } from "@kirkforge/core-types";
+import { ConfigError } from "@kirkforge/core-errors";
+import type { ModelProviderConfig, ModelConfig } from "@kirkforge/model-config";
+import { ModelClient } from "@kirkforge/model-client";
+import type { PromptTemplate, TaskBrief } from "@kirkforge/prompt-core";
+import { compilePrompt, BUILTIN_TEMPLATES } from "@kirkforge/prompt-core";
 
 export interface AgentEmission {
   agentId: string;

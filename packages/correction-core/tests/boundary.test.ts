@@ -6,11 +6,11 @@ const ROOT = join(import.meta.dirname, "..");
 const PKG = join(ROOT, "..", "correction-core");
 
 const FORBIDDEN_IMPORTS = [
-  "@55ndeep/orchestrator",
-  "@55ndeep/agent-core",
-  "@55ndeep/model-config",
-  "@55ndeep/model-client",
-  "@55ndeep/plugin",
+  "@kirkforge/orchestrator",
+  "@kirkforge/agent-core",
+  "@kirkforge/model-config",
+  "@kirkforge/model-client",
+  "@kirkforge/plugin",
   "child_process",
   "node:child_process",
   "http",
@@ -53,7 +53,7 @@ describe("correction-core package boundary", () => {
       for (const forbidden of FORBIDDEN_IMPORTS) {
         expect(content, `${file} imports ${forbidden}`).not.toContain(`from "${forbidden}"`);
         expect(content, `${file} imports ${forbidden}`).not.toContain(`from '${forbidden}'`);
-        if (forbidden.startsWith("@55ndeep/")) {
+        if (forbidden.startsWith("@kirkforge/")) {
           expect(content, `${file} imports ${forbidden}`).not.toContain(`import("${forbidden}")`);
         }
       }
@@ -64,11 +64,11 @@ describe("correction-core package boundary", () => {
     const files = collectSourceFiles(join(PKG, "src"));
     for (const file of files) {
       const content = readFileSync(file, "utf-8");
-      expect(content, `${file} requires @55ndeep/plugin`).not.toContain(
-        'require("@55ndeep/plugin")',
+      expect(content, `${file} requires @kirkforge/plugin`).not.toContain(
+        'require("@kirkforge/plugin")',
       );
-      expect(content, `${file} requires @55ndeep/orchestrator`).not.toContain(
-        'require("@55ndeep/orchestrator")',
+      expect(content, `${file} requires @kirkforge/orchestrator`).not.toContain(
+        'require("@kirkforge/orchestrator")',
       );
     }
   });
@@ -78,7 +78,7 @@ describe("correction-core package boundary", () => {
     const files = collectSourceFiles(pluginCoreSrc);
     const hasCorrectionCoreImport = files.some((f) => {
       const content = readFileSync(f, "utf-8");
-      return content.includes("@55ndeep/correction-core");
+      return content.includes("@kirkforge/correction-core");
     });
     expect(hasCorrectionCoreImport, "plugin should import correction-core").toBe(true);
   });
@@ -88,7 +88,7 @@ describe("correction-core package boundary", () => {
     const files = collectSourceFiles(orchestratorSrc);
     const hasCorrectionCoreImport = files.some((f) => {
       const content = readFileSync(f, "utf-8");
-      return content.includes("@55ndeep/correction-core");
+      return content.includes("@kirkforge/correction-core");
     });
     expect(hasCorrectionCoreImport, "orchestrator should import correction-core").toBe(true);
   });

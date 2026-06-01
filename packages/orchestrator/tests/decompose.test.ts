@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TaskNode, EstimatedComplexity } from "@55ndeep/core-types";
+import type { TaskNode, EstimatedComplexity } from "@kirkforge/core-types";
 
 // ── Helpers to exercise _parseDecomposition and _topologicalSort ──────────
 // These are private methods on Orchestrator, but we can access them via
@@ -530,7 +530,7 @@ describe("executeDecomposition", () => {
     // Simulates a corrupted memory store where tasks were stored in reverse
     // dependency order. The topological sort must recover the correct order.
     const orch = makeOrchestrator();
-    const reverseOrder: import("@55ndeep/core-types").TaskNode[] = [
+    const reverseOrder: import("@kirkforge/core-types").TaskNode[] = [
       {
         id: "d",
         description: "D",
@@ -580,7 +580,7 @@ describe("executeDecomposition", () => {
 
   it("detects cycles introduced by corrupted dependency data", () => {
     const orch = makeOrchestrator();
-    const cycle: import("@55ndeep/core-types").TaskNode[] = [
+    const cycle: import("@kirkforge/core-types").TaskNode[] = [
       {
         id: "a",
         description: "A",
@@ -608,7 +608,7 @@ describe("executeDecomposition", () => {
   it("executes tasks in dependency order", () => {
     // Verify topological ordering is preserved
     const orch = makeOrchestrator();
-    const nodes: import("@55ndeep/core-types").TaskNode[] = [
+    const nodes: import("@kirkforge/core-types").TaskNode[] = [
       {
         id: "a",
         description: "A",
@@ -681,7 +681,7 @@ describe("executeDecomposition", () => {
 
   it("handles a linear chain of 10 tasks", () => {
     const orch = makeOrchestrator();
-    const nodes: import("@55ndeep/core-types").TaskNode[] = Array.from({ length: 10 }, (_, i) => ({
+    const nodes: import("@kirkforge/core-types").TaskNode[] = Array.from({ length: 10 }, (_, i) => ({
       id: `step-${i}`,
       description: `Step ${i}`,
       language: "text" as const,
@@ -699,7 +699,7 @@ describe("executeDecomposition", () => {
   it("execution result types are well-formed", () => {
     // Type-level validation: SubtaskExecutionResult and DecompositionExecutionResult
     // have all required fields
-    const mockResult: import("@55ndeep/orchestrator").DecompositionExecutionResult = {
+    const mockResult: import("@kirkforge/orchestrator").DecompositionExecutionResult = {
       rootTask: "Build a CLI",
       results: [
         {

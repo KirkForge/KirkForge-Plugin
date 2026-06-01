@@ -1,5 +1,5 @@
 apiVersion: v2
-name: 55ndeep
+name: kirkforge
 description: Deterministic delegation/verification plugin for coding agents — Kubernetes Helm chart
 type: application
 version: 1.0.0
@@ -11,5 +11,5 @@ keywords:
   - coding-agent
   - deterministic
 maintainers:
-  - name: 55ndeep
-home: https://github.com/55ndeep/55ndeep
+  - name: kirkforge
+home: https://github.com/kirkforge/kirkforge

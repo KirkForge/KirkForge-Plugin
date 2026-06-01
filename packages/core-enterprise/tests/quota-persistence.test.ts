@@ -10,7 +10,7 @@ describe("QuotaPersistence", () => {
   let filePath: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-quota-persist-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-quota-persist-"));
     filePath = join(tmpDir, "quotas.json");
   });
 

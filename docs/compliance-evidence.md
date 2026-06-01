@@ -1,7 +1,7 @@
 # Compliance Evidence Pack
 
 This document provides a structured evidence map for enterprise readiness
-assessments of 55NDeep. It maps enterprise requirements to implemented
+assessments of KirkForge. It maps enterprise requirements to implemented
 controls, test coverage, and known gaps.
 
 ## Evidence Map
@@ -110,7 +110,7 @@ controls, test coverage, and known gaps.
 
 ### SOC 2 Type II
 
-| Control                 | 55NDeep Implementation                                |
+| Control                 | KirkForge Implementation                                |
 | ----------------------- | ----------------------------------------------------- |
 | CC6.1 Logical Access    | OIDC JWT + API key auth, RBAC, tenant isolation       |
 | CC6.2 Authentication    | `verifyJwt`, `actorFromApiKey`, `AuthMiddleware`      |
@@ -121,7 +121,7 @@ controls, test coverage, and known gaps.
 
 ### ISO 27001
 
-| Control                                | 55NDeep Implementation                                   |
+| Control                                | KirkForge Implementation                                   |
 | -------------------------------------- | -------------------------------------------------------- |
 | A.9.1.1 Access control policy          | `PolicyEngine` deny-by-default                           |
 | A.9.2.1 User registration              | OIDC group-to-role mapping                               |

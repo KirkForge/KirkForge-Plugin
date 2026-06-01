@@ -7,8 +7,8 @@
  * improve routing accuracy.
  */
 import { resetNlpModel } from "./classifier-nlp.js";
-import type { DelegationMode } from "@55ndeep/core-types";
-import type { MemoryStore } from "@55ndeep/memory-palace";
+import type { DelegationMode } from "@kirkforge/core-types";
+import type { MemoryStore } from "@kirkforge/memory-palace";
 
 // ---------------------------------------------------------------------------
 // Outcome weights

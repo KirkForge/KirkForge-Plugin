@@ -18,7 +18,7 @@
     "maxTokensPerRequest": 16384
   },
   "workspaces": {
-    "allowedRoots": ["/workspace", "/tmp/55ndeep"],
+    "allowedRoots": ["/workspace", "/tmp/kirkforge"],
     "maxPathDepth": 12,
     "allowSymlinks": false
   },

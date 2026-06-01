@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
-import { ok, err } from "@55ndeep/core-types";
-import type { Result } from "@55ndeep/core-types";
-import type { EventBus } from "@55ndeep/core-events";
-import { walkFiles } from "@55ndeep/core-logging";
+import { ok, err } from "@kirkforge/core-types";
+import type { Result } from "@kirkforge/core-types";
+import type { EventBus } from "@kirkforge/core-events";
+import { walkFiles } from "@kirkforge/core-logging";
 import type { LintRule, LintFinding } from "./rules.js";
 import { RuleRegistry } from "./rules.js";
 
@@ -11,10 +11,10 @@ const SCANNABLE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".
 const MAX_LINES = 200;
 
 // ── Suppression directive patterns ──
-const RE_DISABLE_LINE = /55ndeep-lint-disable-line\s*(?:([a-z0-9-,\s]+))?\s*$/;
-const RE_DISABLE_NEXT = /55ndeep-lint-disable-next-line\s*(?:([a-z0-9-,\s]+))?\s*$/;
-const RE_DISABLE_BLOCK = /55ndeep-lint-disable\s*(?:([a-z0-9-,\s]+))?\s*$/;
-const RE_ENABLE_BLOCK = /55ndeep-lint-enable\s*(?:([a-z0-9-,\s]+))?\s*$/;
+const RE_DISABLE_LINE = /kirkforge-lint-disable-line\s*(?:([a-z0-9-,\s]+))?\s*$/;
+const RE_DISABLE_NEXT = /kirkforge-lint-disable-next-line\s*(?:([a-z0-9-,\s]+))?\s*$/;
+const RE_DISABLE_BLOCK = /kirkforge-lint-disable\s*(?:([a-z0-9-,\s]+))?\s*$/;
+const RE_ENABLE_BLOCK = /kirkforge-lint-enable\s*(?:([a-z0-9-,\s]+))?\s*$/;
 
 function parseRuleList(raw: string | undefined): Set<string> {
   if (!raw) return new Set(); // empty = all rules
@@ -34,14 +34,14 @@ function isSuppressed(
 ): boolean {
   const line = lines[lineIdx]!;
 
-  // 55ndeep-lint-disable-line on the same line
+  // kirkforge-lint-disable-line on the same line
   const lineMatch = RE_DISABLE_LINE.exec(line);
   if (lineMatch) {
     const rules = parseRuleList(lineMatch[1]);
     return rules.size === 0 || rules.has(ruleId);
   }
 
-  // 55ndeep-lint-disable-next-line on the previous line
+  // kirkforge-lint-disable-next-line on the previous line
   if (lineIdx > 0) {
     const prevLine = lines[lineIdx - 1]!;
     const nextMatch = RE_DISABLE_NEXT.exec(prevLine);
@@ -348,7 +348,7 @@ export class LintEngine {
         },
         timestamp: new Date().toISOString(),
       });
-      return err(new Error(`55ndeep-lint: ${message}`));
+      return err(new Error(`kirkforge-lint: ${message}`));
     }
   }
 }

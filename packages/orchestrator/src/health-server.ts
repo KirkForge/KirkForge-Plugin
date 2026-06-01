@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { Orchestrator } from "./index.js";
 import type { OrchestratorStats, HealthCheckResult } from "./types.js";
-import type { Logger } from "@55ndeep/core-logging";
-import { NDeepError, toErrorResponse } from "@55ndeep/core-errors";
+import type { Logger } from "@kirkforge/core-logging";
+import { KirkForgeError, toErrorResponse } from "@kirkforge/core-errors";
 import {
   type Actor,
   type Permission,
@@ -15,9 +15,9 @@ import {
   actorFromJwt,
   actorFromApiKey,
   verifyJwt,
-} from "@55ndeep/core-rbac";
-import type { AuditLogger } from "@55ndeep/core-events";
-import type { PolicyEngine } from "@55ndeep/core-policy";
+} from "@kirkforge/core-rbac";
+import type { AuditLogger } from "@kirkforge/core-events";
+import type { PolicyEngine } from "@kirkforge/core-policy";
 // ── RBAC-enforced health server ──────────────────────────────────────────────
 //
 // Extends the basic health server with:
@@ -39,7 +39,7 @@ export interface HealthServerConfig {
   /** OIDC configuration for JWT validation. If set, Bearer tokens are validated as JWTs. */
   oidcConfig?: OidcConfig;
   /** Group-to-role mapping for OIDC JWT tokens. */
-  groupRoleMapping?: import("@55ndeep/core-rbac").GroupRoleMapping;
+  groupRoleMapping?: import("@kirkforge/core-rbac").GroupRoleMapping;
   /** Audit logger for auth/policy events. */
   auditLogger?: AuditLogger;
   /** Policy engine for endpoint-level checks. */
@@ -131,7 +131,7 @@ export class HealthServer {
   private buckets = new Map<string, RateBucket>();
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private oidcConfig?: OidcConfig;
-  private groupRoleMapping?: import("@55ndeep/core-rbac").GroupRoleMapping;
+  private groupRoleMapping?: import("@kirkforge/core-rbac").GroupRoleMapping;
   private auditLogger?: AuditLogger;
   private policyEngine?: PolicyEngine;
 
@@ -232,7 +232,7 @@ export class HealthServer {
             return;
           }
           if (method !== "GET" && method !== "HEAD") {
-            this._sendError(res, new NDeepError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
+            this._sendError(res, new KirkForgeError("METHOD_NOT_ALLOWED", `${method} is not allowed`), correlationId);
             return;
           }
           // ── Reject requests during shutdown ────────────────────────────
@@ -283,7 +283,7 @@ export class HealthServer {
           if (url === "/metrics") return this._handleMetricsJson(res);
           // Prometheus metrics (also at root for backward compat)
           if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
-          this._sendError(res, new NDeepError("NOT_FOUND", `Unknown path: ${url}`), correlationId);
+          this._sendError(res, new KirkForgeError("NOT_FOUND", `Unknown path: ${url}`), correlationId);
         } catch (err: unknown) {
           this._sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
         } finally {
@@ -600,7 +600,7 @@ export class HealthServer {
     res.end(
       JSON.stringify({
         status: "available",
-        message: "Use `55ndeep audit-verify --file <path>` to verify audit chain integrity",
+        message: "Use `kirkforge audit-verify --file <path>` to verify audit chain integrity",
       }),
     );
   }
@@ -621,7 +621,7 @@ export class HealthServer {
     const spec = {
       openapi: "3.0.3",
       info: {
-        title: "55NDeep Health & Metrics API",
+        title: "KirkForge Health & Metrics API",
         version: "1.0.0",
         description: "Deterministic verification and routing layer for coding agents",
       },
@@ -762,15 +762,15 @@ export class HealthServer {
   }
 
   private _sendUnauthorized(res: ServerResponse, reason: string): void {
-    const errResp = toErrorResponse(new NDeepError("UNAUTHORIZED", reason));
+    const errResp = toErrorResponse(new KirkForgeError("UNAUTHORIZED", reason));
     res.writeHead(401, {
       "Content-Type": "application/json",
-      "WWW-Authenticate": 'Bearer realm="55ndeep"',
+      "WWW-Authenticate": 'Bearer realm="kirkforge"',
     });
     res.end(JSON.stringify(errResp));
   }
   private _sendForbidden(res: ServerResponse, reason: string): void {
-    const errResp = toErrorResponse(new NDeepError("FORBIDDEN", reason));
+    const errResp = toErrorResponse(new KirkForgeError("FORBIDDEN", reason));
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify(errResp));
   }
@@ -805,7 +805,7 @@ export class HealthServer {
           "Retry-After": "1",
         });
         res.end(JSON.stringify(toErrorResponse(
-          new NDeepError("TENANT_RATE_LIMITED", `Tenant ${actor.tenantId} rate limit exceeded`),
+          new KirkForgeError("TENANT_RATE_LIMITED", `Tenant ${actor.tenantId} rate limit exceeded`),
           undefined,
         )));
         return false;
@@ -832,7 +832,7 @@ export class HealthServer {
         "Content-Type": "application/json",
         "Retry-After": "1",
       });
-      res.end(JSON.stringify(toErrorResponse(new NDeepError("RATE_LIMITED", "Too many requests"), undefined)));
+      res.end(JSON.stringify(toErrorResponse(new KirkForgeError("RATE_LIMITED", "Too many requests"), undefined)));
       return false;
     }
     bucket.tokens -= 1;
@@ -1034,35 +1034,35 @@ export class HealthServer {
         : "";
       lines.push(`${name}${labelStr} ${value}`);
     };
-    gauge("55ndeep_up", "Is the 55NDeep server up", health.status === "healthy" ? 1 : 0);
+    gauge("kirkforge_up", "Is the KirkForge server up", health.status === "healthy" ? 1 : 0);
     counter(
-      "55ndeep_delegations_total",
+      "kirkforge_delegations_total",
       "Total number of delegated tasks",
       num(stats.totalDelegations),
     );
-    counter("55ndeep_tokens_total", "Total tokens consumed", num(stats.totalTokens));
+    counter("kirkforge_tokens_total", "Total tokens consumed", num(stats.totalTokens));
     if (typeof stats.totalErrors === "number")
-      counter("55ndeep_errors_total", "Total errors", stats.totalErrors);
+      counter("kirkforge_errors_total", "Total errors", stats.totalErrors);
     if (typeof stats.activeTasks === "number")
-      gauge("55ndeep_active_tasks", "Currently active tasks", stats.activeTasks);
+      gauge("kirkforge_active_tasks", "Currently active tasks", stats.activeTasks);
     if (typeof stats.memoryEntries === "number")
-      gauge("55ndeep_memory_store_entries", "Memory store entries", stats.memoryEntries);
+      gauge("kirkforge_memory_store_entries", "Memory store entries", stats.memoryEntries);
     if (typeof stats.memorySizeBytes === "number")
-      gauge("55ndeep_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
+      gauge("kirkforge_memory_store_size_bytes", "Memory store size in bytes", stats.memorySizeBytes);
     const memUsage = process.memoryUsage();
     gauge("process_resident_memory_bytes", "Resident memory in bytes", memUsage.rss);
     gauge("process_heap_total_bytes", "Total heap in bytes", memUsage.heapTotal);
     gauge("process_heap_used_bytes", "Used heap in bytes", memUsage.heapUsed);
     gauge("process_uptime_seconds", "Process uptime in seconds", process.uptime());
     // Auth/policy counters
-    counter("55ndeep_auth_success_total", "Total successful auth events", this._authSuccessCount);
-    counter("55ndeep_auth_failure_total", "Total failed auth events", this._authFailureCount);
-    counter("55ndeep_policy_deny_total", "Total policy deny events", this._policyDenyCount);
-    gauge("55ndeep_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
-    counter("55ndeep_http_requests_total", "Total HTTP requests processed", this._requestCount);
+    counter("kirkforge_auth_success_total", "Total successful auth events", this._authSuccessCount);
+    counter("kirkforge_auth_failure_total", "Total failed auth events", this._authFailureCount);
+    counter("kirkforge_policy_deny_total", "Total policy deny events", this._policyDenyCount);
+    gauge("kirkforge_http_requests_in_flight", "Currently processing HTTP requests", this._inFlight.size);
+    counter("kirkforge_http_requests_total", "Total HTTP requests processed", this._requestCount);
     // Tenant rate limit metrics
     if (this.rateLimitPerSecPerTenant > 0) {
-      gauge("55ndeep_tenant_rate_limit_buckets", "Active tenant rate limit buckets", this.tenantBuckets.size);
+      gauge("kirkforge_tenant_rate_limit_buckets", "Active tenant rate limit buckets", this.tenantBuckets.size);
     }
     lines.push("# EOF");
     res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { Result } from "@55ndeep/core-types";
-import { ok } from "@55ndeep/core-types";
+import type { Result } from "@kirkforge/core-types";
+import { ok } from "@kirkforge/core-types";
 
 export type PromptFormat = "hard-prompt" | "schema-contract" | "artifact" | "task-decompose";
 

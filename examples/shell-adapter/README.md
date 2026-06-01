@@ -1,24 +1,24 @@
-# 55NDeep Shell Adapter Example
+# KirkForge Shell Adapter Example
 
-A runnable shell script demonstrating the 55NDeep plugin CLI contract.
+A runnable shell script demonstrating the KirkForge plugin CLI contract.
 
 ## What it does
 
-1. Verifies a workspace directory using `55ndeep verify-workspace`
-2. If verification reports any issues, builds a correction prompt using `55ndeep prompt`
-3. Records the task outcome using `55ndeep observe`
+1. Verifies a workspace directory using `kirkforge verify-workspace`
+2. If verification reports any issues, builds a correction prompt using `kirkforge prompt`
+3. Records the task outcome using `kirkforge observe`
 
 No model calls. Entirely deterministic.
 
 ## Requirements
 
-- `55ndeep` CLI installed and in `PATH`
+- `kirkforge` CLI installed and in `PATH`
 - `jq` installed and in `PATH`
 
 ## Usage
 
 ```sh
-55ndeep-post-generation.sh \
+kirkforge-post-generation.sh \
   --workspace /path/to/project \
   --task-id task-1234 \
   --task-desc "fix auth bug" \
@@ -26,7 +26,7 @@ No model calls. Entirely deterministic.
   --mode hard-prompt \
   --model gpt-4 \
   --outcome pass \
-  --memory ./55ndeep-memory.json \
+  --memory ./kirkforge-memory.json \
   --elapsed-ms 5000
 ```
 

@@ -3,7 +3,7 @@
 ## Command
 
 ```bash
-sg docker -c 'TBENCH_DIR=/path/to/research/55NDeep/Testsuite_tasks \
+sg docker -c 'TBENCH_DIR=/path/to/research/KirkForge/Testsuite_tasks \
   VALIDATOR_BACKEND=docker INCLUDE_SOLO=0 MAX_CORRECTIONS=3 \
   TASKS=simple-web-scraper,csv-to-parquet,broken-python,form-filling \
   WORKERS=rnj-1:8b-cloud,glm-4.7:cloud,glm-5.1:cloud,deepseek-v4-flash:cloud,gpt-oss:120b-cloud,qwen3-coder-next:cloud \

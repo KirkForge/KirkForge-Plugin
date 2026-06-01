@@ -1,7 +1,7 @@
-import type { TaskLanguage, VerifierPolicy } from "@55ndeep/correction-core";
+import type { TaskLanguage, VerifierPolicy } from "@kirkforge/correction-core";
 
-export type { TaskLanguage } from "@55ndeep/correction-core";
-export type { VerifierPolicy } from "@55ndeep/correction-core";
+export type { TaskLanguage } from "@kirkforge/correction-core";
+export type { VerifierPolicy } from "@kirkforge/correction-core";
 
 export interface StructuredCheckCommand {
   command: string;

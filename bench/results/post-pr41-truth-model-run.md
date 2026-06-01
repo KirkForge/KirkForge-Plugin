@@ -5,7 +5,7 @@
 ## Command / Env Summary
 
 ```
-TBENCH_DIR=/path/to/research/55NDeep/Testsuite_tasks
+TBENCH_DIR=/path/to/research/KirkForge/Testsuite_tasks
 VALIDATOR_BACKEND=docker
 INCLUDE_SOLO=0
 MAX_CORRECTIONS=3

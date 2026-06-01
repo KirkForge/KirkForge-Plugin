@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { existsSync } from "node:fs";
 
-const tmpDir = resolve(tmpdir(), "55ndeep-pyright-tests-" + Date.now());
+const tmpDir = resolve(tmpdir(), "kirkforge-pyright-tests-" + Date.now());
 
 async function writeTestFile(relPath: string, content: string) {
   const full = resolve(tmpDir, relPath);

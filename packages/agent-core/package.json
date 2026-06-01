@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/agent-core",
+  "name": "@kirkforge/agent-core",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,11 +11,11 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*",
-    "@55ndeep/core-errors": "*",
-    "@55ndeep/model-config": "*",
-    "@55ndeep/model-client": "*",
-    "@55ndeep/prompt-core": "*",
+    "@kirkforge/core-types": "*",
+    "@kirkforge/core-errors": "*",
+    "@kirkforge/model-config": "*",
+    "@kirkforge/model-client": "*",
+    "@kirkforge/prompt-core": "*",
     "zod": "^4.4.3"
   },
   "devDependencies": {},

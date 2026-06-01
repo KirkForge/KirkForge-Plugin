@@ -1,30 +1,30 @@
-import type { Result } from "@55ndeep/core-types";
-import { ok, err } from "@55ndeep/core-types";
-import { EventBus } from "@55ndeep/core-events";
+import type { Result } from "@kirkforge/core-types";
+import { ok, err } from "@kirkforge/core-types";
+import { EventBus } from "@kirkforge/core-events";
 import {
   StateReducer,
   createVerificationEmitters,
   detectTaskProfile,
   profileForLanguage,
-} from "@55ndeep/orchestrator";
-import type { ReducedStatePacket, TaskLanguage, VerifierPolicy } from "@55ndeep/correction-core";
-import { buildCorrectionPrompt as correctionBuildCorrectionPrompt } from "@55ndeep/correction-core";
+} from "@kirkforge/orchestrator";
+import type { ReducedStatePacket, TaskLanguage, VerifierPolicy } from "@kirkforge/correction-core";
+import { buildCorrectionPrompt as correctionBuildCorrectionPrompt } from "@kirkforge/correction-core";
 import type {
   MemoryStore,
   RoutingBias,
   TaskObservationInput as PalaceTaskObservationInput,
-} from "@55ndeep/memory-palace";
+} from "@kirkforge/memory-palace";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
-import { safeRelativePath } from "@55ndeep/orchestrator/path-safety.js";
+import { safeRelativePath } from "@kirkforge/orchestrator/path-safety.js";
 
 const execFileAsync = promisify(execFile);
 
-export type { ReducedStatePacket } from "@55ndeep/correction-core";
-export type { TaskLanguage } from "@55ndeep/correction-core";
-export type { RoutingBias } from "@55ndeep/memory-palace";
-export { toolNames } from "@55ndeep/correction-core";
+export type { ReducedStatePacket } from "@kirkforge/correction-core";
+export type { TaskLanguage } from "@kirkforge/correction-core";
+export type { RoutingBias } from "@kirkforge/memory-palace";
+export { toolNames } from "@kirkforge/correction-core";
 
 export interface VerifyWorkspaceInput {
   workspace: string;

@@ -1,4 +1,4 @@
-import { withSpan, isTracingEnabled } from "@55ndeep/core-telemetry";
+import { withSpan, isTracingEnabled } from "@kirkforge/core-telemetry";
 import type { Span } from "@opentelemetry/api";
 
 /**

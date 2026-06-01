@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EventBus } from "../src/index.js";
-import { ok } from "@55ndeep/core-types";
+import { ok } from "@kirkforge/core-types";
 
 describe("EventBus", () => {
   it("emits events to registered handlers", async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EventBus } from "@55ndeep/core-events";
+import { EventBus } from "@kirkforge/core-events";
 import { StateReducer } from "../src/reducer.js";
 import { classifyTask } from "../src/classifier.js";
 import { decideCorrection } from "../src/correction-loop.js";
@@ -11,8 +11,8 @@ import {
 } from "../src/truth-model.js";
 import { detectTaskProfile, profileForLanguage } from "../src/task-profile.js";
 import { isInsideCwd, safeRelativePath, isBinaryLikeContent } from "../src/path-safety.js";
-import type { VerifierPolicy } from "@55ndeep/correction-core";
-import { makeSkippedValidation } from "@55ndeep/correction-core";
+import type { VerifierPolicy } from "@kirkforge/correction-core";
+import { makeSkippedValidation } from "@kirkforge/correction-core";
 
 // ── Truth model ────────────────────────────────────────────────────────────
 
@@ -360,7 +360,7 @@ describe("correction-loop (extended)", () => {
     const d = decideCorrection(basePacket(), 0, 3, 100, 100, 0, undefined, "python", null);
     expect(d.action).toBe("correct");
     expect(d.correctionPrompt).toBeDefined();
-    expect(d.correctionPrompt).toContain("55NDeep Python lint engine");
+    expect(d.correctionPrompt).toContain("KirkForge Python lint engine");
     expect(d.correctionPrompt).toContain("pyright");
   });
 });

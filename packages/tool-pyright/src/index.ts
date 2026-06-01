@@ -1,9 +1,9 @@
 import { execFile } from "node:child_process";
 import { relative, resolve, isAbsolute } from "node:path";
-import { ok } from "@55ndeep/core-types";
-import type { Result } from "@55ndeep/core-types";
-import type { EventBus } from "@55ndeep/core-events";
-import { walkFiles } from "@55ndeep/core-logging";
+import { ok } from "@kirkforge/core-types";
+import type { Result } from "@kirkforge/core-types";
+import type { EventBus } from "@kirkforge/core-events";
+import { walkFiles } from "@kirkforge/core-logging";
 
 interface PyrightOpts {
   cwd: string;

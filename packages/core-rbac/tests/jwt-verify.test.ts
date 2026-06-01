@@ -6,7 +6,7 @@ import type { OidcConfig, GroupRoleMapping } from "../src/index.js";
 // Sequential execution to avoid JWKS cache contention and shared mutable state
 // between concurrent tests. Each test generates its own keypair.
 describe.sequential("verifyJwt", () => {
-  const audience = "55ndeep";
+  const audience = "kirkforge";
 
   beforeEach(() => {
     clearJwksCache();
@@ -276,11 +276,11 @@ describe("validateJwtClaims", () => {
     const claims = {
       sub: "user-1",
       iss: "https://auth.example.com",
-      aud: "55ndeep",
+      aud: "kirkforge",
       exp: Math.floor(now / 1000) + 3600,
       iat: Math.floor(now / 1000),
     };
-    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
     const result = validateJwtClaims(claims, config);
     expect(result.ok).toBe(true);
   });
@@ -290,11 +290,11 @@ describe("validateJwtClaims", () => {
     const claims = {
       sub: "user-1",
       iss: "https://auth.example.com",
-      aud: "55ndeep",
+      aud: "kirkforge",
       exp: Math.floor(now / 1000) - 300,
       iat: Math.floor(now / 1000) - 3600,
     };
-    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
     const result = validateJwtClaims(claims, config);
     expect(result.ok).toBe(false);
   });
@@ -304,11 +304,11 @@ describe("validateJwtClaims", () => {
     const claims = {
       sub: "user-1",
       iss: "https://evil.com",
-      aud: "55ndeep",
+      aud: "kirkforge",
       exp: Math.floor(now / 1000) + 3600,
       iat: Math.floor(now / 1000),
     };
-    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "55ndeep" };
+    const config: OidcConfig = { issuer: "https://auth.example.com", audience: "kirkforge" };
     const result = validateJwtClaims(claims, config);
     expect(result.ok).toBe(false);
   });

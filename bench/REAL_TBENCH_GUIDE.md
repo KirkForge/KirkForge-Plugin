@@ -38,7 +38,7 @@ Primary metric:
 taskOutcome === "pass"
 ```
 
-The `taskOutcome` field is derived from `taskValidation.status` via `taskOutcomeFromValidation()` (from `@55ndeep/correction-core`). It is distinct from `verifierOverall` (from `ReducedStatePacket.verification.overall`) and from `finalAction` (the harness's accept/escalate decision). The `taskPass` compatibility field is `taskValidation.status === "pass"`, not `finalAction === "accept"` or `verifierOverall === "pass"`.
+The `taskOutcome` field is derived from `taskValidation.status` via `taskOutcomeFromValidation()` (from `@kirkforge/correction-core`). It is distinct from `verifierOverall` (from `ReducedStatePacket.verification.overall`) and from `finalAction` (the harness's accept/escalate decision). The `taskPass` compatibility field is `taskValidation.status === "pass"`, not `finalAction === "accept"` or `verifierOverall === "pass"`.
 
 Each benchmark result now includes:
 
@@ -157,7 +157,7 @@ to run anyway, but results must be treated as task-validator-only, not full veri
 
 ### Why this matters
 
-The 55NDeep harness runs a verifier loop: emit files → local verifiers (ruff, pyright, bandit) → reducer → correction loop. When required verifiers are missing:
+The KirkForge harness runs a verifier loop: emit files → local verifiers (ruff, pyright, bandit) → reducer → correction loop. When required verifiers are missing:
 
 - The reducer cannot perform lint or type checks, so it fails closed.
 - `finalAction: "escalate"` and `cliAccepts: 0` are expected even when `taskPass: true`.
@@ -242,7 +242,7 @@ TASKS             comma-separated task names
 TASK_LIMIT        first N tasks from the default task list
 WORKERS           comma-separated Ollama model names
 INCLUDE_SOLO      0 disables solo baseline
-MAX_CORRECTIONS   correction turns per 55NDeep worker, default 2
+MAX_CORRECTIONS   correction turns per KirkForge worker, default 2
 RUN_VALIDATORS    0 skips real validators, not recommended for final evidence
 VALIDATOR_BACKEND docker | local | auto
 BENCH_VALIDATOR_MODE posthoc (default) | native
@@ -273,8 +273,8 @@ A one-line preflight summary is printed before the first task:
 
 `BENCH_VALIDATOR_MODE` controls how task validation runs:
 
-- **posthoc** (default): After the 55NDeep correction loop finishes, the benchmark script runs the TBench validator against the run directory. This is the original behavior and produces `validation.kind: "tbench"`.
-- **native**: The benchmark passes `--validator` to the 55NDeep CLI, which calls the TBench validator inline during the correction loop. The CLI decides `sourceOfTruth: "task-validator"` and includes `finalVerdict`, `taskValidation`, `taskOutcome`, and `taskPass` directly in the CLI JSON output. Rows in native mode include `finalAction`, `finalVerdict`, `sourceOfTruth`, `verifierOverall`, `taskValidation`, `taskOutcome`, and `taskPass`.
+- **posthoc** (default): After the KirkForge correction loop finishes, the benchmark script runs the TBench validator against the run directory. This is the original behavior and produces `validation.kind: "tbench"`.
+- **native**: The benchmark passes `--validator` to the KirkForge CLI, which calls the TBench validator inline during the correction loop. The CLI decides `sourceOfTruth: "task-validator"` and includes `finalVerdict`, `taskValidation`, `taskOutcome`, and `taskPass` directly in the CLI JSON output. Rows in native mode include `finalAction`, `finalVerdict`, `sourceOfTruth`, `verifierOverall`, `taskValidation`, `taskOutcome`, and `taskPass`.
 
 In native mode the outer exec timeout is set to `VALIDATOR_TIMEOUT_MS + (MAX_CORRECTIONS + 1) * MODEL_TIMEOUT_MS + 120s` so the process is not killed before the validator finishes.
 

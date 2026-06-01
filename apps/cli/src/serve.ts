@@ -1,12 +1,12 @@
-import { HealthServer } from "@55ndeep/orchestrator/health-server";
-import type { Orchestrator } from "@55ndeep/orchestrator";
-import type { EventBus } from "@55ndeep/core-events";
-import type { AuditLogger } from "@55ndeep/core-events";
-import type { Logger } from "@55ndeep/core-logging";
-import type { PolicyEngine } from "@55ndeep/core-policy";
-import type { EnterpriseConfig } from "@55ndeep/core-enterprise";
-import type { OidcConfig, GroupRoleMapping, Role } from "@55ndeep/core-rbac";
-import { EventLogger } from "@55ndeep/orchestrator/event-log";
+import { HealthServer } from "@kirkforge/orchestrator/health-server";
+import type { Orchestrator } from "@kirkforge/orchestrator";
+import type { EventBus } from "@kirkforge/core-events";
+import type { AuditLogger } from "@kirkforge/core-events";
+import type { Logger } from "@kirkforge/core-logging";
+import type { PolicyEngine } from "@kirkforge/core-policy";
+import type { EnterpriseConfig } from "@kirkforge/core-enterprise";
+import type { OidcConfig, GroupRoleMapping, Role } from "@kirkforge/core-rbac";
+import { EventLogger } from "@kirkforge/orchestrator/event-log";
 
 export interface ServeOptions {
   orchestrator: Orchestrator;
@@ -163,7 +163,7 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
     // Still start the server, but don't mark as ready so /readyz returns 503
   } else {
     healthServer.ready = true;
-    log.info?.("[serve] 55NDeep daemon ready — health server listening");
+    log.info?.("[serve] KirkForge daemon ready — health server listening");
   }
 
   const gracefulStop = async (signal: string) => {
@@ -210,7 +210,7 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
 /**
  * Parse OIDC_GROUP_ROLE_MAP from env.
  * Format: "admin:admins,operator:operators,developer:developers,viewer:viewers"
- * Maps OIDC group names to 55NDeep roles.
+ * Maps OIDC group names to KirkForge roles.
  */
 function parseGroupRoleMapping(envValue: string | undefined): GroupRoleMapping | undefined {
   if (!envValue) return undefined;

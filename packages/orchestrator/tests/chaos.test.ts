@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Orchestrator } from "../src/index.js";
 import type { OrchestratorConfig } from "../src/index.js";
-import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
-import { EventBus } from "@55ndeep/core-events";
+import { InMemoryAdapter, MemoryStore } from "@kirkforge/memory-palace";
+import { EventBus } from "@kirkforge/core-events";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { TaskInput } from "../src/types.js";
-import { ok } from "@55ndeep/core-types";
-import type { Result } from "@55ndeep/core-types";
+import { ok } from "@kirkforge/core-types";
+import type { Result } from "@kirkforge/core-types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -28,7 +28,7 @@ function makeModelConfig() {
 }
 
 function tmpWorkspace(extraFiles: Record<string, string> = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), "55ndeep-chaos-"));
+  const dir = mkdtempSync(join(tmpdir(), "kirkforge-chaos-"));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "chaos-test", type: "module" }));
   writeFileSync(
     join(dir, "tsconfig.json"),
@@ -242,7 +242,7 @@ describe("validator chaos", () => {
       {
         maxCorrections: 1,
         validator: {
-          command: "nonexistent-binary-55ndeep-test",
+          command: "nonexistent-binary-kirkforge-test",
           args: ["--check"],
           timeoutMs: 5000,
         },
@@ -337,7 +337,7 @@ describe("memory chaos", () => {
   it("survives memory store adapter write errors without throwing", async () => {
     class FailingAdapter extends InMemoryAdapter {
       override async write(): ReturnType<InMemoryAdapter["write"]> {
-        const { err: makeErr } = await import("@55ndeep/core-types");
+        const { err: makeErr } = await import("@kirkforge/core-types");
         return makeErr(new Error("simulated disk full"));
       }
     }

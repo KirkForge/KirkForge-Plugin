@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ok, err, type Result } from "@55ndeep/core-types";
-import { NDeepError } from "@55ndeep/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
+import { KirkForgeError } from "@kirkforge/core-errors";
 
 // ── Zod schemas for configuration ────────────────────────────────────────
 
@@ -31,7 +31,7 @@ export const MemoryConfigSchema = z.object({
   retentionDays: z.number().int().min(1).max(3650).default(30),
 });
 
-export const NDeepConfigSchema = z.object({
+export const KirkForgeConfigSchema = z.object({
   workspace: z.string().min(1, "workspace path is required"),
   orchestrator: OrchestratorConfigSchema.default({
     maxConcurrentWorkers: 4,
@@ -49,12 +49,12 @@ export const NDeepConfigSchema = z.object({
     format: "json",
   }),
   memory: MemoryConfigSchema.default({
-    path: ".55ndeep/memory",
+    path: ".kirkforge/memory",
     retentionDays: 30,
   }),
 });
 
-export type ValidatedConfig = z.infer<typeof NDeepConfigSchema>;
+export type ValidatedConfig = z.infer<typeof KirkForgeConfigSchema>;
 
 // ── Provider config schemas ──────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ export const ProvidersMapSchema = z.record(z.string().min(1), ProviderConfigSche
 // ── Full app config ──────────────────────────────────────────────────────
 
 export const AppConfigSchema = z.object({
-  config: NDeepConfigSchema,
+  config: KirkForgeConfigSchema,
   providers: ProvidersMapSchema.optional(),
   api: z
     .object({
@@ -109,7 +109,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
  * Validate and parse a configuration object against the full app schema.
  * Returns a Result with typed config or a structured error.
  */
-export function validateConfig(raw: unknown): Result<AppConfig, NDeepError> {
+export function validateConfig(raw: unknown): Result<AppConfig, KirkForgeError> {
   const parsed = AppConfigSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => ({
@@ -117,7 +117,7 @@ export function validateConfig(raw: unknown): Result<AppConfig, NDeepError> {
       message: i.message,
       code: i.code,
     }));
-    return err(new NDeepError("VALIDATION_ERROR", "Configuration validation failed", { issues }));
+    return err(new KirkForgeError("VALIDATION_ERROR", "Configuration validation failed", { issues }));
   }
   return ok(parsed.data);
 }
@@ -126,7 +126,7 @@ export function validateConfig(raw: unknown): Result<AppConfig, NDeepError> {
  * Validate a partial config for hot-reload safety.
  * Returns a Result with the validated subset or error.
  */
-export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, NDeepError> {
+export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, KirkForgeError> {
   const parsed = AppConfigSchema.partial().safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => ({
@@ -135,7 +135,7 @@ export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, 
       code: i.code,
     }));
     return err(
-      new NDeepError("VALIDATION_ERROR", "Partial configuration validation failed", { issues }),
+      new KirkForgeError("VALIDATION_ERROR", "Partial configuration validation failed", { issues }),
     );
   }
   return ok(parsed.data);
@@ -146,7 +146,7 @@ export function validatePartialConfig(raw: unknown): Result<Partial<AppConfig>, 
  */
 export function validateProvider(
   raw: unknown,
-): Result<z.infer<typeof ProviderConfigSchema>, NDeepError> {
+): Result<z.infer<typeof ProviderConfigSchema>, KirkForgeError> {
   const parsed = ProviderConfigSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => ({
@@ -154,7 +154,7 @@ export function validateProvider(
       message: i.message,
       code: i.code,
     }));
-    return err(new NDeepError("INVALID_CONFIG", "Provider configuration is invalid", { issues }));
+    return err(new KirkForgeError("INVALID_CONFIG", "Provider configuration is invalid", { issues }));
   }
   return ok(parsed.data);
 }
@@ -174,14 +174,14 @@ export function defaultAppConfig(overrides?: Partial<AppConfig>): AppConfig {
 // ── Legacy config helpers (deprecated — use ConfigService instead) ──────
 
 /** @deprecated Use ConfigService instead */
-export interface NDeepLegacyConfig {
+export interface KirkForgeLegacyConfig {
   workspace: string;
   memoryPath: string;
 }
 
 /** @deprecated Use ConfigService.getPath() instead */
 export function resolveMemoryPath(cwd?: string): string {
-  return `${cwd ?? process.cwd()}/.55ndeep/memory`;
+  return `${cwd ?? process.cwd()}/.kirkforge/memory`;
 }
 
 /** @deprecated Validation handled by ConfigService.load() + Zod schemas */

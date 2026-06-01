@@ -1,13 +1,13 @@
 # Post-Plugin Rename Validator Benchmark
 
 **Date**: 2026-05-14
-**PR**: 51 (post-`@55ndeep/plugin` rename, post-PR47 native task validator)
+**PR**: 51 (post-`@kirkforge/plugin` rename, post-PR47 native task validator)
 **Report JSON**: `/tmp/bench-sandbox/report-real-1778760810942.json`
 
 ## Command
 
 ```bash
-sg docker -c 'TBENCH_DIR=/path/to/research/55NDeep/Testsuite_tasks \
+sg docker -c 'TBENCH_DIR=/path/to/research/KirkForge/Testsuite_tasks \
   VALIDATOR_BACKEND=docker \
   INCLUDE_SOLO=0 \
   MAX_CORRECTIONS=3 \
@@ -106,7 +106,7 @@ No cells are classified as:
 
 This run does not produce model-quality comparison evidence because the task validator infrastructure was unavailable for all four tasks. The run validates:
 
-- The post-PR47 codebase (with `@55ndeep/plugin` rename, native validator verdicts, and verifier preflight) compiles, builds, and runs without error.
+- The post-PR47 codebase (with `@kirkforge/plugin` rename, native validator verdicts, and verifier preflight) compiles, builds, and runs without error.
 - Verifier preflight correctly detects Python tools and passes.
 - The correction loop runs and escalates when verification fails.
 - No model produced zero tokens or timed out — all 16 cells are `validator_infra_fail`, not `cloud_timeout_or_empty`.
@@ -115,5 +115,5 @@ This run does not produce model-quality comparison evidence because the task val
 
 **Stochasticity note**: n=1 per cell. Single-run results are noisy. No claim about relative model quality should be made from this data, especially when all cells share the same validator infrastructure gap.
 
-**Brain & Brawn / Verifier framing**: This run shows the Verifier (55NDeep) and the Brain (correction loop) working correctly. The Brawn (workers) all produced files. The gap is in the task validator layer, which is external to 55NDeep. When task validators are present, the full Brain → Brawn → Verifier → Validator loop can produce meaningful pass/fail evidence.
+**Brain & Brawn / Verifier framing**: This run shows the Verifier (KirkForge) and the Brain (correction loop) working correctly. The Brawn (workers) all produced files. The gap is in the task validator layer, which is external to KirkForge. When task validators are present, the full Brain → Brawn → Verifier → Validator loop can produce meaningful pass/fail evidence.
 REPORTEOF

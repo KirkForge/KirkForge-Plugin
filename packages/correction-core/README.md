@@ -1,4 +1,4 @@
-# @55ndeep/correction-core
+# @kirkforge/correction-core
 
 Correction prompt generation from `ReducedStatePacket` results. Takes verification output and builds a structured prompt for the worker model.
 

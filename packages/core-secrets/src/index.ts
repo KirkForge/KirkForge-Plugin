@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import { createHash, createHmac, randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 
@@ -777,7 +777,7 @@ export class TenantKeyProvider {
   private deriveKey(tenantId: string, version: number): Buffer {
     // HKDF-SHA256 derivation: masterKey || tenantId || version || app context
     // Using HMAC-SHA256 as a simple KDF (single-step HKDF)
-    const info = `55ndeep-tenant-dek:${tenantId}:v${version}`;
+    const info = `kirkforge-tenant-dek:${tenantId}:v${version}`;
     return createHmac("sha256", this.masterKey).update(info).digest();
   }
 

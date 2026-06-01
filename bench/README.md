@@ -1,4 +1,4 @@
-# 55NDeep Plugin — TBench Benchmark
+# KirkForge Plugin — TBench Benchmark
 
 ## Repository Roles
 
@@ -38,7 +38,7 @@ See `REAL_TBENCH_GUIDE.md` for full configuration options.
 
 ## What It Measures
 
-| Metric        | 55NDeep                          | OpenCode                   |
+| Metric        | KirkForge                          | OpenCode                   |
 | ------------- | -------------------------------- | -------------------------- |
 | Worker tokens | Correction loop total            | Single shot                |
 | Corrections   | Up to 3 retries                  | 0                          |

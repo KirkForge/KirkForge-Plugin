@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { doctor } from "@55ndeep/plugin";
+import { doctor } from "@kirkforge/plugin";
 
 describe("doctor", () => {
   it("returns a ToolCapabilityReport with expected keys", async () => {

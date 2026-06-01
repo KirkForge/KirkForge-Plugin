@@ -66,7 +66,7 @@ export class WorkspaceManager {
     baselineDir?: string,
   ): Promise<string> {
     try {
-      const tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-validator-"));
+      const tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-validator-"));
 
       if (emittedFiles && emittedFiles.length > 0) {
         const baseline = baselineDir ?? this.cwd;
@@ -131,7 +131,7 @@ export class WorkspaceManager {
    */
   ensureBaselineSnapshot(): string {
     if (this.baselineDir) return this.baselineDir;
-    const snapshotDir = mkdtempSync(join(tmpdir(), "55ndeep-baseline-"));
+    const snapshotDir = mkdtempSync(join(tmpdir(), "kirkforge-baseline-"));
     cpSync(this.cwd, snapshotDir, {
       recursive: true,
       dereference: false,

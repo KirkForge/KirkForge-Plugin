@@ -1,10 +1,10 @@
-import { NDeepConfigSchema, type NDeepConfig } from "@55ndeep/core-schemas";
-import { ConfigError } from "@55ndeep/core-errors";
-import { ok, err, type Result } from "@55ndeep/core-types";
+import { KirkForgeConfigSchema, type KirkForgeConfig } from "@kirkforge/core-schemas";
+import { ConfigError } from "@kirkforge/core-errors";
+import { ok, err, type Result } from "@kirkforge/core-types";
 import { readFileSync, existsSync } from "fs";
 import { resolve, relative, isAbsolute } from "path";
 
-const DEFAULTS: NDeepConfig = {
+const DEFAULTS: KirkForgeConfig = {
   workspace: ".",
   orchestrator: { maxConcurrentWorkers: 4, retryAttempts: 3, retryDelayMs: 1000 },
   tools: {
@@ -14,20 +14,20 @@ const DEFAULTS: NDeepConfig = {
     graphify: { enabled: false },
   },
   logging: { level: "info", format: "json" },
-  memory: { path: ".55ndeep/memory", retentionDays: 30 },
+  memory: { path: ".kirkforge/memory", retentionDays: 30 },
 };
 
 const CONFIG_ENV_KEYS = ["55NDEEP_CONFIG", "NDEEP_CONFIG", "NEEP_CONFIG"];
 
 export class ConfigService {
-  private _config: NDeepConfig;
+  private _config: KirkForgeConfig;
 
-  private constructor(config: NDeepConfig) {
+  private constructor(config: KirkForgeConfig) {
     this._config = config;
   }
 
   /** Create from an explicit config object (no file/env loading). */
-  static fromConfig(config: NDeepConfig): ConfigService {
+  static fromConfig(config: KirkForgeConfig): ConfigService {
     return new ConfigService(config);
   }
 
@@ -55,7 +55,7 @@ export class ConfigService {
       }
     }
 
-    const parsed = NDeepConfigSchema.safeParse(merged);
+    const parsed = KirkForgeConfigSchema.safeParse(merged);
     if (!parsed.success) {
       return err(
         new ConfigError(`Config validation failed: ${parsed.error.message}`, {
@@ -72,7 +72,7 @@ export class ConfigService {
     return ConfigService.load(_configPath);
   }
 
-  get(): NDeepConfig {
+  get(): KirkForgeConfig {
     return structuredClone(this._config);
   }
 
@@ -107,8 +107,8 @@ function deepMerge<T extends Record<string, unknown>>(base: T, overrides: Partia
 }
 
 // ── Backward-compatible exports ──────────────────────────────────────────
-export { validateEnvVars, resolveMemoryPath } from "./55ndeep-config.js";
-export type { NDeepLegacyConfig } from "./55ndeep-config.js";
+export { validateEnvVars, resolveMemoryPath } from "./kirkforge-config.js";
+export type { KirkForgeLegacyConfig } from "./kirkforge-config.js";
 
 // ── New enterprise config exports ────────────────────────────────────────
 export {
@@ -123,6 +123,6 @@ export {
   validatePartialConfig,
   validateProvider,
   defaultAppConfig,
-} from "./55ndeep-config.js";
+} from "./kirkforge-config.js";
 
-export type { ValidatedConfig, AppConfig } from "./55ndeep-config.js";
+export type { ValidatedConfig, AppConfig } from "./kirkforge-config.js";

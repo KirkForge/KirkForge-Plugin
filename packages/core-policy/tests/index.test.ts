@@ -192,7 +192,7 @@ describe("PolicyEngine — tenant overrides", () => {
 
 describe("PolicyEngine — file loading", () => {
   it("loads policy from JSON file", () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-policy-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-policy-test-"));
     const policyPath = join(tmpDir, "policy.json");
     const policy: Policy = {
       version: 1,
@@ -226,7 +226,7 @@ describe("PolicyEngine — file loading", () => {
   });
 
   it("fails to load invalid policy", () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-policy-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-policy-test-"));
     const policyPath = join(tmpDir, "policy.json");
     writeFileSync(policyPath, JSON.stringify({ invalid: true }));
 

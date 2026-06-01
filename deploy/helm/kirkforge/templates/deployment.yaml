@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "55ndeep.fullname" . }}
+  name: {{ include "kirkforge.fullname" . }}
   labels:
-    {{- include "55ndeep.labels" . | nindent 4 }}
+    {{- include "kirkforge.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "55ndeep.selectorLabels" . | nindent 6 }}
+      {{- include "kirkforge.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -20,7 +20,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "55ndeep.selectorLabels" . | nindent 8 }}
+        {{- include "kirkforge.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -29,7 +29,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "55ndeep.serviceAccountName" . }}
+      serviceAccountName: {{ include "kirkforge.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -98,9 +98,9 @@ spec:
             {{- end }}
           envFrom:
             - configmapRef:
-                name: {{ include "55ndeep.fullname" . }}-config
+                name: {{ include "kirkforge.fullname" . }}-config
             - secretRef:
-                name: {{ include "55ndeep.fullname" . }}-secret
+                name: {{ include "kirkforge.fullname" . }}-secret
           {{- if .Values.observability.health.livenessProbe }}
           livenessProbe:
             {{- toYaml .Values.observability.health.livenessProbe | nindent 12 }}
@@ -118,7 +118,7 @@ spec:
             {{- if .Values.enterprise.enabled }}
             {{- if and .Values.enterprise.audit.sinkType (eq .Values.enterprise.audit.sinkType "file") }}
             - name: audit
-              mountPath: /var/lib/55ndeep/audit
+              mountPath: /var/lib/kirkforge/audit
             {{- end }}
             {{- end }}
             - name: memory
@@ -136,7 +136,7 @@ spec:
         {{- end }}
         - name: memory
           persistentVolumeClaim:
-            claimName: {{ include "55ndeep.fullname" . }}-memory
+            claimName: {{ include "kirkforge.fullname" . }}-memory
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

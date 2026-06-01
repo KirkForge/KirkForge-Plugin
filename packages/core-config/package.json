@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-config",
+  "name": "@kirkforge/core-config",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-schemas": "*",
-    "@55ndeep/core-errors": "*",
-    "@55ndeep/core-types": "*"
+    "@kirkforge/core-schemas": "*",
+    "@kirkforge/core-errors": "*",
+    "@kirkforge/core-types": "*"
   },
   "devDependencies": {},
   "files": [

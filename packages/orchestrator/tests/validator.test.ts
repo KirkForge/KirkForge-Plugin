@@ -6,8 +6,8 @@ import type {
   ValidatorRunConfig,
   LegacyValidatorRunConfig,
 } from "../src/index.js";
-import type { TaskValidationResult } from "@55ndeep/correction-core";
-import { taskOutcomeFromValidation, makeSkippedValidation } from "@55ndeep/correction-core";
+import type { TaskValidationResult } from "@kirkforge/correction-core";
+import { taskOutcomeFromValidation, makeSkippedValidation } from "@kirkforge/correction-core";
 
 describe("resolveValidatorShellCommand", () => {
   it("prefers shellCommand over legacy command", async () => {

@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PUBLISH_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SANDBOX_ROOT="${SANDBOX_ROOT:-$HOME/Madlab/sandbox/55ndeep}"
+SANDBOX_ROOT="${SANDBOX_ROOT:-$HOME/Madlab/sandbox/kirkforge}"
 
 DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then

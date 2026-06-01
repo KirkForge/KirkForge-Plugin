@@ -1,9 +1,9 @@
-# ── 55NDeep Helm Chart Values ──────────────────────────────────────────────
+# ── KirkForge Helm Chart Values ──────────────────────────────────────────────
 
 replicaCount: 1
 
 image:
-  repository: 55ndeep
+  repository: kirkforge
   tag: ""  # REQUIRED: set via --set image.tag=... or in your values file
   pullPolicy: IfNotPresent
 
@@ -39,7 +39,7 @@ auth:
   apiKey: ""  # REQUIRED for production: set to a strong random bearer token for health endpoint auth
   oidc:
     issuer: ""      # OIDC issuer URL (e.g. https://auth.example.com/realms/myorg)
-    audience: ""    # Expected audience (e.g. 55ndeep)
+    audience: ""    # Expected audience (e.g. kirkforge)
     groupRoleMap: "" # Comma-separated role:group mappings (e.g. admin:admins,operator:operators)
 
 healthServer:
@@ -98,7 +98,7 @@ persistence:
   storageClass: ""
   accessMode: ReadWriteOnce
   size: 1Gi
-  mountPath: /app/.55ndeep
+  mountPath: /app/.kirkforge
 
 # ── Service ─────────────────────────────────────────────────────────────────
 service:
@@ -112,7 +112,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: 55ndeep.local
+    - host: kirkforge.local
       paths:
         - path: /
           pathType: Prefix
@@ -154,7 +154,7 @@ enterprise:
   # REQUIRED when enterprise.enabled=true: sinkType must be "file" or "http"
   audit:
     sinkType: "none"  # "file" | "http" | "none". MUST be "file" or "http" in enterprise mode
-    filePath: ""      # Required when sinkType=file (default: /var/lib/55ndeep/audit/audit.jsonl)
+    filePath: ""      # Required when sinkType=file (default: /var/lib/kirkforge/audit/audit.jsonl)
     httpUrl: ""       # Required when sinkType=http
     httpHeaders: {}   # Optional headers for HTTP audit sink (e.g. Authorization)
 

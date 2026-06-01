@@ -14,11 +14,11 @@
    ```
 2. Check disk usage:
    ```bash
-   kubectl exec deploy/55ndeep -- df -h /app/.55ndeep
+   kubectl exec deploy/kirkforge -- df -h /app/.kirkforge
    ```
 3. Check pod events:
    ```bash
-   kubectl describe pod -l app.kubernetes.io/name=55ndeep
+   kubectl describe pod -l app.kubernetes.io/name=kirkforge
    ```
 
 ## Resolution
@@ -27,7 +27,7 @@
 2. If PVC is pending: check storage class availability.
 3. If using memory backend (no PVC): data is ephemeral; restart pod to clear corrupted state:
    ```bash
-   kubectl rollout restart deploy/55ndeep
+   kubectl rollout restart deploy/kirkforge
    ```
 
 ## Prevention

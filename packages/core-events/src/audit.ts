@@ -18,7 +18,7 @@ import { connect as tlsConnect, type TLSSocket } from "node:tls";
 import { createConnection as netCreateConnection, type Socket } from "node:net";
 import { execFileSync } from "node:child_process";
 
-// ── Audit sink for 55NDeep ──────────────────────────────────────────────────
+// ── Audit sink for KirkForge ──────────────────────────────────────────────────
 //
 // Provides an append-only audit log with tamper-evidence (chain hashes) and
 // external sink adapters (file, HTTP/SIEM). In enterprise mode, the audit
@@ -127,7 +127,7 @@ export interface AuditSinkConfig {
   syslogPort?: number;
   /** Syslog facility code (0–23). Default: 1. */
   syslogFacility?: number;
-  /** Syslog application name. Default: "55ndeep". */
+  /** Syslog application name. Default: "kirkforge". */
   syslogAppName?: string;
   /** TLS options for syslog over TLS (RFC 5425). Used when syslogTransport is "tls". */
   syslogTls?: {
@@ -436,7 +436,7 @@ export function createAuditSink(config: AuditSinkConfig): AuditSink {
 // ── Chain hash helpers ─────────────────────────────────────────────────────
 
 export function initialHash(): string {
-  return createHash("sha256").update("55ndeep-audit-genesis").digest("hex").slice(0, 24);
+  return createHash("sha256").update("kirkforge-audit-genesis").digest("hex").slice(0, 24);
 }
 
 export function chainHashOf(prevHash: string, event: AuditEvent): string {
@@ -456,7 +456,7 @@ export interface SyslogAuditSinkConfig {
   port?: number;
   /** Syslog facility code (0–23). Default: 1 (user-level). */
   facility?: number;
-  /** Application name in syslog messages. Default: "55ndeep". */
+  /** Application name in syslog messages. Default: "kirkforge". */
   appName?: string;
   /** Buffer size before forcing flush. Default: 50. */
   flushInterval?: number;
@@ -509,7 +509,7 @@ export class SyslogAuditSink implements AuditSink {
     this.host = config.host ?? "localhost";
     this.port = config.port ?? (config.transport === "tls" ? 6514 : 514);
     this.facility = config.facility ?? 1; // user-level
-    this.appName = config.appName ?? "55ndeep";
+    this.appName = config.appName ?? "kirkforge";
     this.flushSize = config.flushInterval ?? 50;
     this.tlsConfig = config.tls;
     this.lastHash = initialHash();
@@ -576,7 +576,7 @@ export class SyslogAuditSink implements AuditSink {
     const pri = this.facility * 8 + severity;
     const ts = event.timestamp.replace("T", " ").replace("Z", "");
     const hostname =
-      typeof process !== "undefined" && process.env?.HOSTNAME ? process.env.HOSTNAME : "55ndeep";
+      typeof process !== "undefined" && process.env?.HOSTNAME ? process.env.HOSTNAME : "kirkforge";
 
     // CEF format: CEF:Version|Device Vendor|Device Product|Device Version|Signature ID|Name|Severity|Extensions
     const severityLabel = severity <= 3 ? "High" : severity <= 5 ? "Medium" : "Low";
@@ -591,7 +591,7 @@ export class SyslogAuditSink implements AuditSink {
       .filter(Boolean)
       .join(" ");
 
-    return `<${pri}>${ts} ${hostname} ${this.appName} audit: CEF:0|55NDeep|Audit|1.0|${event.action}|${event.reason}|${severityLabel}|${extensions}`;
+    return `<${pri}>${ts} ${hostname} ${this.appName} audit: CEF:0|KirkForge|Audit|1.0|${event.action}|${event.reason}|${severityLabel}|${extensions}`;
   }
 
   private async send(message: string): Promise<boolean> {

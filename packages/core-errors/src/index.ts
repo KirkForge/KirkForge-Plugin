@@ -1,23 +1,23 @@
-export class NDeepError extends Error {
+export class KirkForgeError extends Error {
   code: string;
   context?: Record<string, unknown>;
 
   constructor(code: string, message: string, context?: Record<string, unknown>) {
     super(message);
-    this.name = "NDeepError";
+    this.name = "KirkForgeError";
     this.code = code;
     this.context = context;
   }
 }
 
-export class ValidationError extends NDeepError {
+export class ValidationError extends KirkForgeError {
   constructor(message: string, context?: Record<string, unknown>) {
     super("VALIDATION_ERROR", message, context);
     this.name = "ValidationError";
   }
 }
 
-export class EventBusError extends NDeepError {
+export class EventBusError extends KirkForgeError {
   constructor(message: string, context?: Record<string, unknown>) {
     super("EVENT_BUS_ERROR", message, context);
     this.name = "EventBusError";
@@ -40,14 +40,14 @@ export class IdempotencyError extends EventBusError {
   }
 }
 
-export class ConfigError extends NDeepError {
+export class ConfigError extends KirkForgeError {
   constructor(message: string, context?: Record<string, unknown>) {
     super("CONFIG_ERROR", message, context);
     this.name = "ConfigError";
   }
 }
 
-export class ToolError extends NDeepError {
+export class ToolError extends KirkForgeError {
   constructor(message: string, context?: Record<string, unknown>) {
     super("TOOL_ERROR", message, context);
     this.name = "ToolError";
@@ -62,21 +62,21 @@ export class TimeoutError extends ToolError {
   }
 }
 
-export class CircuitOpenError extends NDeepError {
+export class CircuitOpenError extends KirkForgeError {
   constructor(circuit: string) {
     super("CIRCUIT_OPEN", `Circuit breaker ${circuit} is open`, { circuit });
     this.name = "CircuitOpenError";
   }
 }
 
-export class PipelineHaltedError extends NDeepError {
+export class PipelineHaltedError extends KirkForgeError {
   constructor(reason: string) {
     super("PIPELINE_HALTED", "Pipeline halted", { reason });
     this.name = "PipelineHaltedError";
   }
 }
 
-export class HandlerError extends NDeepError {
+export class HandlerError extends KirkForgeError {
   constructor(handlerName: string, cause: Error) {
     super("HANDLER_ERROR", `Handler ${handlerName} failed: ${cause.message}`, {
       handlerName,
@@ -88,7 +88,7 @@ export class HandlerError extends NDeepError {
 
 // ── New enterprise error classes ────────────────────────────────────────
 
-export class AuthError extends NDeepError {
+export class AuthError extends KirkForgeError {
   constructor(
     code: "UNAUTHORIZED" | "FORBIDDEN" | "INVALID_TOKEN" | "METHOD_NOT_ALLOWED",
     message: string,
@@ -99,7 +99,7 @@ export class AuthError extends NDeepError {
   }
 }
 
-export class NotFoundError extends NDeepError {
+export class NotFoundError extends KirkForgeError {
   constructor(
     code: "TASK_NOT_FOUND" | "TENANT_NOT_FOUND" | "RUN_NOT_FOUND" | "METHOD_NOT_FOUND",
     message: string,
@@ -110,14 +110,14 @@ export class NotFoundError extends NDeepError {
   }
 }
 
-export class RateLimitError extends NDeepError {
+export class RateLimitError extends KirkForgeError {
   constructor(retryAfterSec: number) {
     super("RATE_LIMITED", "Too many requests", { retryAfterSec });
     this.name = "RateLimitError";
   }
 }
 
-export class ConcurrencyError extends NDeepError {
+export class ConcurrencyError extends KirkForgeError {
   constructor(
     code: "CONCURRENT_MODIFICATION" | "TASK_LOCKED",
     message: string,
@@ -267,12 +267,12 @@ export interface ErrorResponse {
   };
 }
 
-export function toErrorResponse(error: Error | NDeepError, requestId?: string): ErrorResponse {
-  const code = error instanceof NDeepError ? error.code : "INTERNAL_ERROR";
+export function toErrorResponse(error: Error | KirkForgeError, requestId?: string): ErrorResponse {
+  const code = error instanceof KirkForgeError ? error.code : "INTERNAL_ERROR";
   const entry = ERROR_CATALOG[code] ?? ERROR_CATALOG["INTERNAL_ERROR"]!;
   const details: Record<string, unknown> = {};
 
-  if (error instanceof NDeepError && error.context) {
+  if (error instanceof KirkForgeError && error.context) {
     for (const [k, v] of Object.entries(error.context)) {
       if (v !== undefined) details[k] = v;
     }

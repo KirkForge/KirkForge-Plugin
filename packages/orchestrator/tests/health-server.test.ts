@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import http from "node:http";
 import { HealthServer } from "../src/health-server.js";
-import { EventBus } from "@55ndeep/core-events";
+import { EventBus } from "@kirkforge/core-events";
 import { Orchestrator } from "../src/index.js";
-import { InMemoryAdapter, MemoryStore } from "@55ndeep/memory-palace";
+import { InMemoryAdapter, MemoryStore } from "@kirkforge/memory-palace";
 
 function createTestOrchestrator(): Orchestrator {
   const bus = new EventBus();
@@ -183,7 +183,7 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
     try {
       const res = await httpRequest(port, "/metrics/prometheus", { Authorization: "Bearer test-key" });
       expect(res.status).toBe(200);
-      expect(res.body).toContain("55ndeep_http_requests_in_flight");
+      expect(res.body).toContain("kirkforge_http_requests_in_flight");
     } finally {
       await stopServer();
     }
@@ -300,7 +300,7 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
       await httpRequest(port, '/healthz', { Authorization: 'Bearer test-key' });
       const res = await httpRequest(port, '/metrics/prometheus', { Authorization: 'Bearer test-key' });
       expect(res.status).toBe(200);
-      expect(res.body).toContain('55ndeep_http_requests_total');
+      expect(res.body).toContain('kirkforge_http_requests_total');
     } finally {
       await stopServer();
     }
@@ -313,7 +313,7 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
       expect(res.status).toBe(200);
       const spec = JSON.parse(res.body);
       expect(spec.openapi).toBe('3.0.3');
-      expect(spec.info.title).toContain('55NDeep');
+      expect(spec.info.title).toContain('KirkForge');
       expect(spec.paths['/healthz']).toBeDefined();
       expect(spec.paths['/readyz']).toBeDefined();
       expect(spec.paths['/metrics']).toBeDefined();

@@ -14,7 +14,7 @@ describe("Tenant isolation — adversarial tests", () => {
   let registry: TenantRegistry;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-isolation-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-isolation-test-"));
     registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
   });
 
@@ -171,7 +171,7 @@ describe("Memory store tenant isolation", () => {
   let registry: TenantRegistry;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-mem-isolation-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-mem-isolation-"));
     registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
   });
 
@@ -248,7 +248,7 @@ describe("Event and audit tenant scope", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "55ndeep-event-isolation-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "kirkforge-event-isolation-"));
     registry = new TenantRegistry({ storageRoot: join(tmpDir, "tenants") });
   });
 

@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/mcp",
+  "name": "@kirkforge/mcp",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
     ".": "./dist/index.js"
   },
   "dependencies": {
-    "@55ndeep/plugin": "^1.0.0",
-    "@55ndeep/memory-palace": "^1.0.0",
-    "@55ndeep/core-types": "^1.0.0",
+    "@kirkforge/plugin": "^1.0.0",
+    "@kirkforge/memory-palace": "^1.0.0",
+    "@kirkforge/core-types": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "files": [

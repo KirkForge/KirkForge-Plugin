@@ -1,8 +1,8 @@
-# 55NDeep
+# KirkForge
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20hardware-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/KirkForge)
 
-**Deterministic verification plugin for coding agents.** 55NDeep is not a standalone agent. It plugs into Codex, Claude Code, OpenCode, or any agent stack as a verification, correction, and routing layer.
+**Deterministic verification plugin for coding agents.** KirkForge is not a standalone agent. It plugs into Codex, Claude Code, OpenCode, or any agent stack as a verification, correction, and routing layer.
 
 ## How it works
 
@@ -12,9 +12,9 @@ The core insight: **verification commoditizes model choice.**
 | ------------ | --------- | ------------------------------------------------------ |
 | **Brain**    | Expensive | Plans, delegates, decides next action. The host agent. |
 | **Brawn**    | Cheap     | Generates code from a prompt. A worker model.         |
-| **Verifier** | Free      | Lint, types, security, diff, imports. 55NDeep. No model calls. |
+| **Verifier** | Free      | Lint, types, security, diff, imports. KirkForge. No model calls. |
 
-The Brain sends a task to the Brawn in JSON. The Brawn writes code. 55NDeep's deterministic tools run on the output. If the Brawn messes up, 55NDeep builds a compact correction prompt — not a summary, the actual errors — and the Brain decides whether to retry, switch models, or escalate. The Verifier never calls a model. The Brain never sees raw Brawn output, only the reduced state.
+The Brain sends a task to the Brawn in JSON. The Brawn writes code. KirkForge's deterministic tools run on the output. If the Brawn messes up, KirkForge builds a compact correction prompt — not a summary, the actual errors — and the Brain decides whether to retry, switch models, or escalate. The Verifier never calls a model. The Brain never sees raw Brawn output, only the reduced state.
 
 This is the loop: **emit → verify → correct → repeat.**
 
@@ -122,13 +122,13 @@ Internal tools are bundled and always available. External tools (tsc, pyright) a
 
 | Method         | Command                                                        |
 | -------------- | -------------------------------------------------------------- |
-| Docker         | `docker build -t 55ndeep . && docker run -p 9090:9090 55ndeep` |
+| Docker         | `docker build -t kirkforge . && docker run -p 9090:9090 kirkforge` |
 | Docker Compose | `docker-compose up -d`                                         |
-| Kubernetes     | `helm install 55ndeep ./deploy/helm/55ndeep`                   |
+| Kubernetes     | `helm install kirkforge ./deploy/helm/kirkforge`                   |
 
 ## Security and multi-tenancy
 
-55NDeep ships with security features for team and production use:
+KirkForge ships with security features for team and production use:
 
 - **Sandbox**: Docker runner for untrusted code (default), host runner with deny-by-default constraints
 - **Auth**: OIDC JWT/JWKS verification, API key bearer tokens

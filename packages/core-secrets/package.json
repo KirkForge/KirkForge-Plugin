@@ -1,5 +1,5 @@
 {
-  "name": "@55ndeep/core-secrets",
+  "name": "@kirkforge/core-secrets",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,7 @@
     }
   },
   "dependencies": {
-    "@55ndeep/core-types": "*"
+    "@kirkforge/core-types": "*"
   },
   "devDependencies": {},
   "files": [

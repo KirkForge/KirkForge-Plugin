@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { recordObservation } from "@55ndeep/plugin";
-import { FileAdapter, MemoryStore } from "@55ndeep/memory-palace";
+import { recordObservation } from "@kirkforge/plugin";
+import { FileAdapter, MemoryStore } from "@kirkforge/memory-palace";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -33,7 +33,7 @@ describe("observe: argument validation", () => {
 
 describe("observe: output shape", () => {
   it("writes observation and returns ok", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
       const result = await recordObservation(validObservation, store);
@@ -45,7 +45,7 @@ describe("observe: output shape", () => {
   });
 
   it("writes observation with optional tokens field", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
       const result = await recordObservation({ ...validObservation, tokens: 1200 }, store);
@@ -57,7 +57,7 @@ describe("observe: output shape", () => {
   });
 
   it("writes with outcome escalate mapping to error", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
       const result = await recordObservation({ ...validObservation, outcome: "escalate" }, store);
@@ -69,7 +69,7 @@ describe("observe: output shape", () => {
   });
 
   it("persists data that can be queried back", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
       await recordObservation(validObservation, store);
@@ -86,7 +86,7 @@ describe("observe: output shape", () => {
   });
 
   it("round-trips escalate outcome as error in stored object (distinct from fail)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "55ndeep-observe-"));
+    const dir = mkdtempSync(join(tmpdir(), "kirkforge-observe-"));
     try {
       const { adapter, store } = makeStore(dir);
       await recordObservation({ ...validObservation, outcome: "escalate" }, store);

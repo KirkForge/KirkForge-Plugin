@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-// 55ndeep-lint-disable no-hardcoded-aws-key no-hardcoded-openai-key no-hardcoded-jwt
+// kirkforge-lint-disable no-hardcoded-aws-key no-hardcoded-openai-key no-hardcoded-jwt
 import { redactSecrets, redactSecretsDeep } from "../src/index.js";
 
 describe("redactSecrets", () => {
@@ -137,4 +137,4 @@ describe("redactSecretsDeep", () => {
     expect(redactSecretsDeep(undefined)).toBeUndefined();
   });
 });
-// 55ndeep-lint-enable no-hardcoded-aws-key no-hardcoded-openai-key no-hardcoded-jwt
+// kirkforge-lint-enable no-hardcoded-aws-key no-hardcoded-openai-key no-hardcoded-jwt

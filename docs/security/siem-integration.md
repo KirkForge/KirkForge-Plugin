@@ -1,6 +1,6 @@
 # SIEM Integration Guide
 
-55NDeep supports structured audit event forwarding to SIEM platforms via the
+KirkForge supports structured audit event forwarding to SIEM platforms via the
 `core-events` audit module. This guide covers configuration for common SIEM
 platforms.
 
@@ -51,13 +51,13 @@ AUDIT_SYSLOG_HOST=siem.example.com
 AUDIT_SYSLOG_PORT=514
 AUDIT_SYSLOG_TRANSPORT=udp  # or tcp
 AUDIT_SYSLOG_FACILITY=1     # user-level
-AUDIT_SYSLOG_APPNAME=55ndeep
+AUDIT_SYSLOG_APPNAME=kirkforge
 ```
 
 ### CEF Format
 
 ```
-<priority><timestamp> <hostname> 55ndeep audit: CEF:0|55NDeep|Audit|1.0|<action>|<reason>|<severity>|actor=<actorId> tenant=<tenantId> outcome=<outcome> chainHash=<chainHash>
+<priority><timestamp> <hostname> kirkforge audit: CEF:0|KirkForge|Audit|1.0|<action>|<reason>|<severity>|actor=<actorId> tenant=<tenantId> outcome=<outcome> chainHash=<chainHash>
 ```
 
 Severity mapping:
@@ -72,7 +72,7 @@ For compliance environments requiring write-once storage:
 
 ```bash
 AUDIT_SINK_TYPE=file
-AUDIT_FILE_PATH=/var/log/55ndeep/audit.jsonl
+AUDIT_FILE_PATH=/var/log/kirkforge/audit.jsonl
 ```
 
 File audit supports automatic rotation:
@@ -99,9 +99,9 @@ Each audit event is sent as a JSON POST with the full `AuditEvent` schema.
 Wire RBAC decisions to the audit logger in your application layer:
 
 ```typescript
-import { createAuthAuditHook } from "@55ndeep/plugin";
-import { AuditLogger, MemoryAuditSink } from "@55ndeep/core-events";
-import { authorize, authorizeTenant } from "@55ndeep/core-rbac";
+import { createAuthAuditHook } from "@kirkforge/plugin";
+import { AuditLogger, MemoryAuditSink } from "@kirkforge/core-events";
+import { authorize, authorizeTenant } from "@kirkforge/core-rbac";
 
 const audit = new AuditLogger(new MemoryAuditSink()); // or FileAuditSink, SyslogAuditSink
 const hook = createAuthAuditHook(audit, "default-tenant-id");
@@ -113,10 +113,10 @@ authorizeTenant(actor, "dev:verify", "t1", hook); // includes targetTenantId
 
 ## Per-Tenant Quota Enforcement
 
-Use the `QuotaManager` from `@55ndeep/core-enterprise` to enforce per-tenant limits:
+Use the `QuotaManager` from `@kirkforge/core-enterprise` to enforce per-tenant limits:
 
 ```typescript
-import { QuotaManager } from "@55ndeep/core-enterprise";
+import { QuotaManager } from "@kirkforge/core-enterprise";
 
 const quotas = new QuotaManager({
   maxConcurrentTasks: 4,
@@ -142,7 +142,7 @@ quotas.recordUsage("tenant-alpha", { hourlyVerifyRuns: 1 });
 Enterprise deployments can distribute policy files with integrity guarantees:
 
 ```typescript
-import { PolicyEngine, signPolicyHmac, verifySignedPolicy } from "@55ndeep/core-policy";
+import { PolicyEngine, signPolicyHmac, verifySignedPolicy } from "@kirkforge/core-policy";
 
 // Signing (admin side)
 const engine = new PolicyEngine(myPolicy);

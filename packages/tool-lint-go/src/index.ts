@@ -1,6 +1,6 @@
-import { LintEngine } from "@55ndeep/tool-lint-core";
-import type { LintEngineOptions, LintReport } from "@55ndeep/tool-lint-core";
-import type { LintRule } from "@55ndeep/tool-lint-core";
+import { LintEngine } from "@kirkforge/tool-lint-core";
+import type { LintEngineOptions, LintReport } from "@kirkforge/tool-lint-core";
+import type { LintRule } from "@kirkforge/tool-lint-core";
 
 const GO_EXTS = new Set([".go"]);
 
