@@ -33,6 +33,8 @@ paths = [
   '''^test/''',
   '''_test\.go$''',
   '''_test\.py$''',
+  '''\.test\.ts$''',
+  '''\.test\.js$''',
   '''_test\.ts$''',
   '''_test\.js$''',
   '''Test\d*\.java$''',
