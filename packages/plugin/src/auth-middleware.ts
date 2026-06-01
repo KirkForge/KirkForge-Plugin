@@ -57,6 +57,10 @@ export interface AuthMiddlewareConfig {
   auditLogger?: AuditLogger;
   /** Whether auth is required (true in enterprise mode). Default: false. */
   requireAuth?: boolean;
+  /** Whether to allow API key fallback when OIDC JWT validation fails.
+   *  Default: false in enterprise mode, true in dev mode.
+   *  In enterprise mode, a failed JWT should not silently fall through to API key. */
+  allowApiKeyFallbackWithOidc?: boolean;
 }
 
 export interface AuthenticatedRequest {
@@ -90,6 +94,7 @@ export class AuthMiddleware {
   private groupRoleMapping?: GroupRoleMapping;
   private auditLogger?: AuditLogger;
   private requireAuth: boolean;
+  private allowApiKeyFallbackWithOidc: boolean;
 
   // Counters for monitoring
   private _authSuccessCount = 0;
@@ -102,6 +107,7 @@ export class AuthMiddleware {
     this.groupRoleMapping = config.groupRoleMapping;
     this.auditLogger = config.auditLogger;
     this.requireAuth = config.requireAuth ?? false;
+    this.allowApiKeyFallbackWithOidc = config.allowApiKeyFallbackWithOidc ?? false;
   }
 
   // ── Authentication ─────────────────────────────────────────────────────
@@ -118,8 +124,14 @@ export class AuthMiddleware {
   async authenticate(
     authorizationHeader: string,
   ): Promise<Result<AuthenticatedRequest, AuthMiddlewareError>> {
-    // No auth configured → internal actor
+    // No auth configured → internal actor only in dev mode
+    // In enterprise/requireAuth mode, deny access rather than grant admin
     if (!this.apiKey && !this.oidcConfig) {
+      if (this.requireAuth) {
+        const error = new AuthMiddlewareError(500, "none", "Auth is required but no provider is configured");
+        this._recordAuthFailure("none", "auth_required_but_not_configured");
+        return err(error);
+      }
       return ok({
         actor: {
           id: "internal",
@@ -153,7 +165,12 @@ export class AuthMiddleware {
           tokenId: jwtResult.actor.id,
         });
       }
-      // JWT failed — fall through to API key if configured
+      // JWT failed — fall through to API key only if explicitly allowed
+      if (!this.allowApiKeyFallbackWithOidc) {
+        const error = new AuthMiddlewareError(401, "oidc", "JWT validation failed and API key fallback is not enabled");
+        this._recordAuthFailure("oidc", "jwt_failed_no_fallback");
+        return err(error);
+      }
     }
 
     // Try API key auth
@@ -325,13 +342,21 @@ export function createAuthMiddleware(config?: AuthMiddlewareConfig): AuthMiddlew
  * Parse OIDC_GROUP_ROLE_MAP from env.
  * Format: "admin:admins,operator:operators,developer:developers,viewer:viewers"
  */
+const VALID_ROLES = new Set(["admin", "operator", "developer", "viewer"]);
+
 export function parseGroupRoleMapping(envValue?: string): GroupRoleMapping | undefined {
   if (!envValue) return undefined;
   const mapping: GroupRoleMapping = {};
   for (const pair of envValue.split(",")) {
     const [role, group] = pair.trim().split(":");
     if (role && group) {
-      mapping[group.trim()] = role.trim() as import("@kirkforge/core-rbac").Role;
+      const trimmedRole = role.trim();
+      if (!VALID_ROLES.has(trimmedRole)) {
+        throw new Error(
+          `Invalid role "${trimmedRole}" in OIDC_GROUP_ROLE_MAP. Valid roles: admin, operator, developer, viewer`,
+        );
+      }
+      mapping[group.trim()] = trimmedRole as import("@kirkforge/core-rbac").Role;
     }
   }
   return Object.keys(mapping).length > 0 ? mapping : undefined;

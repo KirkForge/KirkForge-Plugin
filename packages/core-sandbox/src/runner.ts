@@ -57,6 +57,10 @@ export interface SandboxRunConfig {
   tenantId?: string;
   /** Actor ID for audit logging. */
   actorId?: string;
+  /** Skip path argument scanning. Set to true when the command provides its own
+   *  filesystem isolation (e.g. Docker), so path-like args are mount specs, not
+   *  filesystem references that should be checked against allowed paths. */
+  skipArgPathScan?: boolean;
   /** Pre-execution hook. */
   beforeHook?: (context: SandboxContext) => Result<void, Error>;
   /** Post-execution hook. */
@@ -206,13 +210,15 @@ export async function runSandboxed(
   const args = config.args ?? [];
 
   // ── Path scanning ─────────────────────────────────────────────────────
-  const pathViolations = scanArgsForPathViolations(args, constraints);
   // Deny-by-default: path violations always block execution, even when
   // allowedReadPaths is empty. An empty allowedReadPaths list means NO paths
   // are allowed for reading - so any path-like argument is a violation.
-  // Previously the guard skipped blocking when allowedReadPaths was empty,
-  // which was the opposite of deny-by-default semantics.
-  // (Fixes defect identified in enterprise security review.)
+  // Docker execution skips arg path scanning because Docker mount args
+  // (e.g. -v /path:/path:ro) are not filesystem references the host sandbox
+  // should restrict — the container provides its own filesystem isolation.
+  const pathViolations = config.skipArgPathScan
+    ? []
+    : scanArgsForPathViolations(args, constraints);
   if (pathViolations.length > 0) {
     return err(
       new SandboxExecutionError(
@@ -521,15 +527,17 @@ export async function runDockerSandboxed(
   const dockerConfig: SandboxRunConfig = {
     command: "docker",
     args: dockerArgs,
+    // Docker mount args (e.g. -v /path:/path:ro) are container isolation specs,
+    // not filesystem references the host sandbox should restrict. Skip arg path
+    // scanning — the container provides its own filesystem isolation.
+    skipArgPathScan: true,
     constraints: {
       ...config.constraints,
       // Docker is the allowed command here; the actual command runs inside the container
       shellAllowed: true,
       allowedCommands: ["docker"],
-      // Docker -v mount args like "/path:/path:ro" must not be scanned as filesystem
-      // paths — the colon suffix causes isReadPathAllowed() to reject valid mounts.
-      // The container provides actual filesystem isolation, so outer path scanning
-      // on Docker args is not meaningful.
+      // Path allow-lists are empty because the Docker runner uses its own mount
+      // declarations above; host-side path scanning is skipped via skipArgPathScan.
       allowedReadPaths: [],
       allowedWritePaths: [],
     },

@@ -464,13 +464,17 @@ function validatePolicy(raw: unknown): Result<Policy, ValidationError> {
 
 import {
   createHash,
+  createHmac,
+  createPublicKey,
   generateKeyPairSync,
   sign as cryptoSign,
+  timingSafeEqual,
   verify as cryptoVerify,
+  type KeyObject,
 } from "node:crypto";
 
 function computeHash(content: string): string {
-  return createHash("sha256").update(content, "utf-8").digest("hex").slice(0, 16);
+  return createHash("sha256").update(content, "utf-8").digest("hex");
 }
 
 function deny(rule: string, reason: string, policyHash: string): PolicyDecision {
@@ -556,8 +560,11 @@ export function verifySignedPolicy(
   const payload = `${bundle.hash}:${bundle.signatureType}:${bundle.keyId}:${bundle.signedAt}`;
 
   if (bundle.signatureType === "hmac-sha256") {
-    const expected = createHash("sha256").update(payload).update(verificationKey).digest("base64");
-    if (bundle.signature !== expected) {
+    // Use proper HMAC-SHA256 with timing-safe comparison.
+    // Previous implementation used SHA256(payload‖key) which is vulnerable
+    // to length-extension attacks and used non-constant-time comparison.
+    const expected = createHmac("sha256", verificationKey).update(payload).digest("base64");
+    if (!timingSafeEqual(Buffer.from(bundle.signature, "base64"), Buffer.from(expected, "base64"))) {
       return err(
         new PolicySignatureError(
           "HMAC-SHA256 signature verification failed. The policy may have been modified or the wrong key was used.",
@@ -570,16 +577,26 @@ export function verifySignedPolicy(
       // Validate that the provided key is actually an Ed25519 key.
       // crypto.verify(null, ...) auto-detects the algorithm from the PEM,
       // so we must ensure a non-Ed25519 key cannot be substituted.
-      if (!publicKeyPem.includes("PUBLIC KEY") && !publicKeyPem.includes("CERTIFICATE")) {
+      // Validate that the PEM key is actually Ed25519 by parsing it,
+      // not just checking for the generic SPKI header (which RSA/EC keys also use).
+      let publicKey: KeyObject;
+      try {
+        publicKey = createPublicKey(publicKeyPem);
+      } catch {
+        return err(
+          new PolicySignatureError("Ed25519 verification key is not a valid PEM public key"),
+        );
+      }
+      if (publicKey.asymmetricKeyType !== "ed25519") {
         return err(
           new PolicySignatureError(
-            "Ed25519 verification key does not appear to be a valid PEM public key",
+            "Ed25519 verification key is not an Ed25519 key (got " + publicKey.asymmetricKeyType + ")",
           ),
         );
       }
       const signatureBuffer = Buffer.from(bundle.signature, "base64");
       const payloadBuffer = Buffer.from(payload, "utf-8");
-      const verified = cryptoVerify(null, payloadBuffer, publicKeyPem, signatureBuffer);
+      const verified = cryptoVerify(null, payloadBuffer, publicKey, signatureBuffer);
       if (!verified) {
         return err(
           new PolicySignatureError(
@@ -612,7 +629,7 @@ export function signPolicyHmac(
 ): SignedPolicyBundle {
   const signedAt = new Date().toISOString();
   const payload = `${hash}:hmac-sha256:${keyId}:${signedAt}`;
-  const signature = createHash("sha256").update(payload).update(secretKey).digest("base64");
+  const signature = createHmac("sha256", secretKey).update(payload).digest("base64");
 
   return {
     policy,

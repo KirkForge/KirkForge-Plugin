@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "bash scripts/test-batched.sh",
+    "test": "npm run build && bash scripts/test-batched.sh",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage.enabled=true",
     "typecheck": "tsc --noEmit",

@@ -440,8 +440,13 @@ export function initialHash(): string {
 }
 
 export function chainHashOf(prevHash: string, event: AuditEvent): string {
-  const payload = `${prevHash}|${event.action}|${event.actorId}|${event.tenantId}|${event.timestamp}|${event.sequence}`;
-  return createHash("sha256").update(payload, "utf-8").digest("hex").slice(0, 24);
+  // Full canonical payload: include outcome, reason, and metadata so that
+  // tampering with any audit field breaks the chain. Previous versions
+  // excluded outcome/reason/metadata, allowing a denied event to be
+  // rewritten as "success" without breaking the hash.
+  const metadataJson = JSON.stringify(event.metadata ?? {}, Object.keys(event.metadata ?? {}).sort());
+  const payload = `${prevHash}|${event.action}|${event.outcome}|${event.actorId}|${event.tenantId}|${event.reason}|${event.timestamp}|${event.sequence}|${metadataJson}`;
+  return createHash("sha256").update(payload, "utf-8").digest("hex");
 }
 
 // ── Syslog audit sink (CEF/SIEM integration) ──────────────────────────────

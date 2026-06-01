@@ -54,6 +54,8 @@ export interface HealthServerConfig {
   corsOrigin?: string;
   /** Max requests per second per tenant (authenticated actors). Default: 0 (disabled — per-IP only). */
   rateLimitPerSecPerTenant?: number;
+  /** Whether auth is required. Default: true in enterprise mode, false in dev mode. */
+  requireAuth?: boolean;
   /** TLS configuration. If set, the server uses HTTPS instead of HTTP. */
   tls?: {
     /** Path to TLS certificate file (PEM). */
@@ -134,6 +136,7 @@ export class HealthServer {
   private groupRoleMapping?: import("@kirkforge/core-rbac").GroupRoleMapping;
   private auditLogger?: AuditLogger;
   private policyEngine?: PolicyEngine;
+  private requireAuth: boolean = false;
 
   private requestTimeoutMs: number;
   private maxBodyBytes: number;
@@ -161,6 +164,7 @@ export class HealthServer {
     private config: HealthServerConfig = {},
   ) {
     this.apiKey = config.apiKey ?? process.env.HEALTH_API_KEY ?? null;
+    this.requireAuth = config.requireAuth ?? (process.env["KIRKFORGE_ENTERPRISE_MODE"] === "1");
     this.rateLimitPerSec = config.rateLimitPerSec ?? 20;
     this.oidcConfig = config.oidcConfig;
     this.groupRoleMapping = config.groupRoleMapping;
@@ -432,8 +436,14 @@ export class HealthServer {
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<{ actor: Actor; tokenId: string } | null> {
-    // No auth configured — internal actor
+    // No auth configured — dev mode internal actor (NOT for enterprise/production)
     if (!this.apiKey && !this.oidcConfig) {
+      // If requireAuth is set (enterprise mode), deny access rather than grant admin
+      if (this.requireAuth) {
+        this._auditAuth("none", "auth.failure", "", "No auth provider configured but auth is required");
+        this._sendUnauthorized(res, "Auth is required but no provider is configured");
+        return null;
+      }
       return {
         actor: {
           id: "internal",
@@ -529,8 +539,9 @@ export class HealthServer {
     res: ServerResponse,
   ): boolean {
     const required = ENDPOINT_PERMISSIONS[normalizedUrl];
-    // If no permission mapping exists for this URL, allow it (unknown endpoints
-    // will get 404 later). This avoids blocking endpoints we haven't mapped yet.
+    // If no permission mapping exists for this URL, it's not a protected endpoint.
+    // Let it through to the routing layer, which will return 404 for unknown paths.
+    // This avoids returning 403 for paths that should be 404.
     if (!required) return true;
     const result = authorize(actor, required);
     if (!result.ok) {

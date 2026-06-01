@@ -5,7 +5,7 @@ set -euo pipefail
 
 V="node node_modules/.bin/vitest"
 R="--reporter=dot"
-L="/tmp/55n-test.log"
+L="/tmp/kirkforge-test.log"
 FAIL=0
 
 echo "=== Test Suite ==="
