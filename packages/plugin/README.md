@@ -12,9 +12,9 @@ npm install @kirkforge/plugin
 
 ```ts
 import { createPluginCore } from "@kirkforge/plugin";
-import { MemoryStore } from "@kirkforge/memory-palace";
+import { MemoryStore, InMemoryAdapter } from "@kirkforge/memory-palace";
 
-const memory = new MemoryStore({ backend: "memory" });
+const memory = new MemoryStore(new InMemoryAdapter());
 const plugin = createPluginCore({ memoryStore: memory });
 
 // Verify a workspace

@@ -21,8 +21,8 @@ Follow the rules in `REPORULES.md`. In short:
 ## Development Setup
 
 ```bash
-git clone https://github.com/KirkForge/KirkForge-plugin.git
-cd KirkForge-plugin
+git clone https://github.com/KirkForge/KirkForge-Plugin.git
+cd KirkForge-Plugin
 npm ci
 npm run build
 ```

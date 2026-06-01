@@ -25,7 +25,7 @@ import {
 import { readFileSync } from "fs";
 import { URL } from "node:url";
 
-// Config loading is explicit — no auto-loading of .env or .55ndeperc from cwd.
+// Config loading is explicit — no auto-loading of .env or .kirkforcerc from cwd.
 // Use createBootstrap({...}) to pass configuration, or set env vars externally.
 
 export const VERSION: string = (() => {

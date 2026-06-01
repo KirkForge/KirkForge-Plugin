@@ -27,7 +27,7 @@ Dark-Moon pentest (2026-05). AI-assisted security review.
 | Audit trail (WORM) | ✅ Working | Chain-hash integrity, segment rotation, SIEM export |
 | Enterprise startup gate | ✅ Working | Validates auth, audit, policy, storage before daemon start |
 | Rate limiting / quotas | ✅ Working | Per-tenant, sliding window, file persistence |
-| Health server | ⚠️ Minor bug | PUT/DELETE return 500 instead of 405. 3 test failures. |
+| Health server | ✅ Working | Returns 405 for disallowed methods. 21 tests pass. |
 | Docker image | 🟡 Not published | Dockerfile works locally, no published `kirkforge/sandbox` image |
 | External pentest | 🟡 Not done | Dark-Moon review was AI-assisted, not a traditional pentest |
 | Admin UI | 🟡 Not built | Deferred |
