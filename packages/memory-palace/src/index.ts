@@ -496,20 +496,15 @@ export class MemoryStore {
   }
 
   static async create(dbPath?: string, options?: MemoryStoreOptions): Promise<MemoryStore> {
-    if (dbPath) {
-      const { SqliteAdapter } = await import("./sqlite-adapter.js");
-      const adapter = new SqliteAdapter(dbPath);
-      return new MemoryStore(adapter, options);
-    }
-    // Default to SQLite at ~/.kirkforge/memory.db for daemon/enterprise safety.
-    // CODEX_HOME overrides the base directory; fallback to ~/.kirkforge.
-    const home =
+    // Always try SQLite first, fall back to FileAdapter if unavailable.
+    const effectivePath = dbPath ?? resolve(
       process.env.CODEX_HOME ??
-      resolve(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".kirkforge");
-    const defaultPath = resolve(home, "memory.db");
+        resolve(process.env.HOME ?? process.env.USERPROFILE ?? "/tmp", ".kirkforge"),
+      "memory.db",
+    );
     try {
       const { SqliteAdapter } = await import("./sqlite-adapter.js");
-      const adapter = new SqliteAdapter(defaultPath);
+      const adapter = new SqliteAdapter(effectivePath);
       return new MemoryStore(adapter, options);
     } catch {
       // SQLite unavailable (e.g. better-sqlite3 not present) — fall back to FileAdapter
