@@ -16,7 +16,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { URL } from "node:url";
 import { startDaemon } from "./serve.js";
-import { createHash } from "node:crypto";
+import { chainHashOf, initialHash } from "@kirkforge/core-events";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -710,14 +710,17 @@ program
       exitError(`Audit file not found: ${filePath}`, opts.json);
     }
 
-    // Genesis hash matches the one in core-events/audit.ts
-    const GENESIS_INPUT = "kirkforge-audit-genesis";
-    const genesisHash = createHash("sha256")
-      .update(GENESIS_INPUT, "utf-8")
-      .digest("hex")
-      .slice(0, 24);
+    // Re-derive each event's chain hash using the canonical helpers from
+    // @kirkforge/core-events, which match what the audit sinks (file, syslog,
+    // WORM) actually write. This replaces a previous in-CLI re-implementation
+    // that used a simplified payload formula and 24-char truncation — that
+    // approach did not match the canonical chain and would always fail on
+    // real audit files. With the canonical helper the CLI correctly detects
+    // tampering on any field the chain covers (action, outcome, actor,
+    // tenant, reason, timestamp, sequence, metadata).
+    const hmacKey = process.env["KIRKFORGE_AUDIT_KEY"];
 
-    let prevHash: string = genesisHash;
+    let prevHash: string = initialHash(hmacKey);
     let lineCount = 0;
     const errors: string[] = [];
     const actions: Record<string, number> = {};
@@ -745,15 +748,11 @@ program
         continue;
       }
 
-      // Recompute expected hash from previous hash + event fields
-      const seq = event.sequence as number | undefined;
-      const action = event.action as string | undefined;
-      const actorId = event.actorId as string | undefined;
-      const tenantId = event.tenantId as string | undefined;
-      const timestamp = event.timestamp as string | undefined;
-
-      const payload = `${prevHash}|${action ?? ""}|${actorId ?? ""}|${tenantId ?? ""}|${timestamp ?? ""}|${seq ?? ""}`;
-      const expected = createHash("sha256").update(payload, "utf-8").digest("hex").slice(0, 24);
+      const expected = chainHashOf(
+        prevHash,
+        event as unknown as Parameters<typeof chainHashOf>[1],
+        hmacKey,
+      );
 
       if (chainHash !== expected) {
         errors.push(
@@ -766,9 +765,9 @@ program
       prevHash = chainHash;
 
       // Stats
-      const a = action ?? "unknown";
+      const a = (event.action as string | undefined) ?? "unknown";
       actions[a] = (actions[a] ?? 0) + 1;
-      const act = actorId ?? "unknown";
+      const act = (event.actorId as string | undefined) ?? "unknown";
       actors[act] = (actors[act] ?? 0) + 1;
     }
 
