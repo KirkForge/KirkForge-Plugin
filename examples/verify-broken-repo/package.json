@@ -1,0 +1,7 @@
+{
+  "name": "verify-broken-repo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tiny fixture used by examples/verify-broken-repo.sh to demonstrate KirkForge's end-to-end correction loop on a known-broken TypeScript project. The fixture intentionally contains 3 bugs: (1) a type error, (2) a shell-injection lint rule violation, (3) a broken internal import (graph broken-edge). Running the demo with `tsc` installed should produce an overall FAIL packet with all three bugs visible in the JSON output.",
+  "type": "module"
+}
