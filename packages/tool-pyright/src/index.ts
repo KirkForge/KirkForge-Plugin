@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { relative, resolve, isAbsolute } from "node:path";
-import { ok } from "@kirkforge/core-types";
+import { ok, err } from "@kirkforge/core-types";
 import type { Result } from "@kirkforge/core-types";
 import type { EventBus } from "@kirkforge/core-events";
 import { walkFiles } from "@kirkforge/core-logging";
@@ -73,6 +73,7 @@ export class PyrightEmitter {
     const { cwd, eventBus } = this.opts;
     const targets = await discoverPythonFiles(cwd, this.opts.files);
 
+    // No Python files: legitimately nothing to verify. "skipped" is correct.
     if (targets.length === 0) {
       const report: PythonTypesReport = { taskId, errors: 0, durationMs: 0, details: [] };
       await eventBus?.emit({
@@ -136,17 +137,34 @@ export class PyrightEmitter {
     } catch (e) {
       const message = errorMessage(e);
       if (isMissingTool(e, this.opts.command ?? "pyright")) {
-        const report: PythonTypesReport = { taskId, errors: 0, durationMs: 0, details: [] };
+        // FAIL-CLOSED: a missing pyright binary means the verifier did NOT run.
+        // Reporting 0 errors here would let an environment without pyright
+        // installed pass type-checking on every Python task. Emit status:"error"
+        // (counted by the reducer as a verifier failure) and return err(...) so
+        // callers know the verifier did not actually run.
+        const detailMessage = `pyright binary not found in PATH; type-check did not run. ${message}`;
+        const report: PythonTypesReport = {
+          taskId,
+          errors: 1,
+          durationMs: 0,
+          details: [{ file: "<pyright>", line: 0, code: "VERIFIER_MISSING_BINARY", message: detailMessage }],
+        };
         await eventBus?.emit({
           kind: "verify.types",
           schemaVersion: "v3",
           sequence: 0,
           streamId: taskId,
           taskId,
-          value: { status: "skipped", errors: 0, durationMs: 0, details: [] },
+          value: {
+            status: "error",
+            error: detailMessage,
+            errors: 1,
+            durationMs: 0,
+            details: report.details,
+          },
           timestamp: new Date().toISOString(),
         });
-        return ok(report);
+        return err(new Error(detailMessage));
       }
       const report: PythonTypesReport = {
         taskId,

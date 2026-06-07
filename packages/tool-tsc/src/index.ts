@@ -1,4 +1,4 @@
-import { ok } from "@kirkforge/core-types";
+import { ok, err } from "@kirkforge/core-types";
 import type { Result } from "@kirkforge/core-types";
 import type { EventBus } from "@kirkforge/core-events";
 import { execFile } from "node:child_process";
@@ -22,6 +22,9 @@ export class TscEmitter {
     const { cwd, eventBus } = this.opts;
     const tsconfigPath = resolve(cwd, this.opts.tsconfigPath ?? "tsconfig.json");
 
+    // No tsconfig.json: legitimately nothing to verify in this project. "skipped"
+    // is correct because there are no TypeScript files to type-check. The reducer
+    // (StateReducer.reduce) handles the case where the slot is policy.required.
     if (!existsSync(tsconfigPath)) {
       const report: TscReport = { taskId, errors: 0, durationMs: 0, details: [] };
       await eventBus?.emit({
@@ -100,17 +103,35 @@ export class TscEmitter {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       if (/ENOENT/.test(message)) {
-        const report: TscReport = { taskId, errors: 0, durationMs: 0, details: [] };
+        // FAIL-CLOSED: a missing `tsc` binary means the verifier did NOT run.
+        // Reporting 0 errors here would let an environment without tsc installed
+        // pass type-checking on every task — undermining the core "deterministic
+        // verification" claim. Emit status:"error" (counted by the reducer as
+        // a verifier failure) and return err(...) so callers know the verifier
+        // did not actually run.
+        const detailMessage = `tsc binary not found in PATH; type-check did not run. ${message}`;
+        const report: TscReport = {
+          taskId,
+          errors: 1,
+          durationMs: 0,
+          details: [{ file: "<tsc>", line: 0, code: "VERIFIER_MISSING_BINARY", message: detailMessage }],
+        };
         await eventBus?.emit({
           kind: "verify.types",
           schemaVersion: "v3",
           sequence: 0,
           streamId: taskId,
           taskId,
-          value: { status: "skipped", errors: 0, durationMs: 0, details: [] },
+          value: {
+            status: "error",
+            error: detailMessage,
+            errors: 1,
+            durationMs: 0,
+            details: report.details,
+          },
           timestamp: new Date().toISOString(),
         });
-        return ok(report);
+        return err(new Error(detailMessage));
       }
       const report: TscReport = {
         taskId,

@@ -46,12 +46,28 @@ export interface SandboxRunConfig {
   cwd?: string;
   /** Environment variables to pass to child. Deny-by-default: only explicitly
    *  listed env vars are passed; the parent process.env is NOT inherited
-   *  unless ALLOW_UNSAFE_HOST_SANDBOX=1 is set. */
+   *  unless ALLOW_UNSAFE_HOST_SANDBOX=1 is set. The secret scan in
+   *  scanEnvForSecrets() blocks env vars whose names match /password|secret|
+   *  token|api.?key|private.?key|auth/i in enterprise mode and in
+   *  non-enterprise mode unless ALLOW_UNSAFE_HOST_SANDBOX=1 is set. */
   env?: Record<string, string>;
   /** Whether to inherit the parent process environment. Default: false.
-   *  Setting this to true is equivalent to ALLOW_UNSAFE_HOST_SANDBOX behavior —
-   *  it should only be used for trusted tool execution, never for model-influenced
-   *  code. In enterprise mode, this is forced to false. */
+   *
+   *  WARNING: Setting this to true hands the child process the full parent
+   *  process.env — every secret in the orchestrator's environment (API keys,
+   *  database credentials, signing keys, JWT secrets, tenant encryption
+   *  keys) is exposed to whatever code runs inside the sandbox.
+   *
+   *  Acceptable for: trusted local linters (tsc, pyright, eslint) that
+   *  need to read shell env like PATH.
+   *  DANGEROUS for: any code path where the inputs are model-influenced
+   *  or otherwise untrusted. A prompt-injection attack could exfiltrate
+   *  `OPENAI_API_KEY` or `KIRKFORGE_TENANT_KEY` to an attacker-controlled
+   *  network endpoint with this flag set.
+   *
+   *  Equivalent to ALLOW_UNSAFE_HOST_SANDBOX behavior. In enterprise mode
+   *  (DOPAFLOW_ENTERPRISE_MODE=true / KIRKFORCE_ENTERPRISE_MODE=true),
+   *  this is forced to false regardless of what the caller passes. */
   inheritParentEnv?: boolean;
   /** Sandbox constraints. Defaults applied for unspecified fields. */
   constraints?: SandboxConstraints;

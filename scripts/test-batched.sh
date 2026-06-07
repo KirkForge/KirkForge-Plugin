@@ -98,6 +98,7 @@ run_batch "plugin+orch" \
   packages/orchestrator/tests/health-server.test.ts \
   packages/orchestrator/tests/validator.test.ts \
   packages/orchestrator/tests/validator-contract.test.ts \
+  packages/orchestrator/tests/verifier-fail-closed.test.ts \
   packages/orchestrator/tests/coverage.test.ts \
   packages/orchestrator/tests/decompose.test.ts \
   packages/orchestrator/tests/chaos.test.ts
