@@ -4,88 +4,24 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { Orchestrator } from "./index.js";
-import type { OrchestratorStats, HealthCheckResult } from "./types.js";
-import type { Logger } from "@kirkforge/core-logging";
-import { KirkForgeError, toErrorResponse } from "@kirkforge/core-errors";
-import {
-  type Actor,
-  type Permission,
-  type OidcConfig,
-  authorize,
-  actorFromJwt,
-  actorFromApiKey,
-  verifyJwt,
-} from "@kirkforge/core-rbac";
+import { KirkForgeError } from "@kirkforge/core-errors";
+import type { OidcConfig, GroupRoleMapping } from "@kirkforge/core-rbac";
 import type { AuditLogger } from "@kirkforge/core-events";
 import type { PolicyEngine } from "@kirkforge/core-policy";
-import { isEnterpriseMode } from "@kirkforge/core-enterprise";
-// ── RBAC-enforced health server ──────────────────────────────────────────────
-//
-// Extends the basic health server with:
-//   - OIDC JWT bearer token validation (claims + audience + issuer)
-//   - RBAC permission checks per endpoint
-//   - Audit logging for auth success/failure and policy decisions
-//   - Policy engine checks for tool/model execution endpoints (future)
-//
-// Deny-by-default: no auth → 401, wrong role → 403, cross-tenant → 403.
-// All deny decisions are emitted as audit events.
-export interface HealthServerConfig {
-  port?: number;
-  host?: string;
-  logger?: Logger;
-  /** API key for Bearer token auth. Also read from HEALTH_API_KEY env var. */
-  apiKey?: string;
-  /** Max requests per second per IP (simple rate limiter). Default: 20. */
-  rateLimitPerSec?: number;
-  /** OIDC configuration for JWT validation. If set, Bearer tokens are validated as JWTs. */
-  oidcConfig?: OidcConfig;
-  /** Group-to-role mapping for OIDC JWT tokens. */
-  groupRoleMapping?: import("@kirkforge/core-rbac").GroupRoleMapping;
-  /** Audit logger for auth/policy events. */
-  auditLogger?: AuditLogger;
-  /** Policy engine for endpoint-level checks. */
-  policyEngine?: PolicyEngine;
-  /** Request timeout in milliseconds. Default: 30000. */
-  requestTimeoutMs?: number;
-  /** Max request body size in bytes. Default: 1MB. */
-  maxBodyBytes?: number;
-  /** Graceful shutdown drain timeout in milliseconds. Default: 10000. */
-  drainTimeoutMs?: number;
-  /** Allowed CORS origin(s). Default: none (CORS disabled). Set to "*" for any, or specific origin. */
-  corsOrigin?: string;
-  /** Max requests per second per tenant (authenticated actors). Default: 0 (disabled — per-IP only). */
-  rateLimitPerSecPerTenant?: number;
-  /** Whether auth is required. Default: true in enterprise mode, false in dev mode. */
-  requireAuth?: boolean;
-  /** Whether to allow API key fallback when OIDC JWT validation fails.
-   *  Default: false in enterprise mode, true in dev mode.
-   *  A failed JWT should not silently fall through to API key auth. */
-  allowApiKeyFallbackWithOidc?: boolean;
-  /** TLS configuration. If set, the server uses HTTPS instead of HTTP. */
-  tls?: {
-    /** Path to TLS certificate file (PEM). */
-    cert: string;
-    /** Path to TLS private key file (PEM). */
-    key: string;
-  };
-}
-interface RateBucket {
-  tokens: number;
-  lastRefill: number;
-}
+import type { Logger } from "@kirkforge/core-logging";
+import {
+  type HealthServerConfig,
+  type RateBucket,
+  type InFlightRequest,
+  ENDPOINT_PERMISSIONS,
+} from "./health-server-shared.js";
+import { sendError } from "./health-server/response.js";
+import { resolveActor, checkPermission, normalizeUrl } from "./health-server/auth.js";
+import { checkRateLimit, consumeAndLimitBody } from "./health-server/rate-limit.js";
+import { routeV1, handleHealthz, handleReadyz, handleMetricsJson, handleMetricsPrometheus } from "./health-server/handlers.js";
 
-/** Tracks in-flight requests for graceful shutdown draining. */
-interface InFlightRequest {
-  req: IncomingMessage;
-  res: ServerResponse;
-  startedAt: number;
-}
-
-/** Default request timeout (30 seconds). */
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
-/** Default max request body size (1 MB). */
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
-/** Default graceful shutdown drain timeout (10 seconds). */
 const DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -97,81 +33,60 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, no-cache, must-revalidate",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
 };
-// ── Permission requirements per endpoint ────────────────────────────────────
-const ENDPOINT_PERMISSIONS: Record<string, Permission> = {
-  "/healthz": "operator:health",
-  "/readyz": "operator:health",
-  "/metrics": "viewer:metrics",
-  "/metrics/json": "viewer:metrics",
-  "/metrics/prometheus": "viewer:metrics",
-  "/v1/healthz": "operator:health",
-  "/v1/readyz": "operator:health",
-  "/v1/metrics": "viewer:metrics",
-  "/v1/metrics/json": "viewer:metrics",
-  "/v1/policy": "admin:policy",
-  "/v1/audit": "admin:audit_export",
-  "/v1/tenants": "admin:tenant",
-  "/v1/quotas": "admin:tenant",
-  "/v1/openapi": "viewer:metrics",
-};
+
 /**
  * Lightweight HTTP health-check server for daemon/bot deployment.
  * Exposes /healthz (liveness), /readyz (readiness), /metrics (json),
  * and /v1/metrics (Prometheus text format).
  * Uses only Node built-ins — no Express dependency.
  *
- * API versioning: all routes also available under /v1/ prefix.
- * Auth: Bearer token via HEALTH_API_KEY env var or config.apiKey.
- *       In enterprise mode, OIDC JWT validation with RBAC enforcement.
- * Rate limiting: simple token-bucket per IP, configurable via rateLimitPerSec.
- * Rate limiting: token-bucket per IP (rateLimitPerSec) and per tenant
- * (rateLimitPerSecPerTenant). Both are configurable independently.
- * Tracing: W3C traceparent propagation supported on all responses.
- * TLS: configurable via tls.cert/tls.key for HTTPS without reverse proxy.
- * OpenAPI: /v1/openapi serves the full API schema.
+ * Method bodies live in `health-server/{auth,handlers,rate-limit,response}.ts`;
+ * this file is the orchestration shell.
  */
 export class HealthServer {
+  // Auth config
+  apiKey: string | null;
+  oidcConfig?: OidcConfig;
+  groupRoleMapping?: GroupRoleMapping;
+  auditLogger?: AuditLogger;
+  policyEngine?: PolicyEngine;
+  logger?: Logger;
+  requireAuth: boolean = false;
+  allowApiKeyFallbackWithOidc: boolean = false;
+
+  // Rate limiting
+  rateLimitPerSec: number;
+  rateLimitPerSecPerTenant: number;
+  buckets = new Map<string, RateBucket>();
+  tenantBuckets = new Map<string, RateBucket>();
+
+  // Counters
+  requestCount = 0;
+  authSuccessCount = 0;
+  authFailureCount = 0;
+  policyDenyCount = 0;
+
+  // Lifecycle
+  inFlight = new Map<IncomingMessage, InFlightRequest>();
+  shuttingDown = false;
+  drainResolve: (() => void) | null = null;
+
   private server: ReturnType<typeof createServer> | null = null;
   private _ready = false;
-  private apiKey: string | null;
-  private rateLimitPerSec: number;
-  private buckets = new Map<string, RateBucket>();
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
-  private oidcConfig?: OidcConfig;
-  private groupRoleMapping?: import("@kirkforge/core-rbac").GroupRoleMapping;
-  private auditLogger?: AuditLogger;
-  private policyEngine?: PolicyEngine;
-  private requireAuth: boolean = false;
-  private allowApiKeyFallbackWithOidc: boolean = false;
-
   private requestTimeoutMs: number;
   private maxBodyBytes: number;
   private drainTimeoutMs: number;
   private corsOrigin?: string;
-
-  private rateLimitPerSecPerTenant: number;
-  private tenantBuckets = new Map<string, RateBucket>();
   private tlsConfig?: { cert: string; key: string };
 
-  // ── Request counter for Prometheus ────────────────────────────────────
-  private _requestCount = 0;
-
-  // ── In-flight request tracking for graceful drain ──────────────────────
-  private _inFlight = new Map<IncomingMessage, InFlightRequest>();
-  private _shuttingDown = false;
-  private _drainResolve: (() => void) | null = null;
-
-  // ── Auth/policy counters for Prometheus ────────────────────────────────
-  private _authSuccessCount = 0;
-  private _authFailureCount = 0;
-  private _policyDenyCount = 0;
   constructor(
-    private orchestrator: Orchestrator,
-    private config: HealthServerConfig = {},
+    public orchestrator: Orchestrator,
+    public config: HealthServerConfig = {},
   ) {
     this.apiKey = config.apiKey ?? process.env.HEALTH_API_KEY ?? null;
-    this.requireAuth = config.requireAuth ?? isEnterpriseMode();
-    this.allowApiKeyFallbackWithOidc = config.allowApiKeyFallbackWithOidc ?? !isEnterpriseMode();
+    this.requireAuth = config.requireAuth ?? false;
+    this.allowApiKeyFallbackWithOidc = config.allowApiKeyFallbackWithOidc ?? false;
     this.rateLimitPerSec = config.rateLimitPerSec ?? 20;
     this.oidcConfig = config.oidcConfig;
     this.groupRoleMapping = config.groupRoleMapping;
@@ -190,6 +105,7 @@ export class HealthServer {
       this.tlsConfig = { cert: certPath, key: keyPath };
     }
   }
+
   get ready(): boolean {
     return this._ready;
   }
@@ -197,12 +113,10 @@ export class HealthServer {
     this._ready = v;
   }
 
-  /** Number of in-flight requests currently being processed. */
   get inFlightCount(): number {
-    return this._inFlight.size;
+    return this.inFlight.size;
   }
 
-  /** Number of in-flight requests currently being processed. */
   start(): Promise<void> {
     const port = this.config.port ?? parseInt(process.env.HEALTH_PORT ?? "9090", 10);
     const host = this.config.host ?? process.env.HEALTH_HOST ?? "0.0.0.0";
@@ -215,7 +129,6 @@ export class HealthServer {
     }, 30000);
     return new Promise((resolve, reject) => {
       const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
-        // ── Correlation ID (needed in catch/finally) ───────────────────────
         const correlationId =
           (req.headers["x-request-id"] as string | undefined) ??
           (req.headers["x-correlation-id"] as string | undefined) ??
@@ -224,11 +137,6 @@ export class HealthServer {
           res.setHeader("X-Request-Id", correlationId);
           res.setHeader("X-Correlation-Id", correlationId);
 
-          // ── In-flight request tracking ────────────────────────────────────
-          this._inFlight.set(req, { req, res, startedAt: Date.now() });
-          this._requestCount++;
-
-          // ── CORS headers ────────────────────────────────────────────────
           if (this.corsOrigin) {
             res.setHeader("Access-Control-Allow-Origin", this.corsOrigin);
             res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
@@ -239,7 +147,6 @@ export class HealthServer {
             res.setHeader("Access-Control-Max-Age", "86400");
           }
 
-          // ── HTTP method validation ──────────────────────────────────────
           const method = req.method?.toUpperCase() ?? "GET";
           if (method === "OPTIONS") {
             res.writeHead(204);
@@ -247,15 +154,14 @@ export class HealthServer {
             return;
           }
           if (method !== "GET" && method !== "HEAD") {
-            this._sendError(
+            sendError(
               res,
               new KirkForgeError("METHOD_NOT_ALLOWED", `${method} is not allowed`),
               correlationId,
             );
             return;
           }
-          // ── Reject requests during shutdown ────────────────────────────
-          if (this._shuttingDown) {
+          if (this.shuttingDown) {
             res.writeHead(503, { "Content-Type": "application/json", ...SECURITY_HEADERS });
             res.end(
               JSON.stringify({
@@ -271,53 +177,55 @@ export class HealthServer {
             return;
           }
 
-          // ── Request body size limit ────────────────────────────────────
-          // ── Request body size limit (stream-consumed) ────────────────────
-          // Previously only checked Content-Length header, which is spoofable
-          // or absent with chunked encoding. Now we actually consume the body
-          // stream byte-by-byte and destroy the connection on overflow.
-          const bodyCheck = await this._consumeAndLimitBody(req, res, correlationId);
-          if (!bodyCheck) return; // response already sent (413 or error)
+          this.inFlight.set(req, { req, res, startedAt: Date.now() });
+          this.requestCount++;
 
-          // Security headers on every response
+          const bodyCheck = await consumeAndLimitBody(
+            this,
+            this.maxBodyBytes,
+            req,
+            res,
+            correlationId,
+          );
+          if (!bodyCheck) return;
+
           for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
             res.setHeader(k, v);
           }
-          // W3C traceparent propagation
-          this._propagateTraceparent(req, res);
-          // Auth check — resolves Actor from Bearer token (async for JWKS)
-          const authResult = await this._resolveActor(req, res);
-          if (!authResult) return; // response already sent
-          // Rate limit
-          if (!this._checkRateLimit(req, res, authResult.actor)) return;
-          // RBAC check — verify actor has permission for this endpoint
+          const traceparent = req.headers["traceparent"];
+          if (typeof traceparent === "string" && traceparent.startsWith("00-")) {
+            res.setHeader("traceparent", traceparent);
+          }
+
+          const authResult = await resolveActor(this, req, res);
+          if (!authResult) return;
+          if (!checkRateLimit(this, req, res, authResult.actor)) return;
+
           const url = req.url ?? "/";
-          const normalizedUrl = this._normalizeUrl(url);
-          if (
-            !this._checkPermission(authResult.actor, normalizedUrl, authResult.tokenId, req, res)
-          ) {
+          const normalized = normalizeUrl(url);
+          if (!checkPermission(this, authResult.actor, normalized, authResult.tokenId, req, res, ENDPOINT_PERMISSIONS)) {
             return;
           }
-          // /v1/ prefixed routes (API versioning)
-          if (url.startsWith("/v1/")) return this._routeV1(url.slice(4), req, res);
-          // Legacy routes
-          if (url === "/healthz") return this._handleHealthz(res);
-          if (url === "/readyz") return this._handleReadyz(res);
-          if (url === "/metrics") return this._handleMetricsJson(res);
-          // Prometheus metrics (also at root for backward compat)
-          if (url === "/metrics/prometheus") return this._handleMetricsPrometheus(res);
-          this._sendError(
-            res,
-            new KirkForgeError("NOT_FOUND", `Unknown path: ${url}`),
-            correlationId,
-          );
+
+          if (url.startsWith("/v1/")) return routeV1(url.slice(4), this as unknown as Parameters<typeof routeV1>[1], res);
+
+          if (url === "/healthz") {
+            return handleHealthz(this as unknown as Parameters<typeof handleHealthz>[0], res);
+          }
+          if (url === "/readyz") {
+            return handleReadyz(this as unknown as Parameters<typeof handleReadyz>[0], res);
+          }
+          if (url === "/metrics") {
+            return handleMetricsJson(this as unknown as Parameters<typeof handleMetricsJson>[0], res);
+          }
+          if (url === "/metrics/prometheus") {
+            return handleMetricsPrometheus(this as unknown as Parameters<typeof handleMetricsPrometheus>[0], res);
+          }
+          sendError(res, new KirkForgeError("NOT_FOUND", `Unknown path: ${url}`), correlationId);
         } catch (err: unknown) {
-          this._sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
+          sendError(res, err instanceof Error ? err : new Error(String(err)), correlationId);
         } finally {
-          // ── Access log ────────────────────────────────────────────────────
-          // Per-request structured access log: method, path, status, duration, actor.
-          // Required for enterprise audit compliance.
-          const startedAt = this._inFlight.get(req)?.startedAt ?? Date.now();
+          const startedAt = this.inFlight.get(req)?.startedAt ?? Date.now();
           const durationMs = Date.now() - startedAt;
           const accessLog = {
             method: req.method,
@@ -329,22 +237,16 @@ export class HealthServer {
             ip: req.socket?.remoteAddress,
             userAgent: req.headers["user-agent"],
           };
-          this.config.logger?.info(
+          this.logger?.info(
             `[health-server] ${accessLog.method} ${accessLog.path} ${accessLog.status} ${accessLog.durationMs}ms actor=${accessLog.actor}`,
           );
-          this._inFlight.delete(req);
-          if (this._shuttingDown && this._inFlight.size === 0 && this._drainResolve) {
-            this._drainResolve();
+          this.inFlight.delete(req);
+          if (this.shuttingDown && this.inFlight.size === 0 && this.drainResolve) {
+            this.drainResolve();
           }
         }
       };
 
-      // ── Server timeouts ─────────────────────────────────────────────────
-      // ── TLS / HTTPS support ──────────────────────────────────────────────
-      // When tls is configured, the server uses HTTPS with the provided cert/key.
-      // For production, a reverse proxy (nginx, envoy) is still recommended for
-      // termination, certificate rotation, and SNI — this path is for
-      // single-node deployments that need transport encryption without a proxy.
       if (this.tlsConfig) {
         const cert = readFileSync(this.tlsConfig.cert, "utf-8");
         const key = readFileSync(this.tlsConfig.key, "utf-8");
@@ -358,858 +260,55 @@ export class HealthServer {
       this.server.headersTimeout = this.requestTimeoutMs + 5000;
 
       this.server.on("error", (err) => {
-        this.config.logger?.error(`[health-server] Failed to start: ${err.message}`);
+        this.logger?.error(`[health-server] Failed to start: ${err.message}`);
         reject(err);
       });
       this.server.listen(port, host, () => {
-        this.config.logger?.info(
+        this.logger?.info(
           `[health-server] Listening on ${this.tlsConfig ? "https" : "http"}://${host}:${port}${this.apiKey ? " (auth enabled)" : ""}`,
         );
         resolve();
       });
     });
   }
+
   async stop(): Promise<void> {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    this._shuttingDown = true;
-    this.config.logger?.info("[health-server] Shutting down — draining in-flight requests");
+    this.shuttingDown = true;
+    this.logger?.info("[health-server] Shutting down — draining in-flight requests");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
-        this._shuttingDown = false;
+        this.shuttingDown = false;
         resolve();
         return;
       }
 
-      // Wait for in-flight requests to drain, with a timeout
       const drainPromise = new Promise<void>((r) => {
-        if (this._inFlight.size === 0) {
+        if (this.inFlight.size === 0) {
           r();
         } else {
-          this._drainResolve = r;
+          this.drainResolve = r;
         }
       });
       const timeoutPromise = new Promise<void>((r) => setTimeout(r, this.drainTimeoutMs));
 
       Promise.race([drainPromise, timeoutPromise]).then(() => {
         this.server!.close((err) => {
-          this._shuttingDown = false;
-          this._drainResolve = null;
+          this.shuttingDown = false;
+          this.drainResolve = null;
           if (err) {
-            this.config.logger?.error(`[health-server] Error closing: ${err.message}`);
+            this.logger?.error(`[health-server] Error closing: ${err.message}`);
             reject(err);
           } else {
-            this.config.logger?.info("[health-server] Stopped — all requests drained");
+            this.logger?.info("[health-server] Stopped — all requests drained");
             resolve();
           }
         });
       });
     });
   }
-  // ── /v1/ API router ──────────────────────────────────────────────────────
-  private _routeV1(path: string, req: IncomingMessage, res: ServerResponse): void {
-    switch (path) {
-      case "healthz":
-        return this._handleHealthz(res);
-      case "readyz":
-        return this._handleReadyz(res);
-      case "metrics":
-        return this._handleMetricsPrometheus(res);
-      case "metrics/json":
-        return this._handleMetricsJson(res);
-      case "policy":
-        return this._handlePolicy(res);
-      case "audit":
-        return this._handleAuditVerify(req, res);
-      case "tenants":
-        return this._handleTenants(res);
-      case "openapi":
-        return this._handleOpenApi(res);
-      case "quotas":
-        return this._handleQuotas(res);
-      default:
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "not_found",
-            available: [
-              "/v1/healthz",
-              "/v1/readyz",
-              "/v1/metrics",
-              "/v1/metrics/json",
-              "/v1/openapi",
-              "/v1/policy",
-              "/v1/audit",
-              "/v1/tenants",
-              "/v1/quotas",
-            ],
-          }),
-        );
-    }
-  }
-  // ── W3C traceparent propagation ──────────────────────────────────────────
-  private _propagateTraceparent(req: IncomingMessage, res: ServerResponse): void {
-    const traceparent = req.headers["traceparent"];
-    if (typeof traceparent === "string" && traceparent.startsWith("00-")) {
-      res.setHeader("traceparent", traceparent);
-    }
-  }
-  // ── Auth resolution ──────────────────────────────────────────────────────
-  /**
-   * Resolve the Actor from the request's Bearer token.
-   * - If no API key is configured, requests pass with an internal actor.
-   * - If API key is configured and OIDC is configured, try JWT first, then API key.
-   * - If only API key is configured, use static key auth.
-   * Returns null (and sends response) if auth fails.
-   */
-  private async _resolveActor(
-    req: IncomingMessage,
-    res: ServerResponse,
-  ): Promise<{ actor: Actor; tokenId: string } | null> {
-    // No auth configured — dev mode internal actor (NOT for enterprise/production)
-    if (!this.apiKey && !this.oidcConfig) {
-      // If requireAuth is set (enterprise mode), deny access rather than grant admin
-      if (this.requireAuth) {
-        this._auditAuth(
-          "none",
-          "auth.failure",
-          "",
-          "No auth provider configured but auth is required",
-        );
-        this._sendUnauthorized(res, "Auth is required but no provider is configured");
-        return null;
-      }
-      return {
-        actor: {
-          id: "internal",
-          role: "admin",
-          tenantId: "",
-          authMethod: "internal",
-          verifiedAt: new Date().toISOString(),
-        },
-        tokenId: "internal",
-      };
-    }
-    const authHeader = req.headers.authorization ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      this._sendUnauthorized(res, "missing Bearer token");
-      return null;
-    }
-    const token = authHeader.slice(7);
-    // Try OIDC JWT validation first if configured
-    if (this.oidcConfig) {
-      const jwtResult = await this._validateJwtBearer(token);
-      if (jwtResult) {
-        // JWT validated successfully
-        this._auditAuth(jwtResult.actor.id, "auth.success", jwtResult.actor.tenantId, "JWT auth");
-        this._authSuccessCount++;
-        this.orchestrator.recordAuthEvent(
-          "auth.success",
-          jwtResult.actor.id,
-          jwtResult.actor.tenantId,
-        );
-        return { actor: jwtResult.actor, tokenId: jwtResult.actor.id };
-      }
-      // JWT failed — if API key fallback with OIDC is not allowed, deny immediately
-      if (!this.allowApiKeyFallbackWithOidc) {
-        this._auditAuth(
-          "unknown",
-          "auth.failure",
-          "",
-          "JWT validation failed; API key fallback disabled",
-        );
-        this._sendForbidden(res, "invalid JWT token; API key fallback disabled");
-        this._authFailureCount++;
-        this.orchestrator.recordAuthEvent("auth.failure");
-        return null;
-      }
-    }
-    // Static API key auth
-    if (this.apiKey) {
-      const result = actorFromApiKey(token, this.apiKey);
-      if (result.ok) {
-        this._auditAuth(result.value.id, "auth.success", result.value.tenantId, "API key auth");
-        this._authSuccessCount++;
-        this.orchestrator.recordAuthEvent("auth.success", result.value.id, result.value.tenantId);
-        return { actor: result.value, tokenId: result.value.id };
-      }
-      this._auditAuth("unknown", "auth.failure", "", "Invalid API key");
-      this._authFailureCount++;
-      this.orchestrator.recordAuthEvent("auth.failure");
-      this._sendForbidden(res, "invalid API key");
-      return null;
-    }
-    // OIDC was configured but JWT failed and no API key fallback
-    this._sendForbidden(res, "invalid JWT token");
-    return null;
-  }
-  /**
-   * Validate a JWT bearer token using full JOSE/JWKS signature verification.
-   * Uses the jose library to verify the token's signature against the OIDC
-   * provider's JWKS endpoint, then validates claims (issuer, audience, expiry).
-   * If JWKS verification fails (e.g. endpoint unreachable), deny immediately.
-   * No claims-only fallback — unsigned tokens are never accepted.
-   */
-  private async _validateJwtBearer(token: string): Promise<{ actor: Actor } | null> {
-    if (!this.oidcConfig) return null;
-    try {
-      const claimsResult = await verifyJwt(token, this.oidcConfig, this.groupRoleMapping);
-      if (!claimsResult.ok) {
-        this.config.logger?.warn(
-          `[health-server] JWT verification failed: ${claimsResult.error.message}`,
-        );
-        return null;
-      }
-      const actorResult = actorFromJwt(claimsResult.value, this.oidcConfig, this.groupRoleMapping);
-      if (!actorResult.ok) return null;
-      return { actor: actorResult.value };
-    } catch (e) {
-      // JWKS verification failed — deny immediately. No claims-only fallback.
-      this.config.logger?.error(
-        `[health-server] JWT JWKS verification failed, denying: ${e instanceof Error ? e.message : String(e)}`,
-      );
-      this._auditAuth("unknown", "auth.failure", "", "JWT JWKS verification error — no fallback");
-      this._authFailureCount++;
-      return null;
-    }
-  }
-  // ── RBAC permission check ────────────────────────────────────────────────
-  /**
-   * Check if the actor has the required permission for the given endpoint URL.
-   * If no permission is defined for the URL, deny by default in enterprise mode.
-   */
-  private _checkPermission(
-    actor: Actor,
-    normalizedUrl: string,
-    tokenId: string,
-    req: IncomingMessage,
-    res: ServerResponse,
-  ): boolean {
-    const required = ENDPOINT_PERMISSIONS[normalizedUrl];
-    // Deny-by-default for /v1/* routes: if no RBAC permission mapping exists,
-    // the endpoint is not explicitly allowed. This prevents silently exposing
-    // future sensitive endpoints added without updating the permission map.
-    // Non-v1 routes (healthz, readyz, metrics) pass through to the 404 handler.
-    if (!required) {
-      if (normalizedUrl.startsWith("/v1/")) {
-        this._auditAuth(
-          actor.id,
-          "auth.failure",
-          actor.tenantId,
-          `No RBAC permission mapping for ${normalizedUrl}`,
-        );
-        this._authFailureCount++;
-        this._sendForbidden(res, `No RBAC permission mapping for ${normalizedUrl}`);
-        return false;
-      }
-      return true;
-    }
-    const result = authorize(actor, required);
-    if (!result.ok) {
-      this._auditAuth(
-        actor.id,
-        "auth.failure",
-        actor.tenantId,
-        `RBAC deny: ${actor.role} lacks ${required} for ${normalizedUrl}`,
-      );
-      this._authFailureCount++;
-      this.orchestrator.recordAuthEvent("auth.failure", actor.id, actor.tenantId);
-      this._sendForbidden(res, result.error.message);
-      return false;
-    }
-    // Tenant isolation check for future multi-tenant endpoints
-    // (Currently health/metrics endpoints are platform-level, tenant check is a no-op)
-    return true;
-  }
-  private _normalizeUrl(url: string): string {
-    // Remove query strings and trailing slashes for lookup
-    const path = url.split("?")[0]!.replace(/\/+$/, "") || "/";
-    return path;
-  }
-  // ── Audit helper ─────────────────────────────────────────────────────────
-  private _auditAuth(
-    actorId: string,
-    action: "auth.success" | "auth.failure",
-    tenantId: string,
-    reason: string,
-  ): void {
-    if (!this.auditLogger) return;
-    this.auditLogger
-      .record({
-        action,
-        outcome: action === "auth.success" ? "success" : "deny",
-        actorId,
-        tenantId,
-        reason,
-      })
-      .catch(() => {
-        // Audit write failure must not crash the server
-      });
-  }
-  // ── HTTP response helpers ────────────────────────────────────────────────
-  // ── Enterprise API endpoints ────────────────────────────────────────────────
-
-  private _handlePolicy(res: ServerResponse): void {
-    if (!this.policyEngine) {
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "policy_engine_not_configured" }));
-      return;
-    }
-    const policy = this.policyEngine.getPolicy();
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        policy,
-        hash: this.policyEngine.getHash(),
-      }),
-    );
-  }
-
-  private _handleAuditVerify(req: IncomingMessage, res: ServerResponse): void {
-    // Return audit chain integrity status
-    // This endpoint verifies the WORM audit log integrity
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        status: "available",
-        message: "Use `kirkforge audit-verify --file <path>` to verify audit chain integrity",
-      }),
-    );
-  }
-
-  private _handleTenants(res: ServerResponse): void {
-    // Tenant listing — requires admin:tenant permission (already checked by RBAC)
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        tenants: [],
-        message: "Tenant management via API is planned for a future release",
-      }),
-    );
-  }
-
-  // ── OpenAPI 3.0 schema ─────────────────────────────────────────────────────
-  private _handleOpenApi(res: ServerResponse): void {
-    const spec = {
-      openapi: "3.0.3",
-      info: {
-        title: "KirkForge Health & Metrics API",
-        version: "1.0.0",
-        description: "Deterministic verification and routing layer for coding agents",
-      },
-      servers: [{ url: "/v1", description: "Versioned API" }],
-      paths: {
-        "/healthz": {
-          get: {
-            operationId: "getLiveness",
-            summary: "Liveness probe",
-            description: "Returns 200 if the service is running. Returns 503 if shutting down.",
-            tags: ["health"],
-            responses: {
-              "200": {
-                description: "Service is healthy",
-                content: {
-                  "application/json": {
-                    schema: {
-                      type: "object",
-                      properties: { status: { type: "string", enum: ["healthy"] } },
-                    },
-                  },
-                },
-              },
-              "503": { description: "Service is unhealthy or shutting down" },
-            },
-          },
-        },
-        "/readyz": {
-          get: {
-            operationId: "getReadiness",
-            summary: "Readiness probe",
-            description:
-              "Returns 200 if the service is ready to accept requests. Checks event bus and memory store health.",
-            tags: ["health"],
-            responses: {
-              "200": {
-                description: "Service is ready",
-                content: {
-                  "application/json": {
-                    schema: {
-                      type: "object",
-                      properties: {
-                        status: { type: "string", enum: ["ready"] },
-                        checks: { type: "object" },
-                      },
-                    },
-                  },
-                },
-              },
-              "503": { description: "Service is not ready" },
-            },
-          },
-        },
-        "/metrics": {
-          get: {
-            operationId: "getMetricsPrometheus",
-            summary: "Prometheus metrics (text format)",
-            description: "Returns metrics in Prometheus text exposition format.",
-            tags: ["metrics"],
-            responses: {
-              "200": { description: "Prometheus text metrics", content: { "text/plain": {} } },
-            },
-          },
-        },
-        "/metrics/json": {
-          get: {
-            operationId: "getMetricsJson",
-            summary: "JSON metrics",
-            description: "Returns metrics as a JSON object.",
-            tags: ["metrics"],
-            responses: {
-              "200": { description: "JSON metrics object", content: { "application/json": {} } },
-            },
-          },
-        },
-        "/policy": {
-          get: {
-            operationId: "getPolicy",
-            summary: "Current policy configuration",
-            description:
-              "Returns the active policy and its hash. Requires admin:policy permission.",
-            tags: ["admin"],
-            responses: {
-              "200": { description: "Policy object", content: { "application/json": {} } },
-              "404": { description: "Policy engine not configured" },
-            },
-          },
-        },
-        "/audit": {
-          get: {
-            operationId: "getAuditStatus",
-            summary: "Audit chain status",
-            description:
-              "Returns audit log integrity verification status. Requires admin:audit_export permission.",
-            tags: ["admin"],
-            responses: {
-              "200": { description: "Audit status", content: { "application/json": {} } },
-            },
-          },
-        },
-        "/tenants": {
-          get: {
-            operationId: "listTenants",
-            summary: "List tenants",
-            description: "Returns registered tenants. Requires admin:tenant permission.",
-            tags: ["admin"],
-            responses: {
-              "200": { description: "Tenant list", content: { "application/json": {} } },
-            },
-          },
-        },
-        "/openapi": {
-          get: {
-            operationId: "getOpenApi",
-            summary: "OpenAPI specification",
-            description: "Returns this OpenAPI 3.0 schema document.",
-            tags: ["meta"],
-            responses: {
-              "200": {
-                description: "OpenAPI 3.0 JSON schema",
-                content: { "application/json": {} },
-              },
-            },
-          },
-        },
-        "/quotas": {
-          get: {
-            operationId: "getQuotas",
-            summary: "Tenant quota status",
-            description:
-              "Returns per-tenant quota configuration and usage. Requires admin:tenant permission.",
-            tags: ["admin"],
-            responses: {
-              "200": { description: "Quota status", content: { "application/json": {} } },
-            },
-          },
-        },
-      },
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: "http",
-            scheme: "bearer",
-            bearerFormat: "JWT or API key",
-            description: "Bearer token (OIDC JWT or static API key)",
-          },
-        },
-      },
-      security: [{ bearerAuth: [] }],
-    };
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(spec, null, 2));
-  }
-
-  // ── Quotas endpoint ─────────────────────────────────────────────────────
-  private _handleQuotas(res: ServerResponse): void {
-    // Returns current quota configuration and usage.
-    // Requires admin:tenant permission (already checked by RBAC).
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        quotas: { default: "Per-tenant quota management via API is active" },
-        message:
-          "Set per-tenant quotas via the QuotaManager. API CRUD is planned for a future release.",
-      }),
-    );
-  }
-
-  private _sendUnauthorized(res: ServerResponse, reason: string): void {
-    const errResp = toErrorResponse(new KirkForgeError("UNAUTHORIZED", reason));
-    res.writeHead(401, {
-      "Content-Type": "application/json",
-      "WWW-Authenticate": 'Bearer realm="kirkforge"',
-    });
-    res.end(JSON.stringify(errResp));
-  }
-  private _sendForbidden(res: ServerResponse, reason: string): void {
-    const errResp = toErrorResponse(new KirkForgeError("FORBIDDEN", reason));
-    res.writeHead(403, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(errResp));
-  }
-
-  /** Send a structured error response using the core-errors catalog. */
-  private _sendError(res: ServerResponse, error: Error, requestId?: string): void {
-    const errResp = toErrorResponse(error, requestId);
-    const status = errResp.error.status;
-    res.writeHead(status, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(errResp));
-  }
-  // ── Rate limiting ────────────────────────────────────────────────────────
-  private _checkRateLimit(req: IncomingMessage, res: ServerResponse, actor?: Actor): boolean {
-    // ── Per-tenant rate limiting ──────────────────────────────────────────
-    // When rateLimitPerSecPerTenant > 0 and the actor has a tenant, apply
-    // per-tenant rate limiting using the tenant ID as bucket key. This
-    // prevents a single tenant from consuming all capacity.
-    if (this.rateLimitPerSecPerTenant > 0 && actor?.tenantId) {
-      const tenantKey = `tenant:${actor.tenantId}`;
-      const now = Date.now();
-      let tBucket = this.tenantBuckets.get(tenantKey);
-      if (!tBucket) {
-        tBucket = { tokens: this.rateLimitPerSecPerTenant, lastRefill: now };
-        this.tenantBuckets.set(tenantKey, tBucket);
-      }
-      const tElapsed = (now - tBucket.lastRefill) / 1000;
-      tBucket.tokens = Math.min(
-        this.rateLimitPerSecPerTenant,
-        tBucket.tokens + tElapsed * this.rateLimitPerSecPerTenant,
-      );
-      tBucket.lastRefill = now;
-      if (tBucket.tokens < 1) {
-        res.writeHead(429, {
-          "Content-Type": "application/json",
-          "Retry-After": "1",
-        });
-        res.end(
-          JSON.stringify(
-            toErrorResponse(
-              new KirkForgeError(
-                "TENANT_RATE_LIMITED",
-                `Tenant ${actor.tenantId} rate limit exceeded`,
-              ),
-              undefined,
-            ),
-          ),
-        );
-        return false;
-      }
-      tBucket.tokens -= 1;
-    }
-    // ── Per-IP rate limiting (always applied, regardless of tenant limit) ─
-    if (this.rateLimitPerSec <= 0) return true;
-    const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
-      req.socket.remoteAddress ??
-      "unknown";
-    const now = Date.now();
-    let bucket = this.buckets.get(ip);
-    if (!bucket) {
-      bucket = { tokens: this.rateLimitPerSec, lastRefill: now };
-      this.buckets.set(ip, bucket);
-    }
-    const elapsed = (now - bucket.lastRefill) / 1000;
-    bucket.tokens = Math.min(this.rateLimitPerSec, bucket.tokens + elapsed * this.rateLimitPerSec);
-    bucket.lastRefill = now;
-    if (bucket.tokens < 1) {
-      res.writeHead(429, {
-        "Content-Type": "application/json",
-        "Retry-After": "1",
-      });
-      res.end(
-        JSON.stringify(
-          toErrorResponse(new KirkForgeError("RATE_LIMITED", "Too many requests"), undefined),
-        ),
-      );
-      return false;
-    }
-    bucket.tokens -= 1;
-    return true;
-  }
-  // ── Request body stream consumption ────────────────────────────────────────
-  /**
-   * Consume the request body stream and enforce byte-by-byte size limits.
-   * Previous implementation only checked the Content-Length header, which
-   * can be spoofed or absent (chunked encoding). This method actually reads
-   * the body and destroys the connection if the accumulated size exceeds
-   * maxBodyBytes — even if Content-Length was missing or understated.
-   *
-   * Returns true if the body was consumed (or absent) within limits.
-   * Returns false and sends 413 if the body exceeds the limit.
-   */
-  private _consumeAndLimitBody(
-    req: IncomingMessage,
-    res: ServerResponse,
-    correlationId: string,
-  ): Promise<boolean> {
-    return new Promise((resolve) => {
-      // Fast-path: GET/HEAD typically have no body
-      const method = req.method?.toUpperCase() ?? "GET";
-      const transferEncoding = (req.headers["transfer-encoding"] ?? "").toLowerCase();
-      const contentLength = parseInt(req.headers["content-length"] ?? "0", 10);
-      const hasBody =
-        method === "POST" ||
-        method === "PUT" ||
-        method === "PATCH" ||
-        transferEncoding.includes("chunked") ||
-        contentLength > 0;
-
-      if (!hasBody) {
-        resolve(true);
-        return;
-      }
-
-      // Pre-check Content-Length if present (fast rejection before streaming)
-      if (contentLength > this.maxBodyBytes) {
-        this._authFailureCount++;
-        res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-        res.end(
-          JSON.stringify({
-            error: {
-              code: "PAYLOAD_TOO_LARGE",
-              message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
-              status: 413,
-              requestId: correlationId,
-              timestamp: new Date().toISOString(),
-            },
-          }),
-        );
-        req.destroy();
-        resolve(false);
-        return;
-      }
-
-      // Stream-consume the body, tracking byte count
-      let received = 0;
-      let exceeded = false;
-
-      req.on("data", (chunk: Buffer) => {
-        if (exceeded) return;
-        received += chunk.length;
-        if (received > this.maxBodyBytes) {
-          exceeded = true;
-          this._authFailureCount++;
-          res.writeHead(413, { "Content-Type": "application/json", ...SECURITY_HEADERS });
-          res.end(
-            JSON.stringify({
-              error: {
-                code: "PAYLOAD_TOO_LARGE",
-                message: `Request body exceeds maximum size of ${this.maxBodyBytes} bytes`,
-                status: 413,
-                requestId: correlationId,
-                timestamp: new Date().toISOString(),
-              },
-            }),
-          );
-          req.destroy();
-          resolve(false);
-        }
-      });
-
-      req.on("end", () => {
-        if (!exceeded) resolve(true);
-      });
-
-      req.on("error", () => {
-        if (!exceeded) resolve(false);
-      });
-    });
-  }
-  // ── Endpoint handlers ─────────────────────────────────────────────────────
-  private _handleHealthz(res: ServerResponse): void {
-    const health = this.orchestrator.healthCheck();
-    if (health.status === "shutting_down") {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({ status: "unhealthy", stats: health.stats, providers: health.providers }),
-      );
-      return;
-    }
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({ status: "healthy", stats: health.stats, providers: health.providers }),
-    );
-  }
-  private _handleReadyz(res: ServerResponse): void {
-    if (!this._ready) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "not_ready" }));
-      return;
-    }
-    const health = this.orchestrator.healthCheck();
-    if (health.status === "shutting_down") {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "not_ready", reason: "shutting_down" }));
-      return;
-    }
-
-    // ── Deep readiness: re-verify subsystem health at request time ─────
-    // Previously /readyz only checked a boolean _ready flag set at startup.
-    // Now it also verifies that the event bus and memory store are actually
-    // functional at the time of the request.
-    const checks: Record<string, { ok: boolean; detail?: string }> = {};
-
-    // Event bus: verify it's running and not backlogged
-    const eventBus = health.eventBus;
-    if (eventBus && typeof eventBus === "object") {
-      const eb = eventBus as { running?: boolean; inflight?: number; bufferSize?: number };
-      checks.eventBus = {
-        ok: eb.running === true,
-        detail: eb.running
-          ? `inflight=${eb.inflight ?? 0}, buffer=${eb.bufferSize ?? 0}`
-          : "not running",
-      };
-    } else {
-      checks.eventBus = { ok: true, detail: "not configured" };
-    }
-
-    // Memory store: verify it's connected (or not configured)
-    const memStatus = health.memory;
-    if (memStatus === "connected") {
-      checks.memoryStore = { ok: true };
-    } else if (memStatus === "none") {
-      checks.memoryStore = { ok: true, detail: "not configured" };
-    } else {
-      checks.memoryStore = { ok: false, detail: String(memStatus) };
-    }
-
-    const allOk = Object.values(checks).every((c) => c.ok);
-    if (!allOk) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          status: "not_ready",
-          checks,
-          stats: health.stats,
-          providers: health.providers,
-        }),
-      );
-      return;
-    }
-
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        status: "ready",
-        checks,
-        stats: health.stats,
-        providers: health.providers,
-      }),
-    );
-  }
-  private _handleMetricsJson(res: ServerResponse): void {
-    const stats = this.orchestrator.getStats();
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(stats));
-  }
-  // ── Prometheus text format /metrics ───────────────────────────────────────
-  private _handleMetricsPrometheus(res: ServerResponse): void {
-    const stats: OrchestratorStats = this.orchestrator.getStats();
-    const health: HealthCheckResult = this.orchestrator.healthCheck();
-    const lines: string[] = [];
-    const num = (v: unknown): number => (typeof v === "number" ? v : 0);
-    const escapePromLabel = (v: string): string =>
-      v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
-    const gauge = (name: string, help: string, value: number, labels?: Record<string, string>) => {
-      lines.push(`# HELP ${name} ${help}`);
-      lines.push(`# TYPE ${name} gauge`);
-      const labelStr = labels
-        ? `{${Object.entries(labels)
-            .map(([k, v]) => `${k}="${escapePromLabel(v)}"`)
-            .join(",")}}`
-        : "";
-      lines.push(`${name}${labelStr} ${value}`);
-    };
-    const counter = (
-      name: string,
-      help: string,
-      value: number,
-      labels?: Record<string, string>,
-    ) => {
-      lines.push(`# HELP ${name} ${help}`);
-      lines.push(`# TYPE ${name} counter`);
-      const labelStr = labels
-        ? `{${Object.entries(labels)
-            .map(([k, v]) => `${k}="${escapePromLabel(v)}"`)
-            .join(",")}}`
-        : "";
-      lines.push(`${name}${labelStr} ${value}`);
-    };
-    gauge("kirkforge_up", "Is the KirkForge server up", health.status === "healthy" ? 1 : 0);
-    counter(
-      "kirkforge_delegations_total",
-      "Total number of delegated tasks",
-      num(stats.totalDelegations),
-    );
-    counter("kirkforge_tokens_total", "Total tokens consumed", num(stats.totalTokens));
-    if (typeof stats.totalErrors === "number")
-      counter("kirkforge_errors_total", "Total errors", stats.totalErrors);
-    if (typeof stats.activeTasks === "number")
-      gauge("kirkforge_active_tasks", "Currently active tasks", stats.activeTasks);
-    if (typeof stats.memoryEntries === "number")
-      gauge("kirkforge_memory_store_entries", "Memory store entries", stats.memoryEntries);
-    if (typeof stats.memorySizeBytes === "number")
-      gauge(
-        "kirkforge_memory_store_size_bytes",
-        "Memory store size in bytes",
-        stats.memorySizeBytes,
-      );
-    const memUsage = process.memoryUsage();
-    gauge("process_resident_memory_bytes", "Resident memory in bytes", memUsage.rss);
-    gauge("process_heap_total_bytes", "Total heap in bytes", memUsage.heapTotal);
-    gauge("process_heap_used_bytes", "Used heap in bytes", memUsage.heapUsed);
-    gauge("process_uptime_seconds", "Process uptime in seconds", process.uptime());
-    // Auth/policy counters
-    counter("kirkforge_auth_success_total", "Total successful auth events", this._authSuccessCount);
-    counter("kirkforge_auth_failure_total", "Total failed auth events", this._authFailureCount);
-    counter("kirkforge_policy_deny_total", "Total policy deny events", this._policyDenyCount);
-    gauge(
-      "kirkforge_http_requests_in_flight",
-      "Currently processing HTTP requests",
-      this._inFlight.size,
-    );
-    counter("kirkforge_http_requests_total", "Total HTTP requests processed", this._requestCount);
-    // Tenant rate limit metrics
-    if (this.rateLimitPerSecPerTenant > 0) {
-      gauge(
-        "kirkforge_tenant_rate_limit_buckets",
-        "Active tenant rate limit buckets",
-        this.tenantBuckets.size,
-      );
-    }
-    lines.push("# EOF");
-    res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
-    res.end(lines.join("\n") + "\n");
-  }
 }
-// Full list: /v1/policy, /v1/audit, /v1/tenants require admin permissions
