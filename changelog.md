@@ -1,3 +1,59 @@
+## v8.6 — Verifier fail-closed fix, broken-repo demo, stability matrix (2026-06-07)
+
+### Bug fixes
+
+- **Verifier fail-open defect**: `tool-tsc` and `tool-pyright` returned
+  `Result.ok({ errors: 0 })` and emitted `status: "skipped"` when their
+  underlying binary was missing (ENOENT). This made any environment
+  without `tsc` or `pyright` installed pass type-checking on every task
+  — directly contradicting the "deterministic verification" thesis. Now
+  both emitters return `Result.err(...)` and emit `status: "error"` with
+  a `VERIFIER_MISSING_BINARY` detail, so the reducer (and the overall
+  verdict) correctly reports a failure. The "no target files" path
+  (e.g. no `tsconfig.json`, no `*.py` files) still returns
+  `status: "skipped"` because that is a legitimate skip — there is
+  nothing to verify. The new contract is documented in
+  `docs/STABILITY_MATRIX.md` and enforced by
+  `packages/orchestrator/tests/verifier-fail-closed.test.ts` (6 cases).
+
+- **pyright test isolation**: tests previously shared one `tmpDir` and
+  could leak Python files between cases. Each test now uses an
+  isolated per-case tmpDir.
+
+- **CLI dist stale binary**: `apps/cli/dist/index.js` was a leftover
+  ELF binary from a prior `pkg` build that broke the `cli+e2e` test
+  batch. Re-built to a proper Node.js script.
+
+- **Sandbox env-inherit doc**: `inheritParentEnv` doc comment now
+  explicitly names the prompt-injection attack vector and the env vars
+  it would expose (`OPENAI_API_KEY`, `KIRKFORGE_TENANT_KEY`, etc.).
+
+### Additions
+
+- **STABILITY_MATRIX.md**: per-package stability ratings
+  (Stable/Beta/Experimental/Dev-only), 33 packages and 6 CLI commands
+  rated. The verifier fail-closed contract is stated in the doc and
+  enforced by tests.
+- **DEPENDENCIES.md**: explains the bleeding-edge dev dep choices
+  (typescript 6, eslint 10, vitest 4) and the production-only safety
+  rails (`ALLOW_UNSAFE_HOST_SANDBOX`, `ALLOW_UNSAFE_VALIDATOR_SHELL`,
+  `DOPAFLOW_ENTERPRISE_MODE` / `KIRKFORCE_ENTERPRISE_MODE`).
+- **examples/verify-broken-repo/**: tiny fixture with three planted
+  bugs (type error, eval-lint violation, broken import) plus a
+  `verify-broken-repo.sh` driver. The driver runs
+  `kirkforge verify` against the fixture and asserts the JSON packet
+  reports `overall: "fail"`. This is the runnable counterpart to the
+  stability matrix and the fail-closed contract.
+- **verifier-fail-closed.test.ts**: 6 reducer-level cases for the
+  skip/error/pass/fail combinations across policy.required and not.
+
+### Test counts
+
+- 970 → **997 tests** (+27: 1 new ENOENT case in `tool-tsc`,
+  6 reducer-level fail-closed cases, plus unrelated additions in
+  the broader suite during the build).
+- 66 → **67 test suites** (+1: `verifier-fail-closed`).
+
 ## v8.5 — Docs cleanup, health server fix (2026-05-30)
 
 ### Documentation overhaul

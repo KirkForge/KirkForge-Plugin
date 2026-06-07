@@ -140,9 +140,14 @@ See [apps/mcp/README.md](apps/mcp/README.md) for the full tool list and configur
 ## Project stats
 
 - 34 packages (29 library + 5 lint engine + CLI)
-- 970 tests across 66 suites
+- 997 tests across 67 suites
 - ~22,500 lines production code, ~15,300 lines test code
 - Node.js ≥ 20, Git required for diff tracking
+
+See [STABILITY_MATRIX.md](docs/STABILITY_MATRIX.md) for per-package stability
+ratings and [DEPENDENCIES.md](docs/DEPENDENCIES.md) for dependency choices.
+The verifier fail-closed contract is exercised end-to-end by
+`examples/verify-broken-repo.sh`.
 
 ## Architecture decisions
 
