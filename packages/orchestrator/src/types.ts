@@ -148,3 +148,67 @@ export type ArtifactBlockedSignalValue = ArtifactBlockedEvent["value"];
 export type ArtifactUnterminatedSignalValue = ArtifactUnterminatedEvent["value"];
 export type ArtifactTruncatedSignalValue = ArtifactTruncatedEvent["value"];
 export type ArtifactEmittedSignalValue = ArtifactEmittedEvent["value"];
+
+// ── Validator + correction-loop + Orchestrator config types ───────────────
+
+import type { ModelConfig } from "@kirkforge/model-config";
+import type { EventBus } from "@kirkforge/core-events";
+import type { Logger } from "@kirkforge/core-logging";
+import type { MemoryStore } from "@kirkforge/memory-palace";
+import type { QuotaManager } from "@kirkforge/core-enterprise";
+import type {
+  TaskValidationResult,
+  TaskOutcome,
+  CorrectionDecision,
+} from "@kirkforge/correction-core";
+import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
+
+export interface ValidatorRunConfig {
+  shellCommand?: string;
+  timeoutMs?: number;
+}
+
+export interface LegacyValidatorRunConfig {
+  command?: string;
+  timeoutMs?: number;
+}
+
+export interface StructuredValidatorConfig {
+  command: string;
+  args: string[];
+  cwd?: string;
+  timeoutMs?: number;
+}
+
+export interface CorrectionLoopConfig {
+  maxCorrections: number;
+  maxCost?: number;
+  maxValidatorMs?: number;
+  validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig;
+}
+
+export interface CorrectionLoopOutcome {
+  finalAction: "accept" | "escalate";
+  finalVerdict: FinalVerdict;
+  sourceOfTruth: SourceOfTruth;
+  taskValidation: TaskValidationResult;
+  taskOutcome: TaskOutcome;
+  turns: CorrectionDecision[];
+  allPackets: ReducedStatePacket[];
+  sessionTokens: number;
+  sessionCost: number;
+  validatorDurationMs: number;
+}
+
+export interface OrchestratorConfig {
+  modelConfig: ModelConfig;
+  providerKey?: string;
+  logger?: Logger;
+  eventBus?: EventBus;
+  memoryStore?: MemoryStore;
+  cwd?: string;
+  decomposeProvider?: string;
+  policyEngine?: import("@kirkforge/core-policy").PolicyEngine;
+  auditLogger?: import("@kirkforge/core-events").AuditLogger;
+  quotaManager?: QuotaManager;
+}
