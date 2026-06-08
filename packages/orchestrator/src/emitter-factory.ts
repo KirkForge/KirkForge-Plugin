@@ -5,6 +5,7 @@ import { createCLintEngine } from "@kirkforge/tool-lint-c";
 import { createRsLintEngine } from "@kirkforge/tool-lint-rs";
 import { createGoLintEngine } from "@kirkforge/tool-lint-go";
 import { createSqlLintEngine } from "@kirkforge/tool-lint-sql";
+import { createImportLintEngine } from "@kirkforge/tool-lint-imports";
 import { TscEmitter } from "@kirkforge/tool-tsc";
 import { PyrightEmitter } from "@kirkforge/tool-pyright";
 import { GitnexusEmitter } from "@kirkforge/tool-gitnexus";
@@ -45,6 +46,11 @@ export function createVerificationEmitters(
   // Security is now handled by the lint engine itself (emits verify.security for safety-category rules)
   const resolvedSecurity = resolvedLint;
 
+  // Imports verifier: runs on both Python and TypeScript workspaces. Emits
+  // verify.imports as an advisory slot by default — the reducer treats it
+  // as a warning source, not a fail-closed hard fail.
+  const imports = createImportLintEngine({ cwd, eventBus, files });
+
   return {
     lint: resolvedLint,
     types: pythonOnly
@@ -53,5 +59,6 @@ export function createVerificationEmitters(
     security: resolvedSecurity,
     changes: new GitnexusEmitter({ cwd, eventBus, writtenFiles }),
     graph: new GraphifyEmitter({ cwd, eventBus, files }),
+    imports,
   };
 }

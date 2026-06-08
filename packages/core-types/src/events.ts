@@ -59,6 +59,33 @@ export interface VerifySecurityEvent {
   timestamp: string;
 }
 
+export interface VerifyImportsEvent {
+  kind: "verify.imports";
+  schemaVersion: SchemaVersion;
+  sequence: number;
+  streamId: string;
+  taskId: string;
+  value: {
+    status?: VerifierStatus;
+    error?: string;
+    findings: number;
+    warnings: number;
+    info: number;
+    filesScanned: number;
+    durationMs: number;
+    details: Array<{
+      file: string;
+      line: number;
+      rule: string;
+      oldName: string;
+      newName: string;
+      message: string;
+    }>;
+  };
+  source?: string;
+  timestamp: string;
+}
+
 export interface StateChangesEvent {
   kind: "state.changes";
   schemaVersion: SchemaVersion;
@@ -177,6 +204,7 @@ export type KirkForgeEvent =
   | VerifyLintEvent
   | VerifyTypesEvent
   | VerifySecurityEvent
+  | VerifyImportsEvent
   | StateChangesEvent
   | StateGraphEvent
   | EventBusOverflowEvent

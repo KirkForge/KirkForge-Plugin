@@ -3,6 +3,7 @@ export type {
   VerifyLintEvent,
   VerifyTypesEvent,
   VerifySecurityEvent,
+  VerifyImportsEvent,
   StateChangesEvent,
   StateGraphEvent,
   ArtifactBlockedEvent,

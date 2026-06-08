@@ -51,6 +51,7 @@
     "@kirkforge/tool-lint-sql": "*",
     "@kirkforge/tool-lint-ts": "*",
     "@kirkforge/tool-lint-py": "*",
+    "@kirkforge/tool-lint-imports": "*",
     "@kirkforge/core-policy": "*",
     "@kirkforge/core-rbac": "*"
   },

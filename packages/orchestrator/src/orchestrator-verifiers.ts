@@ -5,7 +5,7 @@ import type { TaskBrief } from "@kirkforge/prompt-core";
 import type { TaskInput } from "./types.js";
 import type { OrchestratorInternals } from "./orchestrator-shared.js";
 
-/** Run the deterministic verifier emitters (lint/types/security/changes/graph). */
+/** Run the deterministic verifier emitters (lint/types/security/changes/graph/imports). */
 export async function runVerifiers(
   s: OrchestratorInternals,
   taskId: string,
@@ -31,6 +31,7 @@ export async function runVerifiers(
     emitters.security.emit(taskId),
     emitters.changes.emit(taskId),
     emitters.graph.emit(taskId),
+    emitters.imports.emit(taskId),
   ]);
 }
 

@@ -67,6 +67,7 @@ what users can rely on. Stability here means:
 | `tool-lint-rs`      | Stable       | Rust rules.                                                 |
 | `tool-lint-go`      | Stable       | Go rules.                                                   |
 | `tool-lint-sql`     | Stable       | SQL safety + correctness rules.                             |
+| `tool-lint-imports` | Stable       | Curated import-rename tables for Python (PyPDF2→pypdf, distutils, urllib2, …) and TypeScript (request, moment, mkdirp, …). Advisory by default — emits `verify.imports` as a warn-level slot, never fail-closed. |
 
 ## CLI surfaces
 
