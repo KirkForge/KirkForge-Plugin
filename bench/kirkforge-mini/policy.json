@@ -20,7 +20,15 @@
   },
   "models": {
     "allowed": [
-      "minimax-m3:cloud"
+      "minimax-m3:cloud",
+      "minimax-m2.7:cloud",
+      "minimax-m2:cloud",
+      "gpt-oss:120b-cloud",
+      "gemma4:31b-cloud",
+      "kimi-k2.6:cloud",
+      "deepseek-v3.2:cloud",
+      "qwen3-coder:480b-cloud",
+      "glm-4.6:cloud"
     ],
     "allowedProviders": [
       "local-ollama"
