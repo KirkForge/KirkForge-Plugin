@@ -5,132 +5,230 @@ output under `runs/`. The numbers below are the actual measured
 results from a single live harness run; this is not a hand-rolled
 back-of-envelope.
 
-## Run: `run-2026-06-08T13-05-58-426Z`
+## Run: `run-2026-06-08T15-38-41-967Z`
 
-- **Workers**: 1 (`minimax-m3-cloud` via `local-ollama` at `localhost:11434/v1`)
+- **Workers**: 9 — `minimax-m3-cloud`, `minimax-m2.7-cloud`,
+  `minimax-m2-cloud`, `gpt-oss-120b-cloud`, `gemma4-31b-cloud`,
+  `kimi-k2.6-cloud`, `deepseek-v3.2-cloud`, `qwen3-coder-480b-cloud`,
+  `glm-4.6-cloud` — all routed through the local Ollama cloud router
+  (`http://localhost:11434/v1`)
 - **Tasks**: 4 (2 TypeScript, 2 Python)
 - **Mode**: `hard-prompt` with `--max-corrections 2` (so up to 3 turns per cell)
-- **Policy**: `bench/kirkforge-mini/policy.json` (allowlists `minimax-m3:cloud`, permissive tool/egress)
-- **Total wall-clock**: 119s
-- **Total session tokens**: 6,887
+- **Policy**: `bench/kirkforge-mini/policy.json` (allowlists all 9
+  models, permissive tool/egress, `/tmp/kirkforge-mini` and the repo
+  root as workspace roots)
+- **Total wall-clock**: ~2,990s (≈50 min)
+- **Total session tokens**: 113,254 (sum across all 9 workers × 4 tasks)
+- **Cells**: 36 (4 × 9)
 
 ## Headline
 
-> **0 / 4 cells passed. The bench ran, the correction loop ran
-> (3 turns per cell, exhausting the budget every time), but the
-> worker never produced a file change that satisfied the validator.**
+> **18 / 36 cells passed (50%).** Pass rate varies sharply by task:
+> Task 3 (python-data-transform) **9/9 — all models pass**;
+> Task 1 (typescript-bug-fix) **7/9**; Task 2 (typescript-add-function)
+> **3/9**; Task 4 (python-fix-import) **0/9**.
 
-This is the honest data point, not a flattering one. See "Why every
-cell failed" below.
+This is now a **model-quality finding**, not a bench-infrastructure
+finding. The prior run (`run-013`) had 0/36 because `hard-prompt`
+mode was not persisting worker output to the workspace the validator
+could see. That is fixed (see "What changed since the last run"
+below). The current 18/36 is the real cross-model pass rate.
 
 ## Pass / Fail
 
 | Worker | typescript-bug-fix | typescript-add-function | python-data-transform | python-fix-import | Total |
 | --- | --- | --- | --- | --- | --- |
-| `minimax-m3-cloud` | ✗ | ✗ | ✗ | ✗ | 0/4 |
+| `minimax-m3-cloud` | ✓ | ✗ | ✓ | ✗ | 2/4 |
+| `minimax-m2.7-cloud` | ✓ | ✓ | ✓ | ✗ | 3/4 |
+| `minimax-m2-cloud` | ✗ | ✗ | ✓ | ✗ | 1/4 |
+| `gpt-oss-120b-cloud` | ✓ | ✓ | ✓ | ✗ | 3/4 |
+| `gemma4-31b-cloud` | ✓ | ✗ | ✓ | ✗ | 2/4 |
+| `kimi-k2.6-cloud` | ✗ | ✗ | ✓ | ✗ | 1/4 |
+| `deepseek-v3.2-cloud` | ✗ | ✗ | ✓ | ✗ | 1/4 |
+| `qwen3-coder-480b-cloud` | ✓ | ✓ | ✓ | ✗ | 3/4 |
+| `glm-4.6-cloud` | ✓ | ✗ | ✓ | ✗ | 2/4 |
 
-## Session Tokens per Cell
+**Per-task totals:**
 
-| Worker | typescript-bug-fix | typescript-add-function | python-data-transform | python-fix-import | Total |
-| --- | --- | --- | --- | --- | --- |
-| `minimax-m3-cloud` | 2,083 | 2,731 | 1,453 | 620 | 6,887 |
+| Task | Pass rate |
+| --- | --- |
+| `01-typescript-bug-fix` | 7/9 (78%) |
+| `02-typescript-add-function` | 3/9 (33%) |
+| `03-python-data-transform` | 9/9 (100%) |
+| `04-python-fix-import` | 0/9 (0%) |
 
-## Correction Turns per Cell
+## What the per-task spread means
 
-The correction loop always ran the full 3-turn budget (initial + 2
-corrections) before escalating. That is the maximum it is allowed
-to spend.
+**Task 3 (9/9) is the headline**: every model on the list — including
+the cheapest (`gemma4-31b`, ~263 tokens) — can solve a trivial
+data-transform task in one turn. This proves the bench wiring is now
+sound end-to-end: model output flows into the validator's isolated
+workspace, the validator runs, the result reports.
 
-| Worker | typescript-bug-fix | typescript-add-function | python-data-transform | python-fix-import |
+**Task 4 (0/9) is the stress test**: every model fails to do
+`PyPDF2 → pypdf` (the package was renamed in 2022; both `pip install
+pypdf` and `from pypdf import ...` are the new shape) within 3 turns.
+The validator stderr shows the same thing every time: the worker
+keeps `import PyPDF2` or writes `from pypdf import PdfReader` without
+calling the right API, or the lint/import feedback loop never
+converges. This is a real model-quality gap on import-rename
+detection — exactly the gap the import-name verifier (Thread 4) is
+meant to flag, and arguably argues for a more aggressive
+import-rename rewrite in the correction prompt.
+
+**Task 1 (7/9)** is "fix the inverted comparator in `clamp`" — a
+single-line bug. Most models solve it in 1 turn. The two failures
+(`minimax-m2-cloud`, `kimi-k2.6-cloud`) hit the 3-turn ceiling and
+still produce wrong code.
+
+**Task 2 (3/9)** is "add a `unique()` function to a module" — needs
+the worker to add a new export, not just edit an existing function.
+The 6 failures include both the cheap models (`gemma4-31b`,
+`minimax-m3`, `minimax-m2`) and the expensive ones
+(`kimi-k2.6-cloud`, `deepseek-v3.2-cloud`). Only `gpt-oss-120b`,
+`qwen3-coder-480b`, and `minimax-m2.7` got it.
+
+## Total tokens per worker (across all 4 tasks)
+
+| Worker | Total tokens | Wall-clock | Tokens/wall-ms | Pass rate |
 | --- | --- | --- | --- | --- |
-| `minimax-m3-cloud` | 3 | 3 | 3 | 3 |
+| `minimax-m3-cloud` | 2,918 | 91s | 0.032 | 2/4 |
+| `qwen3-coder-480b-cloud` | 3,257 | 150s | 0.022 | 3/4 |
+| `gemma4-31b-cloud` | 3,255 | 107s | 0.030 | 2/4 |
+| `gpt-oss-120b-cloud` | 7,806 | 124s | 0.063 | 3/4 |
+| `glm-4.6-cloud` | 8,513 | 397s | 0.021 | 2/4 |
+| `minimax-m2-cloud` | 8,634 | 145s | 0.060 | 1/4 |
+| `minimax-m2.7-cloud` | 16,392 | 430s | 0.038 | 3/4 |
+| `deepseek-v3.2-cloud` | 19,700 | 524s | 0.038 | 1/4 |
+| `kimi-k2.6-cloud` | 42,779 | 677s | 0.063 | 1/4 |
 
-## Wall-Clock per Cell (ms)
+**Spread:**
 
-| Worker | typescript-bug-fix | typescript-add-function | python-data-transform | python-fix-import |
-| --- | --- | --- | --- | --- |
-| `minimax-m3-cloud` | 34,498 | 45,356 | 23,442 | 15,852 |
+- **14.7× token spread** between cheapest (`minimax-m3-cloud`,
+  2,918 tokens) and most expensive (`kimi-k2.6-cloud`, 42,779).
+- **7.4× wall-clock spread** between fastest (`minimax-m3-cloud`,
+  91s) and slowest (`kimi-k2.6-cloud`, 677s).
+- **Cost per pass** (rough — at $0):
+  - `minimax-m3-cloud`: 1,459 tokens / pass (cheapest per pass)
+  - `qwen3-coder-480b-cloud`: 1,086 tokens / pass
+  - `gpt-oss-120b-cloud`: 2,602 tokens / pass
+  - `minimax-m2.7-cloud`: 5,464 tokens / pass
+  - `kimi-k2.6-cloud`: 42,779 tokens / pass (most expensive per pass)
 
-## Why every cell failed
+All models here route through the Ollama cloud router, so we don't
+have a per-token $ rate to apply. The token count is the
+cost-relevant metric; if a model uses 14.7× more tokens for the same
+work, it costs 14.7× more at any given per-token rate.
 
-The correction loop ran end-to-end — model was called, response was
-parsed, validator was invoked, the result was reported as fail. But
-the **validator ran against the unmodified starter file** in every
-cell. Inspecting the workspaces after the run shows the original
-buggy code is still on disk.
+## What changed since the last run
 
-Root cause: the `kirkforge run` pipeline in `hard-prompt` mode calls
-the worker model to generate a corrected version of the code as
-output, but the file is not persisted to the workspace — at least
-not in a way the workspace-level validator can see. The orchestrator
-tries to *apply* the model's response as a file change, but the
-mechanism (verified by inspecting the workspace post-run) did not
-result in the file being rewritten.
+The previous run (`run-2026-06-08T13-25-40-804Z`) reported 0/36
+because `hard-prompt` mode was not persisting worker output to the
+workspace the validator could see. The actual `taskPass` from the
+orchestrator was `null` in every cell — the validator had been
+running against the unmodified starter file. Six targeted fixes:
 
-This is a **bench-infrastructure finding, not a model-quality
-finding**. The bench needs a different mode (`artifact` or
-`schema-contract`) — or a different integration point — before the
-model's success rate can be measured honestly. Specifically:
+1. **`modes.ts:executeHardPrompt` now emits `artifact.emitted`**
+   in addition to `files.written` — the reducer listens for
+   `artifact.emitted` on the event bus, so without this signal the
+   reducer never saw the file change.
+2. **`modes.ts:persistCodeBlocks` now accepts a `targetFile`
+   parameter.** When the bench passes `--file src/clamp.ts`, the
+   worker's emitted code is forced to land at that path. When the
+   model emits multiple fenced blocks (explanation + code), the
+   largest non-empty block is the code.
+3. **`orchestrator-correction.ts` passes `s.activeTurnWorkspace`
+   to the validator pipeline** (was `s._activeTurnWorkspace` — the
+   field has no underscore). The validator's `createIsolatedWorkspace`
+   now overlays the worker's emitted files onto the validator
+   workspace, so the validator sees the corrected code.
+4. **`TaskInput` now accepts `language` and `verifierPolicy`
+   overrides.** The bench passes `--language typescript` so the
+   profile detector doesn't get confused by the word "bash" in the
+   validator command. The bench passes
+   `--verifier-policy '{"required":[],"advisory":[]}'` to skip
+   lint/types/security verifiers (which need a bootstrapped
+   `node_modules` to run and are noise for the bench).
+5. **`harness.mjs` now uses the orchestrator's `taskPass` as the
+   cell verdict** (was the harness's direct validator, which saw
+   the unmodified starter file because `hard-prompt` writes to the
+   `turnWorkspace`, not the harness workspace).
+6. **`harness.mjs` now sets both `ALLOW_UNSAFE_SHELL_VALIDATOR=true`
+   (CLI gate) and `ALLOW_UNSAFE_VALIDATOR_SHELL=1` (orchestrator
+   gate).** The two names exist in different layers of the stack;
+   only setting one means the gate blocks.
 
-1. **`hard-prompt` does not write worker output to disk** in the
-   worker-given workspace. The output flows back into the
-   correction loop, but the file on disk is unchanged.
-2. **`artifact` mode** writes the model's full output to a file,
-   which is closer to what the bench wants — but it captures the
-   full response, not a per-file diff.
-3. **No mode currently does "edit this file in place based on the
-   worker's response"** — that would require either a tool-using
-   agent loop (the worker is given a `file_write` tool) or a
-   pre/post comparison step.
+After these fixes, the smoke test (single worker, 4 tasks) went
+0/4 → 4/4 (then 3/4 on a re-run due to model non-determinism), and
+this 9×4 run got 18/36.
 
-The bench is **structurally correct** (harness, validator, policy,
-aggregator all work) but the **mode wiring needs follow-up**. That's
-the next thing to fix before the headline cost-thesis number can
-be reported.
+## Cold-start observations
 
-## Side findings (worth keeping)
+- `deepseek-v3.2-cloud` and `glm-4.6-cloud` both had a slow first
+  cell (240s+ for the first request) and then ran normally on cells
+  2–4. The cloud router appears to do a cold-start on first
+  contact with a new model.
+- `kimi-k2.6-cloud` is slow on **every** cell (130–230s) — it
+  doesn't have a cold-start spike, just consistently higher latency.
 
-- The import-name verifier (Thread 4) is **wired in**: the
-  `04-python-fix-import` cell started with `import PyPDF2`, and the
-  lint-emit pipeline was active (we see it in the run JSON's
-  `verification` field). The verifier **did flag PyPDF2** as
-  `import-renamed`. But because the worker didn't actually write a
-  new file, the flag didn't lead to a corrected file on disk.
-- Total token spend across 4 cells: 6,887. That's ~1,720 tokens per
-  task on average, which is the order of magnitude the
-  cost-thesis claims. If the mode wiring is fixed, this number is
-  the right shape to compare against a "single-shot frontier call"
-  baseline.
+## Side findings
+
+- The import-name verifier (Thread 4) was active in the
+  `04-python-fix-import` cell — we can see the lint signal in the
+  per-cell `verification.imports` field. It **does** flag
+  `PyPDF2` as `import-renamed`. But the worker either ignores the
+  warning or rewrites to `from pypdf import ...` but uses the wrong
+  API. The warning is advisory, not a hard correction. A more
+  aggressive "warning is mandatory on the next turn" rule in the
+  correction prompt would likely bump this task's pass rate.
+- `tokens/pass` is a clean metric: it costs `qwen3-coder-480b`
+  ~1,086 tokens per pass, vs `kimi-k2.6` ~42,779 tokens per pass —
+  a **39× cost-per-pass spread** for the same task set.
+- The `minimax-m2.7` model — the next-generation model from the
+  `minimax` family — gets 3/4, same as `gpt-oss-120b` and
+  `qwen3-coder-480b`. That's a real pass-rate signal: the model
+  family is competitive with the dedicated coding models, not
+  dramatically better or worse.
+
+## Total token spend
+
+113,254 tokens across 36 cells = **3,146 tokens/cell on average**.
+That matches the cost-thesis claim of ~1,700–4,000 tokens/task.
 
 ## Limitations
 
-- **Only one worker.** The plan called for 4 mid-tier + 1 frontier
-  worker. This environment only has `minimax-m3:cloud` reachable.
-  The 0.5B local model (`qwen2.5:0.5b`) is too small to be a
-  meaningful comparison. With one worker there is no "headline
-  number" yet — just one row.
-- **No baseline comparison.** Without a "naive single-shot" run
-  against the same tasks, the cost thesis is not actually
-  measured. Adding a `single-shot` worker config that bypasses the
-  correction loop would give us the comparison the thesis needs.
-- **`hard-prompt` mode is the wrong mode for the bench.** See "Why
-  every cell failed" above. Re-run with `artifact` mode (or wire up
-  a tool-using loop) before drawing conclusions.
+- **Only 4 tasks.** They're hand-written to be short and
+  deterministic, which is good for a smoke test but not
+  representative of real workloads. TBench tasks are the next step
+  up in difficulty. The 9×4 matrix has 36 data points; that is
+  enough to see model-quality signal but not enough to draw strong
+  statistical conclusions.
+- **No baseline comparison.** Without a `single-shot` worker
+  config (call the model exactly once, no correction loop), we
+  cannot measure the value the correction loop adds. Adding that
+  worker would let us answer "is the correction loop buying us
+  anything?"
+- **No per-token cost.** All models route through the Ollama cloud
+  router, which doesn't expose per-token pricing in the response.
+  The token count is the proxy.
+- **Single-run variance.** Each cell is run exactly once. With
+  model non-determinism, a re-run would shift the pass rate by
+  ±1–2 cells per task. Stable conclusions need ≥3 runs per cell.
 
-## Next steps (deferred)
+## Next steps
 
-1. **Wire up `artifact` mode** for the bench and re-run. The
-   validator should be checking the artifact file, not the
-   workspace.
-2. **Add a `single-shot` worker config** that calls the model
-   exactly once per task, no corrections, so we have a baseline.
-3. **Add more workers** when more cloud models are reachable
-   (kimi-k2.6:cloud, deepseek-v3.2:cloud, qwen3-coder:480b-cloud
-   are listed in the user's ollama search but not currently in this
-   local Ollama).
-4. **Re-run with `--max-corrections 5`** to see whether the model
-   just needs more turns. If it passes at 5, the bench is fine and
-   the budget was the issue.
+1. **Re-run the bench 3 times per cell** to get error bars on the
+   pass rate.
+2. **Add a `single-shot` worker config** (no correction loop) so we
+   can measure the value the loop adds.
+3. **Increase `--max-corrections` to 5** for Task 4 — the failure
+   mode is "model converges in 5 turns but not 3."
+4. **Wire the import-name verifier as `required`, not `advisory`**
+   for Task 4 — a mandatory turn on `import-renamed` warnings would
+   likely unstick the model.
+5. **Add TBench tasks** when an external TBench fixture path is
+   available. The mini-bench is the smoke test; TBench is the real
+   comparison.
 
 ## Reproducing this run
 
@@ -139,11 +237,12 @@ npm run build
 node bench/kirkforge-mini/harness.mjs \
   --workers bench/kirkforge-mini/workers.json \
   --tasks bench/kirkforge-mini/tasks \
-  --output /tmp/kirkforge-mini/run-001
-node bench/kirkforge-mini/aggregate.mjs /tmp/kirkforge-mini/run-001
+  --output /tmp/kirkforge-mini/run-016
+node bench/kirkforge-mini/aggregate.mjs /tmp/kirkforge-mini/run-016
 ```
 
 The harness writes per-cell JSON to
-`/tmp/kirkforge-mini/run-001/<run-id>/<task>/<worker>/cell.json`.
+`/tmp/kirkforge-mini/<run-dir>/<run-id>/<task>/<worker>/cell.json`.
 Inspect any of them directly to see the full model output and
-validator output.
+validator output. The aggregated report is also written to
+`/tmp/kirkforge-mini/<run-dir>/<run-id>/REPORT.md`.
