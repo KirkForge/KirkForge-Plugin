@@ -47,7 +47,7 @@ export async function runCorrectionLoop(
     _authPolicySlo?: any;
     _classifierMemory?: any;
     sharedEventBus: any;
-    _activeTurnWorkspace?: any;
+    activeTurnWorkspace: string | null;
     delegate: (t: TaskInput) => Promise<import("./types.js").OrchestratorResult>;
   },
   task: TaskInput,
@@ -140,7 +140,7 @@ export async function runCorrectionLoop(
           s,
           structuredValidator,
           emittedFiles,
-          s._activeTurnWorkspace ?? undefined,
+          s.activeTurnWorkspace ?? undefined,
         );
         task = {
           ...task,
@@ -157,7 +157,7 @@ export async function runCorrectionLoop(
           validatorShellCommand,
           config.validator?.timeoutMs ?? 120000,
           emittedFiles,
-          s._activeTurnWorkspace ?? undefined,
+          s.activeTurnWorkspace ?? undefined,
         );
         task = {
           ...task,
