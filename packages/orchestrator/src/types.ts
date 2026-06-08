@@ -15,6 +15,22 @@ export interface TaskInput {
   modeOverride?: DelegationMode;
   taskPass?: boolean | null;
   suppressMemory?: boolean;
+  /**
+   * Optional language override. When set, the orchestrator uses
+   * `profileForLanguage` instead of `detectTaskProfile` (which parses
+   * the description with regexes that can be tripped by shell/CLI
+   * keywords in validator feedback or test commands). See
+   * bench/kirkforge-mini/RESULTS.md for the bug this prevents.
+   */
+  language?: string;
+  /**
+   * Optional verifier-policy override. When set, replaces the
+   * profile's default verifierPolicy entirely. Useful for the bench
+   * (which only cares about the task validator, not the lint/types/
+   * security verifiers that need a fully-bootstrapped project to
+   * even run) and for tools that want to skip the verifiers.
+   */
+  verifierPolicy?: { required: VerifierSlot[]; advisory: VerifierSlot[] };
   /** Authenticated actor context. Used for audit logging and tenant-scoped policy enforcement. */
   actor?: Actor;
 }
@@ -160,6 +176,7 @@ import type {
   TaskValidationResult,
   TaskOutcome,
   CorrectionDecision,
+  VerifierSlot,
 } from "@kirkforge/correction-core";
 import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
 

@@ -14,6 +14,14 @@ export function registerRun(program: Command): void {
     .option("--context <text>", "Additional context for the task")
     .option("--file <paths...>", "Target files for the task")
     .option(
+      "--language <name>",
+      "Pin the language profile (typescript, python, shell, ...). Skips auto-detection.",
+    )
+    .option(
+      "--verifier-policy <json>",
+      "JSON override for the profile's verifierPolicy, e.g. '{\"required\":[],\"advisory\":[]}'",
+    )
+    .option(
       "--validator <command>",
       "Structured validator: command name (no shell expansion, args passed separately)",
     )
@@ -69,8 +77,24 @@ export function registerRun(program: Command): void {
         auditLogger: _auditLogger,
       } = await createBootstrap(opts);
 
+      let verifierPolicyOverride: { required: import("@kirkforge/correction-core").VerifierSlot[]; advisory: import("@kirkforge/correction-core").VerifierSlot[] } | undefined;
+      if (opts.verifierPolicy) {
+        try {
+          verifierPolicyOverride = JSON.parse(opts.verifierPolicy);
+        } catch (e) {
+          exitError(`--verifier-policy must be valid JSON: ${e instanceof Error ? e.message : e}`, opts.json);
+        }
+      }
+
       const outcome = await orchestrator.runCorrectionLoop(
-        { description, modeOverride: opts.mode, context: opts.context, files: opts.file },
+        {
+          description,
+          modeOverride: opts.mode,
+          context: opts.context,
+          files: opts.file,
+          ...(opts.language ? { language: opts.language } : {}),
+          ...(verifierPolicyOverride ? { verifierPolicy: verifierPolicyOverride } : {}),
+        },
         { maxCorrections, maxCost, validator: validatorConfig },
       );
 

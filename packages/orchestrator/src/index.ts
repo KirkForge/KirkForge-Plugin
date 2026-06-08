@@ -12,7 +12,7 @@ import { KirkForgeError } from "@kirkforge/core-errors";
 
 export { parseJsonlArtifacts } from "./artifact-mode.js";
 export type { JsonlArtifact, ParsedArtifact, ParseResult } from "./artifact-mode.js";
-import { detectTaskProfile } from "./task-profile.js";
+import { detectTaskProfile, profileForLanguage } from "./task-profile.js";
 import type {
   TaskInput,
   DelegationResult,
@@ -168,7 +168,22 @@ export class Orchestrator {
     }
 
     let decision = classifyTask(task, this.classifierMemory);
-    const profile = detectTaskProfile(task.description);
+    // Allow the caller to pin the language profile (e.g. the bench's
+    // task.json declares a language; passing it through here keeps
+    // `detectTaskProfile` from picking up "bash" or "shell" keywords
+    // that appear in validator feedback or test scripts once the
+    // correction loop appends them to the description. See
+    // bench/kirkforge-mini/RESULTS.md for the symptom this fixes.
+    const detected = (task as { language?: string }).language
+      ? profileForLanguage((task as { language?: string }).language as never)
+      : detectTaskProfile(task.description);
+    // Allow the caller to override the verifier policy too. The bench
+    // uses this to skip the lint/types/security verifiers (which need
+    // a fully-bootstrapped project) and only run the task validator.
+    const taskVerifierPolicy = (task as { verifierPolicy?: { required: import("@kirkforge/correction-core").VerifierSlot[]; advisory: import("@kirkforge/correction-core").VerifierSlot[] } }).verifierPolicy;
+    const profile = taskVerifierPolicy
+      ? { ...detected, verifierPolicy: taskVerifierPolicy }
+      : detected;
     const memoryRecommendation = await recallMemory(
       this as unknown as OrchestratorInternals,
       task,
@@ -205,7 +220,7 @@ export class Orchestrator {
         const brief = makeBrief(this as unknown as OrchestratorInternals, task);
         return finalizeDelegation(
           this as unknown as OrchestratorInternals & { stats: OrchestratorStats; providerKey: string },
-          await executeHardPrompt(agent, brief, taskId, this.cwd, profile),
+          await executeHardPrompt(agent, brief, taskId, this.cwd, profile, task.files?.[0]),
           taskId,
           task,
           decision.mode,
