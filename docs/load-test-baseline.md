@@ -15,6 +15,9 @@ npx vitest run tests/load/memory-palace-load.test.ts --reporter=verbose
 
 # Run SLO monitor load tests
 npx vitest run tests/load/slo-monitor-load.test.ts --reporter=verbose
+
+# Run the HealthServer HTTP load test (live HTTP traffic, not in-process)
+npm run build && node bench/load-test-health.mjs
 ```
 
 ## Memory Store SLO Targets
@@ -78,6 +81,40 @@ npx vitest run tests/load/slo-monitor-load.test.ts --reporter=verbose
 | ------ | -------------- | ------------------------------------- |
 | 7-day  | >99.9% success | Audit failures are critical incidents |
 
+## HTTP Health Server SLO Targets
+
+Measured by `bench/load-test-health.mjs` against an in-process
+`HealthServer` with auth enabled and per-IP rate limiting disabled. The
+test fires 5,000 requests (50 tenants × 100) with a 70/20/10 mix of
+`/healthz`, `/v1/metrics`, and `/v1/healthz`, plus 2% invalid-bearer
+seeding to exercise the 401/403 path.
+
+| Operation             | p50   | p95   | p99   | Throughput      | SLO         |
+| --------------------- | ----- | ----- | ----- | --------------- | ----------- |
+| `/healthz` (liveness) | <10ms | <20ms | <30ms | >2,000 req/s    | p99 < 50ms  |
+| `/v1/metrics` (Prom)  | <15ms | <25ms | <50ms | >1,500 req/s    | p99 < 50ms  |
+| `/v1/healthz` (auth)  | <10ms | <20ms | <30ms | >2,000 req/s    | p99 < 50ms  |
+
+The load test fails (exit 1) when measured p99 exceeds **1.2× the
+configured baseline** (default 50ms). See `bench/load-test-health.README.md`
+for run instructions and CI integration.
+
+### Last Health Server Baseline
+
+- **Date**: 2026-06-08
+- **Environment**: CI runner (2-core, 4GB)
+- **Node**: v24.16.0
+- **Run config**: 50 tenants × 100 requests, concurrency 20
+- **Measured**:
+  - p50 = 7.33ms
+  - p95 = 13.26ms
+  - p99 = 16.53ms
+  - max = 118.12ms
+  - Throughput = 2,407 req/s
+  - Status: 4,909 × 200, 91 × 403 (1.8% auth failures — matches the 2% seed)
+  - Errors: 0
+- **Verdict**: PASS — p99 well under 50ms baseline
+
 ## Re-benchmarking Procedure
 
 1. Make no code changes to the path under test.
@@ -88,7 +125,7 @@ npx vitest run tests/load/slo-monitor-load.test.ts --reporter=verbose
 
 ## Last Baseline Update
 
-- **Date**: 2026-05-22
+- **Date**: 2026-06-08
 - **Environment**: CI runner (2-core, 4GB)
-- **Node**: v24.x
+- **Node**: v24.16.0
 - **Commit**: current HEAD
