@@ -1,0 +1,15 @@
+{
+  "$schema": "internal",
+  "comment": "The plan called for 4 mid-tier + 1 frontier worker. This environment only has ONE cloud model reachable (minimax-m3:cloud) plus a tiny 0.5B local model (qwen2.5:0.5b). The 0.5B is too small for coding tasks; we ship the one-worker config and document the limitation in RESULTS.md.",
+  "workers": [
+    {
+      "id": "minimax-m3-cloud",
+      "provider": "local-ollama",
+      "baseUrl": "http://localhost:11434/v1",
+      "model": "minimax-m3:cloud",
+      "maxTokens": 2048,
+      "timeoutMs": 120000,
+      "description": "Cloud model via the local Ollama cloud router. Frontier-tier reasoning."
+    }
+  ]
+}
