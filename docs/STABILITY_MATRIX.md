@@ -40,6 +40,7 @@ what users can rely on. Stability here means:
 | `memory-palace`     | Beta         | InMemory + SQLite + File adapters; `writeTaskObservation`, `writeRunAndEmissions` API. SQLite adapter depends on `better-sqlite3` and falls back to FileAdapter when unavailable. |
 | `model-config`      | Stable       | Provider config loader (YAML/JSON).                         |
 | `model-client`      | Beta         | HTTP client to providers; retries. Per-provider auth flows. |
+| `plugin`            | Stable (verify/correct/memory/doctor) / Beta (auth/tenant) | Public API surface for host agents. Verification & correction exports are stable; the auth/tenant/audit-bridge exports are stable in shape but the role model may evolve. The CLI/MCP `serve` endpoint is still Experimental. |
 
 ## Correction and agent
 

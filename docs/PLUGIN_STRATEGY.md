@@ -62,11 +62,11 @@ This framing makes clear that KirkForge is the Verifier role. It does not compet
 
 ---
 
-## 3. Proposed stable API
+## 3. Stable API surface
 
-These APIs are documented as a contract target. Implementation extraction from existing packages is a separate PR.
+These APIs are documented as a contract. Each entry is tagged with its current stability rating (Stable / Beta / Experimental) per `docs/STABILITY_MATRIX.md`.
 
-### `verifyWorkspace(input) -> ReducedStatePacket`
+### `verifyWorkspace(input) -> ReducedStatePacket` — **Stable**
 
 **Purpose** — Run the deterministic verification battery on a workspace directory. This is the primary entry point.
 
@@ -98,7 +98,7 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ---
 
-### `buildCorrectionPrompt(packet, context) -> string`
+### `buildCorrectionPrompt(packet, context) -> string` — **Stable**
 
 **Purpose** — Given a failed verification packet, build a compact correction prompt targeting the specific failures.
 
@@ -115,7 +115,7 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ---
 
-### `recordObservation(observation) -> void`
+### `recordObservation(observation) -> void` — **Stable**
 
 **Purpose** — Record a task outcome for future routing. The host must provide the actual task outcome (pass/fail/escalate), not the verifier verdict.
 
@@ -125,7 +125,7 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ---
 
-### `recallRoutingBias(description, model?) -> Recommendation | null`
+### `recallRoutingBias(description, model?) -> Recommendation | null` — **Stable**
 
 **Purpose** — Look up past observations for similar tasks and return a routing recommendation.
 
@@ -142,7 +142,7 @@ These APIs are documented as a contract target. Implementation extraction from e
 
 ---
 
-### `doctor() -> ToolCapabilityReport`
+### `doctor() -> ToolCapabilityReport` — **Stable**
 
 **Purpose** — Probe local verification tools and report what is available.
 
@@ -154,6 +154,41 @@ These APIs are documented as a contract target. Implementation extraction from e
 | `languages` | `string[]`                       | Detected languages                         |
 
 **May call a model?** — **No.** Probes local PATH for external tools, checks bundled internal tools.
+
+### `createAuthMiddleware(config) -> AuthMiddleware` — **Beta**
+
+**Purpose** — Build an auth middleware that authenticates `Bearer` tokens (OIDC JWT or static API key) and resolves them to an `Actor` for RBAC checks. Used when the host wants to expose KirkForge over HTTP or MCP and gate the verifier calls behind authentication.
+
+**Input fields**
+
+| Field                         | Type               | Description                                                                  |
+| ----------------------------- | ------------------ | ---------------------------------------------------------------------------- |
+| `oidcConfig`                  | `OidcConfig`       | JWKS URI, issuer, audience. Verified on every request.                      |
+| `apiKey`                      | `string`           | Static bearer fallback. ≥ 32 chars enforced in enterprise mode.             |
+| `groupRoleMapping`            | `GroupRoleMapping` | OIDC group claims → role mapping.                                            |
+| `auditLogger`                 | `AuditLogger`      | Auth events recorded here.                                                   |
+| `requireAuth`                 | `boolean`          | Default `false` in dev, `true` in enterprise.                                |
+| `allowApiKeyFallbackWithOidc` | `boolean`          | Default `true` in dev, `false` in enterprise (no silent JWT→key downgrade). |
+
+**Output** — `AuthMiddleware` with `authenticate(authorizationHeader)` and `checkPermission(actor, permission)` methods. Auth failures throw `AuthMiddlewareError` with a `statusCode` field.
+
+**May call a model?** — **No.**
+
+**Stability note** — The role/permission model is shared with `core-rbac` and may evolve as enterprise integrations grow. The middleware shape (constructor config + two methods + one error class) is the stable contract.
+
+### `createTenantContext(config) -> Promise<TenantContext>` — **Beta**
+
+**Purpose** — Initialize a fully-wired multi-tenant context with isolated memory store, tenant-scoped audit logger, and optional quota manager. Used when the host runs a SaaS or team deployment.
+
+**May call a model?** — **No.** All initialization is local I/O (registry, memory store, audit sink).
+
+**Stability note** — The `TenantContext` shape is stable; the underlying `TenantRegistry` API may shift.
+
+### `createAuthAuditHook(audit, defaultTenantId?) -> (decision) => void` — **Stable**
+
+**Purpose** — Bridge `core-rbac` `AuthDecision` objects into the `AuditLogger`. Used to make every authorization decision (whether granted or denied) end up in the WORM audit log.
+
+**May call a model?** — **No.** Pure function wrapper over `audit.record()`.
 
 ---
 
