@@ -198,11 +198,23 @@ async function runCell(runId, taskName, worker) {
     "--validator-timeout-ms",
     "60000",
     "--json",
+    "--language",
+    taskDoc.language,
+    "--verifier-policy",
+    // Skip lint/types/security verifiers — they need a bootstrapped
+    // project (npx tsc requires node_modules) and are noise for the
+    // bench. We only care about the task validator here.
+    JSON.stringify({ required: [], advisory: [] }),
     "--provider",
     worker.provider,
   ];
   for (const f of canonicalFiles) {
-    runArgs.push("--file", join(workspace, f));
+    // Pass the RELATIVE path (relative to the harness workspace) so
+    // the orchestrator's isolated turn-workspace write target is just
+    // `src/clamp.ts` (not `/tmp/.../workspace/src/clamp.ts`, which
+    // would get blocked by the sandbox check). The relative path is
+    // also the path the validator checks for.
+    runArgs.push("--file", f);
   }
 
   const cellStart = performance.now();
@@ -251,16 +263,35 @@ async function runCell(runId, taskName, worker) {
       command: `bash ${validatorPath}`,
       wallMs: Math.round(validatorMs),
       exitCode: validatorResult.code,
+      // The orchestrator's hard-prompt mode writes worker output to
+      // its isolated turn-workspace, NOT to the harness's workspace.
+      // The harness's "direct" validator (run in the harness
+      // workspace) therefore sees the unchanged starter file. The
+      // *orchestrator's* task-validator runs in the isolated
+      // workspace with the worker's emitted files overlaid, so it
+      // sees the actual fix. That's the authoritative pass/fail.
+      // We keep the direct-validator field for diagnostic
+      // comparison but use the orchestrator's `taskPass` for the
+      // overall verdict.
       passed: validatorResult.code === 0,
       stdoutTail: validatorResult.stdout.slice(-1000),
       stderrTail: validatorResult.stderr.slice(-1000),
     },
     overall: {
-      passed: validatorResult.code === 0,
+      // Prefer the orchestrator's taskPass; fall back to direct
+      // validator if the JSON didn't parse.
+      passed:
+        runJson?.taskPass === true
+          ? true
+          : runJson?.taskPass === false
+            ? false
+            : validatorResult.code === 0,
       sessionTokens: runJson?.sessionTokens ?? null,
       sessionCost: runJson?.sessionCost ?? null,
       turnCount: runJson?.turns?.length ?? 0,
       finalVerdict: runJson?.finalVerdict ?? null,
+      sourceOfTruth: runJson?.sourceOfTruth ?? null,
+      taskValidationReason: runJson?.taskValidation?.reason ?? null,
     },
     workspace,
   };
