@@ -203,14 +203,14 @@ describe("HealthServer HTTP integration", { sequential: true, timeout: 30000 }, 
     await startServer({ apiKey: "test-key" });
     try {
       // Mark server as shutting down
-      (server as unknown as { _shuttingDown: boolean })._shuttingDown = true;
+      (server as unknown as { shuttingDown: boolean }).shuttingDown = true;
 
       const res = await httpRequest(port, "/healthz", { Authorization: "Bearer test-key" });
       expect(res.status).toBe(503);
       const body = JSON.parse(res.body);
       expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
     } finally {
-      (server as unknown as { _shuttingDown: boolean })._shuttingDown = false;
+      (server as unknown as { shuttingDown: boolean }).shuttingDown = false;
       await stopServer();
     }
   });

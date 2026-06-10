@@ -20,11 +20,16 @@ export type {
   TaskNode,
 } from "./types.js";
 export { SCHEMA_VERSION } from "./types.js";
-export type { KirkForgeEvent, KirkForgeEventKind } from "./events.js";
+export type {
+  VerifierStatus,
+  KirkForgeEvent,
+  KirkForgeEventKind,
+} from "./events.js";
 export type {
   VerifyLintEvent,
   VerifyTypesEvent,
   VerifySecurityEvent,
+  VerifyImportsEvent,
   StateChangesEvent,
   StateGraphEvent,
   EventBusOverflowEvent,

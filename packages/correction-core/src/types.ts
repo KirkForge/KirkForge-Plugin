@@ -1,4 +1,4 @@
-export type VerifierSlot = "lint" | "types" | "security" | "graph";
+export type VerifierSlot = "lint" | "types" | "security" | "graph" | "imports";
 
 export interface VerifierPolicy {
   required: VerifierSlot[];
@@ -36,6 +36,7 @@ export interface ReducedStatePacket {
     lint: { errors: number; warnings: number; suppressed?: number };
     types: { errors: number };
     security: { findings: number; critical: number; high: number };
+    imports?: { findings: number; warnings: number; info: number };
     overall: "pass" | "warn" | "fail";
   };
   artifactEnforcement?: ArtifactEnforcement;

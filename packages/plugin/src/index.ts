@@ -168,6 +168,7 @@ export async function verifyWorkspace(
       emitters.security.emit(taskId),
       emitters.changes.emit(taskId),
       emitters.graph.emit(taskId),
+      emitters.imports.emit(taskId),
     ]);
 
     const packet = reducer.reduce(taskId, 0, policy);

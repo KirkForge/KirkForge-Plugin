@@ -114,6 +114,29 @@ Internal tools are bundled and always available. External tools (tsc, pyright) a
 - **Memory is explicit.** `observe` and `recall` require `--memory <path>`. No ambient state.
 - **Host decides task outcome.** `observe --outcome` must come from the host's validator, never from verification status. Verifier pass ≠ task pass.
 
+## Public surface: `@kirkforge/plugin`
+
+The npm package [`@kirkforge/plugin`](https://www.npmjs.com/package/@kirkforge/plugin) is the integration point for Node.js hosts. It exposes:
+
+- **Verification** — `verifyWorkspace`, `buildCorrectionPrompt`
+- **Memory** — `recordObservation`, `recallRoutingBias` (caller provides the `MemoryStore`)
+- **Tooling** — `doctor` (probes external verifier tools)
+- **Auth & tenancy** — `createAuthMiddleware`, `createTenantContext`, `createAuthAuditHook`
+
+```bash
+npm install @kirkforge/plugin @kirkforge/memory-palace
+```
+
+```ts
+import { createPluginCore } from "@kirkforge/plugin";
+import { MemoryStore, InMemoryAdapter } from "@kirkforge/memory-palace";
+
+const plugin = createPluginCore({ memoryStore: new MemoryStore(new InMemoryAdapter()) });
+const result = await plugin.verifyWorkspace({ workspace: "/path/to/project", language: "typescript" });
+```
+
+Full reference with auth/tenant wiring: [packages/plugin/README.md](packages/plugin/README.md).
+
 ## MCP Server
 
 KirkForge ships a Model Context Protocol server for direct integration with MCP hosts (Claude Desktop, Codex CLI, Copilot, etc.):
@@ -135,7 +158,7 @@ Or run directly:
 npx tsx apps/mcp/src/index.ts
 ```
 
-See [apps/mcp/README.md](apps/mcp/README.md) for the full tool list and configuration.
+See [apps/mcp/README.md](apps/mcp/README.md) for the full tool list and configuration. The MCP server is a thin wrapper over the same five operations exposed by `@kirkforge/plugin`.
 
 ## Project stats
 

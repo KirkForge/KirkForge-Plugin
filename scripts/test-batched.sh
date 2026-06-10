@@ -70,6 +70,9 @@ run_batch "lint-tools" \
   packages/tool-lint-go/tests/index.test.ts \
   packages/tool-lint-sql/tests/index.test.ts \
   packages/tool-lint-core/tests/index.test.ts \
+  packages/tool-lint-imports/tests/python-renames.test.ts \
+  packages/tool-lint-imports/tests/typescript-renames.test.ts \
+  packages/tool-lint-imports/tests/clean-pass.test.ts \
   packages/tool-pyright/tests/index.test.ts \
   packages/tool-tsc/tests/index.test.ts \
   packages/tool-gitnexus/tests/index.test.ts \

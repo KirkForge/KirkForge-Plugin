@@ -15,6 +15,22 @@ export interface TaskInput {
   modeOverride?: DelegationMode;
   taskPass?: boolean | null;
   suppressMemory?: boolean;
+  /**
+   * Optional language override. When set, the orchestrator uses
+   * `profileForLanguage` instead of `detectTaskProfile` (which parses
+   * the description with regexes that can be tripped by shell/CLI
+   * keywords in validator feedback or test commands). See
+   * bench/kirkforge-mini/RESULTS.md for the bug this prevents.
+   */
+  language?: string;
+  /**
+   * Optional verifier-policy override. When set, replaces the
+   * profile's default verifierPolicy entirely. Useful for the bench
+   * (which only cares about the task validator, not the lint/types/
+   * security verifiers that need a fully-bootstrapped project to
+   * even run) and for tools that want to skip the verifiers.
+   */
+  verifierPolicy?: { required: VerifierSlot[]; advisory: VerifierSlot[] };
   /** Authenticated actor context. Used for audit logging and tenant-scoped policy enforcement. */
   actor?: Actor;
 }
@@ -148,3 +164,68 @@ export type ArtifactBlockedSignalValue = ArtifactBlockedEvent["value"];
 export type ArtifactUnterminatedSignalValue = ArtifactUnterminatedEvent["value"];
 export type ArtifactTruncatedSignalValue = ArtifactTruncatedEvent["value"];
 export type ArtifactEmittedSignalValue = ArtifactEmittedEvent["value"];
+
+// ── Validator + correction-loop + Orchestrator config types ───────────────
+
+import type { ModelConfig } from "@kirkforge/model-config";
+import type { EventBus } from "@kirkforge/core-events";
+import type { Logger } from "@kirkforge/core-logging";
+import type { MemoryStore } from "@kirkforge/memory-palace";
+import type { QuotaManager } from "@kirkforge/core-enterprise";
+import type {
+  TaskValidationResult,
+  TaskOutcome,
+  CorrectionDecision,
+  VerifierSlot,
+} from "@kirkforge/correction-core";
+import type { FinalVerdict, SourceOfTruth } from "./truth-model.js";
+
+export interface ValidatorRunConfig {
+  shellCommand?: string;
+  timeoutMs?: number;
+}
+
+export interface LegacyValidatorRunConfig {
+  command?: string;
+  timeoutMs?: number;
+}
+
+export interface StructuredValidatorConfig {
+  command: string;
+  args: string[];
+  cwd?: string;
+  timeoutMs?: number;
+}
+
+export interface CorrectionLoopConfig {
+  maxCorrections: number;
+  maxCost?: number;
+  maxValidatorMs?: number;
+  validator?: ValidatorRunConfig | LegacyValidatorRunConfig | StructuredValidatorConfig;
+}
+
+export interface CorrectionLoopOutcome {
+  finalAction: "accept" | "escalate";
+  finalVerdict: FinalVerdict;
+  sourceOfTruth: SourceOfTruth;
+  taskValidation: TaskValidationResult;
+  taskOutcome: TaskOutcome;
+  turns: CorrectionDecision[];
+  allPackets: ReducedStatePacket[];
+  sessionTokens: number;
+  sessionCost: number;
+  validatorDurationMs: number;
+}
+
+export interface OrchestratorConfig {
+  modelConfig: ModelConfig;
+  providerKey?: string;
+  logger?: Logger;
+  eventBus?: EventBus;
+  memoryStore?: MemoryStore;
+  cwd?: string;
+  decomposeProvider?: string;
+  policyEngine?: import("@kirkforge/core-policy").PolicyEngine;
+  auditLogger?: import("@kirkforge/core-events").AuditLogger;
+  quotaManager?: QuotaManager;
+}

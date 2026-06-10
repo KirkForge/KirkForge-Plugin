@@ -6,6 +6,7 @@ import type { Logger } from "@kirkforge/core-logging";
 import type { PolicyEngine } from "@kirkforge/core-policy";
 import type { EnterpriseConfig } from "@kirkforge/core-enterprise";
 import type { OidcConfig, GroupRoleMapping, Role } from "@kirkforge/core-rbac";
+import { readFileSync, existsSync } from "node:fs";
 import { EventLogger } from "@kirkforge/orchestrator/event-log";
 
 export interface ServeOptions {
@@ -18,6 +19,32 @@ export interface ServeOptions {
   policyEngine?: PolicyEngine;
   /** Audit logger from bootstrap. If not provided, a no-op logger is used. */
   auditLogger?: AuditLogger;
+  /** Daemon config from CLI flags / config file / env vars. */
+  config?: DaemonConfig;
+}
+
+/**
+ * Daemon-level configuration. Distinct from `HealthServerConfig` — this is
+ * the CLI-side surface that wires user input into the health server.
+ *
+ * Resolution order (highest priority wins):
+ *   1. CLI flags (`--port`, `--host`, ...)
+ *   2. `--config` JSON file
+ *   3. Environment variables (`KIRKFORGE_*`)
+ *   4. Defaults
+ */
+export interface DaemonConfig {
+  port?: number;
+  host?: string;
+  apiKey?: string;
+  rateLimitPerSec?: number;
+  rateLimitPerSecPerTenant?: number;
+  corsOrigin?: string;
+  requireAuth?: boolean;
+  /** Path to TLS cert PEM. Both cert and key must be set together. */
+  tlsCertPath?: string;
+  /** Path to TLS key PEM. Both cert and key must be set together. */
+  tlsKeyPath?: string;
 }
 
 /**
@@ -27,6 +54,7 @@ export interface ServeOptions {
  */
 export async function startDaemon(opts: ServeOptions): Promise<void> {
   const log = opts.logger ?? console;
+  const cfg = opts.config ?? {};
   const enterpriseConfig = opts.enterpriseConfig ?? {
     enabled: false,
     auth: { configured: false },
@@ -73,13 +101,36 @@ export async function startDaemon(opts: ServeOptions): Promise<void> {
   // ── Group-to-role mapping (from env) ─────────────────────────────────
   const groupRoleMapping = parseGroupRoleMapping(process.env.OIDC_GROUP_ROLE_MAP);
 
+  // ── Resolve TLS config (paths → files) ───────────────────────────────
+  let tlsConfig: { cert: string; key: string } | undefined;
+  if (cfg.tlsCertPath && cfg.tlsKeyPath) {
+    if (!existsSync(cfg.tlsCertPath)) {
+      throw new Error(`TLS cert not found: ${cfg.tlsCertPath}`);
+    }
+    if (!existsSync(cfg.tlsKeyPath)) {
+      throw new Error(`TLS key not found: ${cfg.tlsKeyPath}`);
+    }
+    tlsConfig = {
+      cert: readFileSync(cfg.tlsCertPath, "utf-8"),
+      key: readFileSync(cfg.tlsKeyPath, "utf-8"),
+    };
+    log.info?.(`[serve] TLS configured: cert=${cfg.tlsCertPath}, key=${cfg.tlsKeyPath}`);
+  }
+
   // ── Health server with RBAC + policy ──────────────────────────────────
   const healthServer = new HealthServer(opts.orchestrator, {
-    apiKey: process.env.HEALTH_API_KEY ?? undefined,
+    port: cfg.port,
+    host: cfg.host,
+    apiKey: cfg.apiKey ?? process.env.HEALTH_API_KEY ?? undefined,
     oidcConfig,
     groupRoleMapping,
     auditLogger,
     policyEngine: opts.policyEngine,
+    rateLimitPerSec: cfg.rateLimitPerSec,
+    rateLimitPerSecPerTenant: cfg.rateLimitPerSecPerTenant,
+    corsOrigin: cfg.corsOrigin,
+    requireAuth: cfg.requireAuth,
+    tls: tlsConfig,
   });
 
   // Wire event audit log if HMAC secret is configured

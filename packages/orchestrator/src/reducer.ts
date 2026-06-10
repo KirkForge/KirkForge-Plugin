@@ -2,6 +2,7 @@ import type {
   VerifyLintEvent,
   VerifyTypesEvent,
   VerifySecurityEvent,
+  VerifyImportsEvent,
   StateChangesEvent,
   StateGraphEvent,
   ArtifactBlockedEvent,
@@ -25,6 +26,7 @@ type ReducerSignal =
   | VerifyLintEvent
   | VerifyTypesEvent
   | VerifySecurityEvent
+  | VerifyImportsEvent
   | StateChangesEvent
   | StateGraphEvent
   | ArtifactBlockedEvent
@@ -37,6 +39,7 @@ const SLOT_TO_SIGNAL: Record<VerifierSlot, string> = {
   types: "verify.types",
   security: "verify.security",
   graph: "state.graph",
+  imports: "verify.imports",
 };
 
 export class StateReducer {
@@ -53,6 +56,10 @@ export class StateReducer {
     });
     eventBus.on<VerifySecurityEvent>("verify.security", (e) => {
       this._store(e.taskId, "verify.security", e);
+      return Promise.resolve(ok(undefined));
+    });
+    eventBus.on<VerifyImportsEvent>("verify.imports", (e) => {
+      this._store(e.taskId, "verify.imports", e);
       return Promise.resolve(ok(undefined));
     });
     eventBus.on<StateChangesEvent>("state.changes", (e) => {
@@ -104,6 +111,7 @@ export class StateReducer {
     const lintS = get<VerifyLintEvent>("verify.lint");
     const typesS = get<VerifyTypesEvent>("verify.types");
     const secS = get<VerifySecurityEvent>("verify.security");
+    const importsS = get<VerifyImportsEvent>("verify.imports");
     const changesS = get<StateChangesEvent>("state.changes");
     const graphS = get<StateGraphEvent>("state.graph");
     const blockedS = get<ArtifactBlockedEvent>("artifact.blocked");
@@ -114,7 +122,7 @@ export class StateReducer {
     const notApplicable = new Set<VerifierSlot>();
     if (policy) {
       const policySlots = new Set([...policy.required, ...policy.advisory]);
-      for (const slot of ["lint", "types", "security", "graph"] as VerifierSlot[]) {
+      for (const slot of ["lint", "types", "security", "graph", "imports"] as VerifierSlot[]) {
         const signalKind = SLOT_TO_SIGNAL[slot];
         if (!policySlots.has(slot) && !map.has(signalKind)) {
           notApplicable.add(slot);
@@ -132,6 +140,7 @@ export class StateReducer {
     const typesNAC = notApplicable.has("types");
     const secNAC = notApplicable.has("security");
     const graphNAC = notApplicable.has("graph");
+    const importsNAC = notApplicable.has("imports");
 
     const lintStatus = lintS?.value?.status ?? (lintNAC ? "skipped" : "error");
     const typesStatus = typesS?.value?.status ?? (typesNAC ? "skipped" : "error");
@@ -155,6 +164,13 @@ export class StateReducer {
       high: secS?.value?.high ?? (secNAC ? 0 : 1),
       status: secStatus,
       error: secS?.value?.error,
+    };
+    const imports = {
+      findings: importsS?.value?.findings ?? 0,
+      warnings: importsS?.value?.warnings ?? 0,
+      info: importsS?.value?.info ?? 0,
+      status: importsS?.value?.status ?? (importsNAC ? "skipped" : "error"),
+      error: importsS?.value?.error,
     };
     const changes = {
       filesChanged: changesS?.value?.filesChanged ?? 0,
@@ -292,7 +308,7 @@ export class StateReducer {
       ts: new Date().toISOString(),
       changes,
       graph,
-      verification: { lint, types, security: sec, overall },
+      verification: { lint, types, security: sec, imports, overall },
       artifactEnforcement,
       emissions,
       verifierPolicy: verifierPolicyResult,

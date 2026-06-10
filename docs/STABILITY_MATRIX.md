@@ -40,6 +40,7 @@ what users can rely on. Stability here means:
 | `memory-palace`     | Beta         | InMemory + SQLite + File adapters; `writeTaskObservation`, `writeRunAndEmissions` API. SQLite adapter depends on `better-sqlite3` and falls back to FileAdapter when unavailable. |
 | `model-config`      | Stable       | Provider config loader (YAML/JSON).                         |
 | `model-client`      | Beta         | HTTP client to providers; retries. Per-provider auth flows. |
+| `plugin`            | Stable (verify/correct/memory/doctor) / Beta (auth/tenant) | Public API surface for host agents. Verification & correction exports are stable; the auth/tenant/audit-bridge exports are stable in shape but the role model may evolve. The CLI/MCP `serve` endpoint is Beta (see `kirkforge serve` row). |
 
 ## Correction and agent
 
@@ -66,6 +67,7 @@ what users can rely on. Stability here means:
 | `tool-lint-rs`      | Stable       | Rust rules.                                                 |
 | `tool-lint-go`      | Stable       | Go rules.                                                   |
 | `tool-lint-sql`     | Stable       | SQL safety + correctness rules.                             |
+| `tool-lint-imports` | Stable       | Curated import-rename tables for Python (PyPDF2→pypdf, distutils, urllib2, …) and TypeScript (request, moment, mkdirp, …). Advisory by default — emits `verify.imports` as a warn-level slot, never fail-closed. |
 
 ## CLI surfaces
 
@@ -76,7 +78,7 @@ what users can rely on. Stability here means:
 | `kirkforge doctor`  | Stable       | Environment / config / model health.                        |
 | `kirkforge observe` | Beta         | Memory store inspection.                                    |
 | `kirkforge audit-verify` | Beta    | Audit log verification.                                     |
-| `kirkforge serve`   | Experimental | Daemon mode; not recommended for production.                |
+| `kirkforge serve`   | Beta         | Daemon mode. `/healthz`, `/readyz`, `/v1/metrics` (Prometheus text), RBAC, and graceful shutdown are stable. Use `--config` for repeatable deployments. Production hardening (TLS termination, mTLS, process supervision) is the operator's responsibility. |
 
 ## What this means for users
 
@@ -85,8 +87,8 @@ what users can rely on. Stability here means:
 - **Use with care (API may change):** `core-policy`, `core-enterprise`,
   `core-sandbox`, `memory-palace`, `model-client`, `agent-core`, `prompt-core`,
   `correction-core`, `orchestrator`.
-- **Don't depend on:** `serve` (experimental daemon), pre-1.0 memory layout
-  for cross-version compatibility.
+- **Don't depend on:** pre-1.0 memory layout for cross-version
+  compatibility.
 - **Sandbox guarantees are narrow:** the bare-host runner provides constraint
   enforcement (allowlists, timeouts, output limits) but NOT process-level
   isolation. For untrusted or model-influenced code, use
