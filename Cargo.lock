@@ -243,6 +243,7 @@ dependencies = [
  "directories",
  "kirkforge-plugin",
  "kirkforge-plugin-host",
+ "tempfile",
 ]
 
 [[package]]

@@ -63,9 +63,7 @@ impl PluginHook {
                 .current_dir(&self.plugin_root)
                 .status()
             {
-                Err(e)
-                    if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 3 =>
-                {
+                Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 3 => {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                     attempts += 1;
                     continue;
