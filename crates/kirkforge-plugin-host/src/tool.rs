@@ -61,10 +61,23 @@ impl PluginTool {
             return Err(ToolError::NotFound(cmd_path));
         }
 
-        let output = Command::new(&cmd_path)
-            .env(KIRKFORGE_TOOL_ARGS, args.to_string())
-            .current_dir(&self.plugin_root)
-            .output()?;
+        let mut attempts = 0;
+        let output = loop {
+            match Command::new(&cmd_path)
+                .env(KIRKFORGE_TOOL_ARGS, args.to_string())
+                .current_dir(&self.plugin_root)
+                .output()
+            {
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 3 =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    attempts += 1;
+                    continue;
+                }
+                other => break other?,
+            }
+        };
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

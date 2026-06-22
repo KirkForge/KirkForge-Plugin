@@ -56,10 +56,23 @@ impl PluginHook {
             return Err(HookError::NotFound(cmd_path));
         }
 
-        let status = Command::new(&cmd_path)
-            .envs(env)
-            .current_dir(&self.plugin_root)
-            .status()?;
+        let mut attempts = 0;
+        let status = loop {
+            match Command::new(&cmd_path)
+                .envs(env)
+                .current_dir(&self.plugin_root)
+                .status()
+            {
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 3 =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    attempts += 1;
+                    continue;
+                }
+                other => break other?,
+            }
+        };
 
         Ok(match status.code() {
             Some(0) => HookVerdict::Allow,
