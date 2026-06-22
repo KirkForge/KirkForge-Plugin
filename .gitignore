@@ -1,3 +1,10 @@
+# Rust
+/target
+/Cargo.lock
+
+# Claude / local state
+/.claude
+
 # dependencies
 node_modules/
 

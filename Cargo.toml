@@ -1,0 +1,31 @@
+[workspace]
+members = [
+    "crates/kirkforge-plugin",
+    "crates/kirkforge-plugin-host",
+    "apps/plugin-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Henrik Kirk <kirk@madlab.dk>"]
+license = "MIT"
+repository = "https://github.com/KirkForge/KirkForge-Plugin"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+anyhow = "1"
+toml = "0.8"
+tracing = "0.1"
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+
+# Local crates — path dependencies keep iteration fast while both repos are
+# checked out side-by-side. For release we can publish to crates.io or switch
+# to git dependencies.
+kirkforge-plugin = { path = "crates/kirkforge-plugin" }
+kirkforge-plugin-host = { path = "crates/kirkforge-plugin-host" }
