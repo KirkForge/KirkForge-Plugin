@@ -72,3 +72,5 @@ scripts/sync-to-sandbox.sh
 scripts/run-225-native-worker.sh
 .directory
 AGENTS.md
+CLAUDE.md
+state.md
