@@ -65,7 +65,8 @@ impl Toolset for PluginToolset<'_> {
     }
 
     fn info(&self, name: &str) -> Option<ToolInfo> {
-        let (manifest, plugin) = self.registry.tool_by_name(name)?;
+        let hosted = self.registry.tool_by_name(name)?;
+        let plugin = &hosted.plugin;
         let cap = plugin.tools().into_iter().find(|cap| match cap {
             Capability::Tool { name: n, .. } => n == name,
             _ => false,
@@ -80,17 +81,18 @@ impl Toolset for PluginToolset<'_> {
                 name,
                 description,
                 schema,
-                source: format!("plugin:{}", manifest.name),
+                source: format!("plugin:{}", plugin.manifest().name),
             }),
             _ => None,
         }
     }
 
     fn execute(&self, name: &str, args: serde_json::Value) -> anyhow::Result<String> {
-        let (_, plugin) = self
+        let hosted = self
             .registry
             .tool_by_name(name)
             .ok_or_else(|| anyhow::anyhow!("unknown plugin tool: {name}"))?;
+        let plugin = &hosted.plugin;
         let cap = plugin
             .tools()
             .into_iter()
@@ -99,8 +101,13 @@ impl Toolset for PluginToolset<'_> {
                 _ => false,
             })
             .ok_or_else(|| anyhow::anyhow!("plugin tool {name} disappeared"))?;
-        let tool = PluginTool::from_capability(&cap, plugin.root())
-            .ok_or_else(|| anyhow::anyhow!("plugin tool {name} has no command"))?;
+        let tool = PluginTool::from_capability(
+            &cap,
+            plugin.root(),
+            &plugin.manifest().name,
+            hosted.effective_trust,
+        )
+        .ok_or_else(|| anyhow::anyhow!("plugin tool {name} has no command"))?;
 
         let result = tool.execute(args)?;
         // Ensure callers can see the env var name we use.

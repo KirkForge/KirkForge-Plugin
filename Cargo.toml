@@ -23,6 +23,9 @@ toml = "0.8"
 tracing = "0.1"
 clap = { version = "4", features = ["derive"] }
 directories = "6"
+sha2 = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hex = "0.4"
 
 # Local crates — path dependencies keep iteration fast while both repos are
 # checked out side-by-side. For release we can publish to crates.io or switch

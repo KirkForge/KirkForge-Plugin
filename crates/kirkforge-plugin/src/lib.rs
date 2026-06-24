@@ -10,10 +10,15 @@
 //! plugins are intentionally out of scope — they are a future phase once the
 //! trust model is proven.
 
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as _, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
+
+/// Re-export signature verification types.
+pub use verification::{verify_plugin_manifest, PluginVerificationError, PluginVerificationPolicy};
+
+mod verification;
 
 /// Plugin manifest loaded from `kirkforge.toml`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -31,6 +36,12 @@ pub struct PluginManifest {
     /// Capabilities exposed by the plugin.
     #[serde(default)]
     pub capabilities: Vec<Capability>,
+    /// Optional Ed25519 public key (hex) used to verify the plugin signature.
+    ///
+    /// The host maintains its own allowlist of trusted keys; a key present in
+    /// the manifest is only accepted if it appears in that allowlist.
+    #[serde(default)]
+    pub public_key: Option<String>,
     /// Optional map of extra metadata the host can ignore or surface.
     #[serde(default)]
     pub metadata: HashMap<String, String>,
@@ -65,6 +76,7 @@ impl Default for PluginManifest {
             description: String::new(),
             trust: TrustTier::ReadOnly,
             capabilities: Vec::new(),
+            public_key: None,
             metadata: HashMap::new(),
         }
     }
@@ -182,6 +194,8 @@ pub enum ManifestError {
     },
     #[error("failed to parse manifest: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("manifest verification failed: {0}")]
+    Verification(#[from] PluginVerificationError),
 }
 
 /// High-level plugin interface.
@@ -218,7 +232,39 @@ pub struct LoadedPlugin {
 impl LoadedPlugin {
     /// Load a plugin directory containing a `kirkforge.toml`.
     pub fn load(path: &Path) -> Result<Self, ManifestError> {
-        let manifest = PluginManifest::from_file(&path.join("kirkforge.toml"))?;
+        Self::load_with_verification(path, &PluginVerificationPolicy::allow_unsigned())
+    }
+
+    /// Load a plugin directory and verify its signature according to `policy`.
+    pub fn load_with_verification(
+        path: &Path,
+        policy: &PluginVerificationPolicy,
+    ) -> Result<Self, ManifestError> {
+        let manifest_path = path.join("kirkforge.toml");
+        let manifest_bytes = std::fs::read(&manifest_path).map_err(|e| ManifestError::Io {
+            path: manifest_path,
+            source: e,
+        })?;
+        let manifest =
+            PluginManifest::parse(std::str::from_utf8(&manifest_bytes).map_err(|e| {
+                ManifestError::Parse(toml::de::Error::custom(format!(
+                    "manifest is not valid utf-8: {e}"
+                )))
+            })?)?;
+
+        verify_plugin_manifest(
+            path,
+            &manifest_bytes,
+            manifest.public_key.as_deref(),
+            policy,
+        )
+        .map_err(ManifestError::Verification)?;
+
+        Ok(Self::from_manifest(path, manifest))
+    }
+
+    /// Build a `LoadedPlugin` from an already-parsed manifest.
+    pub fn from_manifest(path: &Path, manifest: PluginManifest) -> Self {
         let mut skill_prompts = HashMap::new();
         let mut hooks = Vec::new();
         let mut verifiers = Vec::new();
@@ -247,14 +293,14 @@ impl LoadedPlugin {
             }
         }
 
-        Ok(Self {
+        Self {
             manifest,
             root: path.to_path_buf(),
             skill_prompts,
             hooks,
             verifiers,
             tools,
-        })
+        }
     }
 }
 

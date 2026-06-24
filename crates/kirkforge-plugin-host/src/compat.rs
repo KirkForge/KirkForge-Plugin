@@ -40,6 +40,7 @@ pub fn load_skill_dir(path: &Path) -> anyhow::Result<Option<LoadedPlugin>> {
             skill_file: Some(PathBuf::from("SKILL.md")),
             model_hint: None,
         }],
+        public_key: None,
         metadata: HashMap::new(),
     };
 

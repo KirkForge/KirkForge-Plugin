@@ -5,6 +5,7 @@
 //! loaded plugins.
 
 mod compat;
+mod env;
 mod hook;
 mod sandbox;
 mod tool;
@@ -12,18 +13,21 @@ mod toolset;
 mod verifier;
 
 pub use compat::{load_skill_dir, load_skills_dir};
+pub use env::build_plugin_env;
 pub use hook::{HookError, HookVerdict, PluginHook};
 pub use sandbox::SandboxPolicy;
 pub use tool::{PluginTool, ToolError, KIRKFORGE_TOOL_ARGS};
 pub use toolset::{CompositeToolset, PluginToolset, ToolInfo, Toolset};
 pub use verifier::{PluginVerifier, VerifierError, VerifierVerdict};
 
-use kirkforge_plugin::{Capability, LoadedPlugin, Plugin, PluginManifest, TrustTier};
+use kirkforge_plugin::{
+    Capability, LoadedPlugin, Plugin, PluginManifest, PluginVerificationPolicy, TrustTier,
+};
 use std::collections::HashMap;
 use std::path::Path;
 
 /// Policy the host applies to all loaded plugins.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustPolicy {
     /// Highest tier the host will allow. Plugins requesting more are
     /// either blocked or downgraded (configurable).
@@ -33,13 +37,16 @@ pub struct TrustPolicy {
     /// plugin loaded with `max = shell` keeps shell tools but loses
     /// network ones). For v1 we reject by default — least surprise.
     pub reject_on_excess: bool,
+    /// Signature and integrity verification policy.
+    pub verification: PluginVerificationPolicy,
 }
 
 impl Default for TrustPolicy {
     fn default() -> Self {
         Self {
-            max: TrustTier::Shell,
+            max: TrustTier::ReadOnly,
             reject_on_excess: true,
+            verification: PluginVerificationPolicy::allow_unsigned(),
         }
     }
 }
@@ -50,7 +57,14 @@ impl TrustPolicy {
         Self {
             max,
             reject_on_excess: true,
+            verification: PluginVerificationPolicy::allow_unsigned(),
         }
+    }
+
+    /// Set the verification policy and return self for chaining.
+    pub fn with_verification(mut self, verification: PluginVerificationPolicy) -> Self {
+        self.verification = verification;
+        self
     }
 }
 
@@ -127,9 +141,9 @@ impl PluginRegistry {
             {
                 continue;
             }
-            match LoadedPlugin::load(&path) {
+            match LoadedPlugin::load_with_verification(&path, &policy.verification) {
                 Ok(plugin) => {
-                    let hosted = apply_policy(plugin, policy);
+                    let hosted = apply_policy(plugin, policy.clone());
                     if let Some(ref reason) = hosted.rejection {
                         warnings.push(format!("{}: {}", hosted.plugin.manifest.name, reason));
                     } else {
@@ -192,24 +206,24 @@ impl PluginRegistry {
         self.plugins.iter().filter(|p| p.is_active()).collect()
     }
 
-    /// Find an active plugin that exposes a tool by name.
-    pub fn tool_by_name(&self, name: &str) -> Option<(&PluginManifest, &dyn Plugin)> {
+    /// Find the active hosted plugin that exposes a tool by name.
+    pub fn tool_by_name(&self, name: &str) -> Option<&HostedPlugin> {
         let &idx = self.tools_by_name.get(name)?;
         let hosted = self.plugins.get(idx)?;
         if !hosted.is_active() {
             return None;
         }
-        Some((&hosted.plugin.manifest, &hosted.plugin as &dyn Plugin))
+        Some(hosted)
     }
 
-    /// Find all active plugins that expose a hook for `event`.
-    pub fn hooks_for_event(&self, event: &str) -> Vec<(&PluginManifest, &dyn Plugin)> {
+    /// Find all active hosted plugins that expose a hook for `event`.
+    pub fn hooks_for_event(&self, event: &str) -> Vec<&HostedPlugin> {
         let mut out = Vec::new();
         if let Some(idxs) = self.hooks_by_event.get(event) {
             for &idx in idxs {
                 if let Some(hosted) = self.plugins.get(idx) {
                     if hosted.is_active() {
-                        out.push((&hosted.plugin.manifest, &hosted.plugin as &dyn Plugin));
+                        out.push(hosted);
                     }
                 }
             }
@@ -217,14 +231,14 @@ impl PluginRegistry {
         out
     }
 
-    /// Find an active plugin verifier by name.
-    pub fn verifier_by_name(&self, name: &str) -> Option<(&PluginManifest, &dyn Plugin)> {
+    /// Find the active hosted plugin verifier by name.
+    pub fn verifier_by_name(&self, name: &str) -> Option<&HostedPlugin> {
         let &idx = self.verifiers_by_name.get(name)?;
         let hosted = self.plugins.get(idx)?;
         if !hosted.is_active() {
             return None;
         }
-        Some((&hosted.plugin.manifest, &hosted.plugin as &dyn Plugin))
+        Some(hosted)
     }
 }
 

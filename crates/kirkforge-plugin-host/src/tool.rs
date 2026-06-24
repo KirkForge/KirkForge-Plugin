@@ -2,10 +2,14 @@
 //!
 //! v1 tools are shell scripts. The host serializes the tool arguments as JSON
 //! in the `KIRKFORGE_TOOL_ARGS` environment variable and reads the tool result
-//! from stdout. A non-zero exit code becomes an error using stderr as the
-//! message.
+//! from stdout. The subprocess receives a minimal safe environment; the host
+//! process environment is never inherited, so secrets are not leaked to plugin
+//! code. A non-zero exit code becomes an error using stderr as the message.
 
-use kirkforge_plugin::Capability;
+use crate::env::build_plugin_env;
+use crate::SandboxPolicy;
+use kirkforge_plugin::{Capability, TrustTier};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -20,6 +24,11 @@ pub struct PluginTool {
     pub schema: serde_json::Value,
     pub command: PathBuf,
     pub plugin_root: PathBuf,
+    pub plugin_name: String,
+    /// Trust tier the plugin was loaded under.
+    pub effective_trust: TrustTier,
+    /// Minimum trust tier required to run this tool.
+    required_trust: TrustTier,
 }
 
 /// Errors that can occur when running a plugin tool.
@@ -27,13 +36,23 @@ pub struct PluginTool {
 pub enum ToolError {
     #[error("tool command not found: {0}")]
     NotFound(PathBuf),
+    #[error("tool blocked: required trust '{required}' exceeds effective trust '{effective}'")]
+    TrustViolation {
+        required: TrustTier,
+        effective: TrustTier,
+    },
     #[error("tool failed to execute: {0}")]
     Io(#[from] std::io::Error),
 }
 
 impl PluginTool {
     /// Build a `PluginTool` from a tool capability.
-    pub fn from_capability(cap: &Capability, plugin_root: &Path) -> Option<Self> {
+    pub fn from_capability(
+        cap: &Capability,
+        plugin_root: &Path,
+        plugin_name: &str,
+        effective_trust: TrustTier,
+    ) -> Option<Self> {
         match cap {
             Capability::Tool {
                 name,
@@ -48,6 +67,9 @@ impl PluginTool {
                     schema: schema.clone(),
                     command,
                     plugin_root: plugin_root.to_path_buf(),
+                    plugin_name: plugin_name.into(),
+                    effective_trust,
+                    required_trust: SandboxPolicy::required_tier(cap),
                 })
             }
             _ => None,
@@ -56,15 +78,27 @@ impl PluginTool {
 
     /// Execute the tool with the given JSON arguments.
     pub fn execute(&self, args: serde_json::Value) -> Result<String, ToolError> {
+        if !self.effective_trust.permits(self.required_trust) {
+            return Err(ToolError::TrustViolation {
+                required: self.required_trust,
+                effective: self.effective_trust,
+            });
+        }
+
         let cmd_path = self.plugin_root.join(&self.command);
         if !cmd_path.exists() {
             return Err(ToolError::NotFound(cmd_path));
         }
 
+        let mut extra_env = HashMap::new();
+        extra_env.insert(KIRKFORGE_TOOL_ARGS.into(), args.to_string());
+        let env = build_plugin_env(&self.plugin_root, &self.plugin_name, &extra_env);
+
         let mut attempts = 0;
         let output = loop {
             match Command::new(&cmd_path)
-                .env(KIRKFORGE_TOOL_ARGS, args.to_string())
+                .env_clear()
+                .envs(&env)
                 .current_dir(&self.plugin_root)
                 .output()
             {
@@ -96,6 +130,14 @@ mod tests {
     use super::*;
 
     fn make_tool(name: &str, body: &str) -> (tempfile::TempDir, PluginTool) {
+        make_tool_with_trust(name, body, TrustTier::Shell)
+    }
+
+    fn make_tool_with_trust(
+        name: &str,
+        body: &str,
+        effective_trust: TrustTier,
+    ) -> (tempfile::TempDir, PluginTool) {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         let command = std::path::PathBuf::from(name);
@@ -115,7 +157,15 @@ mod tests {
             description: "test tool".into(),
             schema: serde_json::Value::Null,
             command,
-            plugin_root: root,
+            plugin_root: root.clone(),
+            plugin_name: "test-plugin".into(),
+            effective_trust,
+            required_trust: SandboxPolicy::required_tier(&Capability::Tool {
+                name: "test".into(),
+                description: String::new(),
+                schema: serde_json::Value::Null,
+                command: Some(root.clone()),
+            }),
         };
         (tmp, tool)
     }
@@ -138,5 +188,12 @@ mod tests {
     fn non_zero_becomes_error() {
         let (_tmp, tool) = make_tool("fail.sh", "echo boom >&2\nexit 1");
         assert!(tool.execute(serde_json::Value::Null).is_err());
+    }
+
+    #[test]
+    fn insufficient_trust_blocks_tool() {
+        let (_tmp, tool) = make_tool_with_trust("blocked.sh", "echo hello", TrustTier::ReadOnly);
+        let err = tool.execute(serde_json::Value::Null).unwrap_err();
+        assert!(err.to_string().contains("blocked"));
     }
 }

@@ -1,10 +1,14 @@
 //! Plugin-defined verifier wrapper.
 //!
-//! v1 verifiers are shell scripts invoked with environment variables describing
-//! the event being verified. A zero exit code means the check passed; any
-//! non-zero exit code fails, with stderr as the failure message.
+//! v1 verifiers are shell scripts invoked with a minimal, explicit environment
+//! plus any extra variables the host chooses to expose. The host process
+//! environment is never inherited, so secrets are not leaked to plugin code.
+//! A zero exit code means the check passed; any non-zero exit code fails, with
+//! stderr as the failure message.
 
-use kirkforge_plugin::Capability;
+use crate::env::build_plugin_env;
+use crate::SandboxPolicy;
+use kirkforge_plugin::{Capability, TrustTier};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,6 +19,11 @@ pub struct PluginVerifier {
     pub name: String,
     pub command: PathBuf,
     pub plugin_root: PathBuf,
+    pub plugin_name: String,
+    /// Trust tier the plugin was loaded under.
+    pub effective_trust: TrustTier,
+    /// Minimum trust tier required to run this verifier.
+    required_trust: TrustTier,
 }
 
 /// Outcome of a verifier invocation.
@@ -29,13 +38,23 @@ pub enum VerifierVerdict {
 pub enum VerifierError {
     #[error("verifier command not found: {0}")]
     NotFound(PathBuf),
+    #[error("verifier blocked: required trust '{required}' exceeds effective trust '{effective}'")]
+    TrustViolation {
+        required: TrustTier,
+        effective: TrustTier,
+    },
     #[error("verifier failed to execute: {0}")]
     Io(#[from] std::io::Error),
 }
 
 impl PluginVerifier {
     /// Build a `PluginVerifier` from a verifier capability.
-    pub fn from_capability(cap: &Capability, plugin_root: &Path) -> Option<Self> {
+    pub fn from_capability(
+        cap: &Capability,
+        plugin_root: &Path,
+        plugin_name: &str,
+        effective_trust: TrustTier,
+    ) -> Option<Self> {
         match cap {
             Capability::Verifier { name, command, .. } => {
                 let command = command.clone()?;
@@ -43,23 +62,42 @@ impl PluginVerifier {
                     name: name.clone(),
                     command,
                     plugin_root: plugin_root.to_path_buf(),
+                    plugin_name: plugin_name.into(),
+                    effective_trust,
+                    required_trust: SandboxPolicy::required_tier(cap),
                 })
             }
             _ => None,
         }
     }
 
-    /// Run the verifier script with the given environment.
-    pub fn run(&self, env: &HashMap<String, String>) -> Result<VerifierVerdict, VerifierError> {
+    /// Run the verifier script with the given extra environment.
+    ///
+    /// The subprocess receives a minimal safe environment plus any variables
+    /// in `extra_env`. The host process environment is never inherited.
+    pub fn run(
+        &self,
+        extra_env: &HashMap<String, String>,
+    ) -> Result<VerifierVerdict, VerifierError> {
+        if !self.effective_trust.permits(self.required_trust) {
+            return Err(VerifierError::TrustViolation {
+                required: self.required_trust,
+                effective: self.effective_trust,
+            });
+        }
+
         let cmd_path = self.plugin_root.join(&self.command);
         if !cmd_path.exists() {
             return Err(VerifierError::NotFound(cmd_path));
         }
 
+        let env = build_plugin_env(&self.plugin_root, &self.plugin_name, extra_env);
+
         let mut attempts = 0;
         let output = loop {
             match Command::new(&cmd_path)
-                .envs(env)
+                .env_clear()
+                .envs(&env)
                 .current_dir(&self.plugin_root)
                 .output()
             {
@@ -91,6 +129,14 @@ mod tests {
     use super::*;
 
     fn make_verifier(name: &str, body: &str) -> (tempfile::TempDir, PluginVerifier) {
+        make_verifier_with_trust(name, body, TrustTier::ReadOnly)
+    }
+
+    fn make_verifier_with_trust(
+        name: &str,
+        body: &str,
+        effective_trust: TrustTier,
+    ) -> (tempfile::TempDir, PluginVerifier) {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         let command = std::path::PathBuf::from(name);
@@ -108,7 +154,14 @@ mod tests {
         let verifier = PluginVerifier {
             name: "test".into(),
             command,
-            plugin_root: root,
+            plugin_root: root.clone(),
+            plugin_name: "test-plugin".into(),
+            effective_trust,
+            required_trust: SandboxPolicy::required_tier(&Capability::Verifier {
+                name: "test".into(),
+                priority: 0,
+                command: Some(root.clone()),
+            }),
         };
         (tmp, verifier)
     }
@@ -128,5 +181,12 @@ mod tests {
                 message: "bad".into()
             }
         );
+    }
+
+    #[test]
+    fn verifier_never_blocked_by_readonly_default() {
+        // Verifiers require ReadOnly, so ReadOnly effective trust is sufficient.
+        let (_tmp, v) = make_verifier_with_trust("readonly.sh", "exit 0", TrustTier::ReadOnly);
+        assert_eq!(v.run(&HashMap::new()).unwrap(), VerifierVerdict::Pass);
     }
 }
